@@ -1,0 +1,235 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B9B05039-B3B3-4EEB-B0A3-631D7021A55E}</ProjectGuid>
+    <RootNamespace>PoleBalancingSFML</RootNamespace>
+    <ProjectName>AILib</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <FloatingPointModel>Strict</FloatingPointModel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>sfml-main-d.lib;sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;sfml-audio-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>sfml-system.lib;sfml-window.lib;sfml-graphics.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>sfml-main.lib;sfml-system.lib;sfml-window.lib;sfml-graphics.lib;sfml-audio.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\experiments\ExperimentAND.cpp" />
+    <ClCompile Include="Source\experiments\ExperimentOR.cpp" />
+    <ClCompile Include="Source\experiments\ExperimentPoleBalancing.cpp" />
+    <ClCompile Include="Source\experiments\ExperimentXOR.cpp" />
+    <ClCompile Include="Source\hypernet\BayesianOptimizer.cpp" />
+    <ClCompile Include="Source\hypernet\BayesianOptimizerTrainer.cpp" />
+    <ClCompile Include="Source\hypernet\Boid.cpp" />
+    <ClCompile Include="Source\hypernet\Config.cpp" />
+    <ClCompile Include="Source\hypernet\Decoder.cpp" />
+    <ClCompile Include="Source\hypernet\Encoder.cpp" />
+    <ClCompile Include="Source\hypernet\EvolutionaryAlgorithm.cpp" />
+    <ClCompile Include="Source\hypernet\Experiment.cpp" />
+    <ClCompile Include="Source\hypernet\FunctionApproximator.cpp" />
+    <ClCompile Include="Source\hypernet\HyperNet.cpp" />
+    <ClCompile Include="Source\hypernet\Link.cpp" />
+    <ClCompile Include="Source\hypernet\Orchestrator.cpp" />
+    <ClCompile Include="Source\hypernet\SampleField.cpp" />
+    <ClCompile Include="Source\hypernet\EvolutionaryTrainer.cpp" />
+    <ClCompile Include="Source\lstmrl\LSTMRL.cpp" />
+    <ClCompile Include="Source\lstm\LSTMActorCritic.cpp" />
+    <ClCompile Include="Source\lstm\LSTMG.cpp" />
+    <ClCompile Include="Source\lstm\LSTMNet.cpp" />
+    <ClCompile Include="Source\nn\MultiQ.cpp" />
+    <ClCompile Include="Source\nn\NCPSOAgent.cpp" />
+    <ClCompile Include="Source\nn\PSOAgent.cpp" />
+    <ClCompile Include="Source\nn\SOM.cpp" />
+    <ClCompile Include="Source\Main.cpp" />
+    <ClCompile Include="Source\nn\ActorCriticAgent.cpp" />
+    <ClCompile Include="Source\nn\BrownianPerturbation.cpp" />
+    <ClCompile Include="Source\nn\Cacla.cpp" />
+    <ClCompile Include="Source\nn\FeedForwardNeuralNetwork.cpp" />
+    <ClCompile Include="Source\nn\GeneticAlgorithm.cpp" />
+    <ClCompile Include="Source\nn\MemoryActor.cpp" />
+    <ClCompile Include="Source\nn\MemoryCell.cpp" />
+    <ClCompile Include="Source\nn\Neuron.cpp" />
+    <ClCompile Include="Source\nn\QAgent.cpp" />
+    <ClCompile Include="Source\nn\RLLSTMAgent.cpp" />
+    <ClCompile Include="Source\nn\SOMQAgent.cpp" />
+    <ClCompile Include="Source\nn\TabularQ.cpp" />
+    <ClCompile Include="Source\raahn\AutoEncoder.cpp" />
+    <ClCompile Include="Source\raahn\HebbianLearner.cpp" />
+    <ClCompile Include="Source\raahn\RAAHN.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\experiments\ExperimentAND.h" />
+    <ClInclude Include="Source\experiments\ExperimentOR.h" />
+    <ClInclude Include="Source\experiments\ExperimentPoleBalancing.h" />
+    <ClInclude Include="Source\experiments\ExperimentXOR.h" />
+    <ClInclude Include="Source\hypernet\BayesianOptimizer.h" />
+    <ClInclude Include="Source\hypernet\BayesianOptimizerTrainer.h" />
+    <ClInclude Include="Source\hypernet\Boid.h" />
+    <ClInclude Include="Source\hypernet\Config.h" />
+    <ClInclude Include="Source\hypernet\Decoder.h" />
+    <ClInclude Include="Source\hypernet\Encoder.h" />
+    <ClInclude Include="Source\hypernet\EvolutionaryAlgorithm.h" />
+    <ClInclude Include="Source\hypernet\Experiment.h" />
+    <ClInclude Include="Source\hypernet\FunctionApproximator.h" />
+    <ClInclude Include="Source\hypernet\HyperNet.h" />
+    <ClInclude Include="Source\hypernet\Link.h" />
+    <ClInclude Include="Source\hypernet\Orchestrator.h" />
+    <ClInclude Include="Source\hypernet\SampleField.h" />
+    <ClInclude Include="Source\hypernet\EvolutionaryTrainer.h" />
+    <ClInclude Include="Source\lstmrl\LSTMRL.h" />
+    <ClInclude Include="Source\lstm\LSTMActorCritic.h" />
+    <ClInclude Include="Source\lstm\LSTMG.h" />
+    <ClInclude Include="Source\lstm\LSTMNet.h" />
+    <ClInclude Include="Source\lstm\TupleHash.h" />
+    <ClInclude Include="Source\nn\MultiQ.h" />
+    <ClInclude Include="Source\nn\NCPSOAgent.h" />
+    <ClInclude Include="Source\nn\PSOAgent.h" />
+    <ClInclude Include="Source\nn\SOM.h" />
+    <ClInclude Include="Source\nn\ActorCriticAgent.h" />
+    <ClInclude Include="Source\nn\BrownianPerturbation.h" />
+    <ClInclude Include="Source\nn\Cacla.h" />
+    <ClInclude Include="Source\nn\FeedForwardNeuralNetwork.h" />
+    <ClInclude Include="Source\nn\GeneticAlgorithm.h" />
+    <ClInclude Include="Source\nn\MemoryActor.h" />
+    <ClInclude Include="Source\nn\MemoryCell.h" />
+    <ClInclude Include="Source\nn\Neuron.h" />
+    <ClInclude Include="Source\nn\QAgent.h" />
+    <ClInclude Include="Source\nn\RLLSTMAgent.h" />
+    <ClInclude Include="Source\nn\Sensor.h" />
+    <ClInclude Include="Source\nn\SOMQAgent.h" />
+    <ClInclude Include="Source\nn\TabularQ.h" />
+    <ClInclude Include="Source\raahn\AutoEncoder.h" />
+    <ClInclude Include="Source\raahn\HebbianLearner.h" />
+    <ClInclude Include="Source\raahn\RAAHN.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

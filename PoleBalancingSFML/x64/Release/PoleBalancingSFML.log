@@ -1,0 +1,154 @@
+﻿Build started 6/15/2014 10:52:58 PM.
+     1>Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /O2 /Oi /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Release\\" /Fd"x64\Release\vc120.pdb" /Gd /TP /errorReport:prompt Source\Main.cpp Source\experiments\ExperimentAND.cpp Source\experiments\ExperimentOR.cpp Source\experiments\ExperimentPoleBalancing.cpp Source\experiments\ExperimentXOR.cpp Source\hypernet\BayesianOptimizer.cpp Source\hypernet\BayesianOptimizerTrainer.cpp Source\hypernet\Boid.cpp Source\hypernet\Config.cpp Source\hypernet\Decoder.cpp Source\hypernet\Encoder.cpp Source\hypernet\EvolutionaryAlgorithm.cpp Source\hypernet\EvolutionaryTrainer.cpp Source\hypernet\Experiment.cpp Source\hypernet\FunctionApproximator.cpp Source\hypernet\HyperNet.cpp Source\hypernet\Link.cpp Source\hypernet\Orchestrator.cpp Source\hypernet\SampleField.cpp Source\lstm\LSTMActorCritic.cpp Source\lstm\LSTMG.cpp Source\lstm\LSTMNet.cpp Source\lstmrl\LSTMRL.cpp Source\nn\ActorCriticAgent.cpp Source\nn\BrownianPerturbation.cpp Source\nn\Cacla.cpp Source\nn\FeedForwardNeuralNetwork.cpp Source\nn\GeneticAlgorithm.cpp Source\nn\MemoryActor.cpp Source\nn\MemoryCell.cpp Source\nn\MultiQ.cpp Source\nn\NCPSOAgent.cpp Source\nn\Neuron.cpp Source\nn\PSOAgent.cpp Source\nn\QAgent.cpp Source\nn\RLLSTMAgent.cpp Source\nn\SOM.cpp Source\nn\SOMQAgent.cpp Source\nn\TabularQ.cpp Source\raahn\AutoEncoder.cpp Source\raahn\HebbianLearner.cpp Source\raahn\RAAHN.cpp
+         Main.cpp
+     1>Source\Main.cpp(451): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+         ExperimentAND.cpp
+         ExperimentOR.cpp
+         ExperimentPoleBalancing.cpp
+         ExperimentXOR.cpp
+         BayesianOptimizer.cpp
+         BayesianOptimizerTrainer.cpp
+         Boid.cpp
+         Config.cpp
+         Decoder.cpp
+         Encoder.cpp
+         EvolutionaryAlgorithm.cpp
+         EvolutionaryTrainer.cpp
+         Experiment.cpp
+         FunctionApproximator.cpp
+         HyperNet.cpp
+     1>Source\hypernet\HyperNet.cpp(559): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(638): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(681): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(683): warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(689): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(697): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(699): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(705): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(713): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(715): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(727): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(729): warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(744): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(787): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(791): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\hypernet\HyperNet.cpp(816): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         Link.cpp
+         Orchestrator.cpp
+         SampleField.cpp
+         LSTMActorCritic.cpp
+     1>Source\lstm\LSTMActorCritic.cpp(44): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMActorCritic.cpp(45): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMActorCritic.cpp(56): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMActorCritic.cpp(70): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMActorCritic.cpp(84): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMActorCritic.cpp(91): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         Compiling...
+         LSTMG.cpp
+     1>Source\lstm\LSTMG.cpp(69): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(75): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(97): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(103): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(125): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(150): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(160): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(166): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(233): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(239): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(272): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(278): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(311): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(336): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(357): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(363): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(437): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(480): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(511): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(514): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(544): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(660): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\lstm\LSTMG.cpp(714): warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+         LSTMNet.cpp
+         LSTMRL.cpp
+     1>Source\lstmrl\LSTMRL.cpp(272): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         ActorCriticAgent.cpp
+         BrownianPerturbation.cpp
+         Cacla.cpp
+     1>Source\nn\Cacla.cpp(159): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\nn\Cacla.cpp(179): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         FeedForwardNeuralNetwork.cpp
+         GeneticAlgorithm.cpp
+         MemoryActor.cpp
+         MemoryCell.cpp
+         MultiQ.cpp
+     1>Source\nn\MultiQ.cpp(61): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         NCPSOAgent.cpp
+         Neuron.cpp
+         PSOAgent.cpp
+     1>Source\nn\PSOAgent.cpp(97): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         QAgent.cpp
+         RLLSTMAgent.cpp
+         SOM.cpp
+     1>Source\nn\SOM.cpp(38): warning C4244: 'argument' : conversion from 'double' to 'unsigned __int64', possible loss of data
+     1>Source\nn\SOM.cpp(60): warning C4267: '+=' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\nn\SOM.cpp(90): warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
+         SOMQAgent.cpp
+         TabularQ.cpp
+     1>Source\nn\TabularQ.cpp(47): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         AutoEncoder.cpp
+         Compiling...
+         HebbianLearner.cpp
+         RAAHN.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Release\PoleBalancingSFML.exe" /NOLOGO "sfml-main.lib" "sfml-system.lib" "sfml-window.lib" "sfml-graphics.lib" "sfml-audio.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Release\PoleBalancingSFML.pdb" /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Release\PoleBalancingSFML.lib" /MACHINE:X64 x64\Release\ExperimentAND.obj
+         x64\Release\ExperimentOR.obj
+         x64\Release\ExperimentPoleBalancing.obj
+         x64\Release\ExperimentXOR.obj
+         x64\Release\BayesianOptimizer.obj
+         x64\Release\BayesianOptimizerTrainer.obj
+         x64\Release\Boid.obj
+         x64\Release\Config.obj
+         x64\Release\Decoder.obj
+         x64\Release\Encoder.obj
+         x64\Release\EvolutionaryAlgorithm.obj
+         x64\Release\Experiment.obj
+         x64\Release\FunctionApproximator.obj
+         x64\Release\HyperNet.obj
+         x64\Release\Link.obj
+         x64\Release\Orchestrator.obj
+         x64\Release\SampleField.obj
+         x64\Release\EvolutionaryTrainer.obj
+         x64\Release\LSTMRL.obj
+         x64\Release\LSTMActorCritic.obj
+         x64\Release\LSTMG.obj
+         x64\Release\LSTMNet.obj
+         x64\Release\MultiQ.obj
+         x64\Release\NCPSOAgent.obj
+         x64\Release\PSOAgent.obj
+         x64\Release\SOM.obj
+         x64\Release\Main.obj
+         x64\Release\ActorCriticAgent.obj
+         x64\Release\BrownianPerturbation.obj
+         x64\Release\Cacla.obj
+         x64\Release\FeedForwardNeuralNetwork.obj
+         x64\Release\GeneticAlgorithm.obj
+         x64\Release\MemoryActor.obj
+         x64\Release\MemoryCell.obj
+         x64\Release\Neuron.obj
+         x64\Release\QAgent.obj
+         x64\Release\RLLSTMAgent.obj
+         x64\Release\SOMQAgent.obj
+         x64\Release\TabularQ.obj
+         x64\Release\AutoEncoder.obj
+         x64\Release\HebbianLearner.obj
+         x64\Release\RAAHN.obj
+         Generating code
+         Finished generating code
+         PoleBalancingSFML.vcxproj -> C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Release\PoleBalancingSFML.exe
+     1>Done Building Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:21.54

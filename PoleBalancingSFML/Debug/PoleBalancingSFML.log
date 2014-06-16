@@ -1,0 +1,24 @@
+﻿Build started 11/1/2013 11:24:55 PM.
+     1>Project "c:\Users\Eric\documents\visual studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"c:\users\eric\documents\visual studio 2013\Projects\PoleBalancingSFML\Debug\PoleBalancingSFML.exe" /INCREMENTAL /NOLOGO "sfml-system-d.lib" "sfml-window-d.lib" "sfml-graphics-d.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"c:\users\eric\documents\visual studio 2013\Projects\PoleBalancingSFML\Debug\PoleBalancingSFML.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"c:\users\eric\documents\visual studio 2013\Projects\PoleBalancingSFML\Debug\PoleBalancingSFML.lib" /MACHINE:X86 Debug\Main.obj
+         Debug\ActorCriticAgent.obj
+         Debug\BrownianPerturbation.obj
+         Debug\Cacla.obj
+         Debug\FeedForwardNeuralNetwork.obj
+         Debug\GeneticAlgorithm.obj
+         Debug\Neuron.obj
+         Debug\QAgent.obj
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: __thiscall sf::String::String(char const *,class std::locale const &)" (__imp_??0String@sf@@QAE@PBDABVlocale@std@@@Z) referenced in function _main
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: __thiscall sf::String::~String(void)" (__imp_??1String@sf@@QAE@XZ) referenced in function _main
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: __thiscall sf::VideoMode::VideoMode(unsigned int,unsigned int,unsigned int)" (__imp_??0VideoMode@sf@@QAE@III@Z) referenced in function _main
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: void __thiscall sf::Window::create(class sf::VideoMode,class sf::String const &,unsigned int,struct sf::ContextSettings const &)" (__imp_?create@Window@sf@@QAEXVVideoMode@2@ABVString@2@IABUContextSettings@2@@Z) referenced in function _main
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: __thiscall sf::RenderWindow::RenderWindow(void)" (__imp_??0RenderWindow@sf@@QAE@XZ) referenced in function _main
+     1>Main.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: virtual __thiscall sf::RenderWindow::~RenderWindow(void)" (__imp_??1RenderWindow@sf@@UAE@XZ) referenced in function _main
+     1>MSVCRTD.lib(crtexew.obj) : error LNK2019: unresolved external symbol _WinMain@16 referenced in function ___tmainCRTStartup
+     1>c:\users\eric\documents\visual studio 2013\Projects\PoleBalancingSFML\Debug\PoleBalancingSFML.exe : fatal error LNK1120: 7 unresolved externals
+     1>Done Building Project "c:\Users\Eric\documents\visual studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.19

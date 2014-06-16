@@ -1,0 +1,55 @@
+﻿Build started 6/14/2014 8:09:09 PM.
+     1>Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /Od /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:strict /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Source\Main.cpp
+         Main.cpp
+     1>Source\Main.cpp(451): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.exe" /INCREMENTAL /NOLOGO "sfml-main-d.lib" "sfml-system-d.lib" "sfml-window-d.lib" "sfml-graphics-d.lib" "sfml-audio-d.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.lib" /MACHINE:X64 x64\Debug\ExperimentAND.obj
+         x64\Debug\ExperimentOR.obj
+         x64\Debug\ExperimentPoleBalancing.obj
+         x64\Debug\ExperimentXOR.obj
+         x64\Debug\BayesianOptimizer.obj
+         x64\Debug\BayesianOptimizerTrainer.obj
+         x64\Debug\Boid.obj
+         x64\Debug\Config.obj
+         x64\Debug\Decoder.obj
+         x64\Debug\Encoder.obj
+         x64\Debug\EvolutionaryAlgorithm.obj
+         x64\Debug\Experiment.obj
+         x64\Debug\FunctionApproximator.obj
+         x64\Debug\HyperNet.obj
+         x64\Debug\Link.obj
+         x64\Debug\Orchestrator.obj
+         x64\Debug\SampleField.obj
+         x64\Debug\EvolutionaryTrainer.obj
+         x64\Debug\LSTMRL.obj
+         x64\Debug\LSTMActorCritic.obj
+         x64\Debug\LSTMG.obj
+         x64\Debug\LSTMNet.obj
+         x64\Debug\MultiQ.obj
+         x64\Debug\NCPSOAgent.obj
+         x64\Debug\PSOAgent.obj
+         x64\Debug\SOM.obj
+         x64\Debug\Main.obj
+         x64\Debug\ActorCriticAgent.obj
+         x64\Debug\BrownianPerturbation.obj
+         x64\Debug\Cacla.obj
+         x64\Debug\FeedForwardNeuralNetwork.obj
+         x64\Debug\GeneticAlgorithm.obj
+         x64\Debug\MemoryActor.obj
+         x64\Debug\MemoryCell.obj
+         x64\Debug\Neuron.obj
+         x64\Debug\QAgent.obj
+         x64\Debug\RLLSTMAgent.obj
+         x64\Debug\SOMQAgent.obj
+         x64\Debug\TabularQ.obj
+         x64\Debug\AutoEncoder.obj
+         x64\Debug\HebbianLearner.obj
+         x64\Debug\RAAHN.obj
+         PoleBalancingSFML.vcxproj -> C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.exe
+     1>Done Building Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:02.22
