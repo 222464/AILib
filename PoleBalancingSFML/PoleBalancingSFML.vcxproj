@@ -141,10 +141,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\ctrnn\CTRNN.cpp" />
+    <ClCompile Include="Source\ctrnn\GeneticAlgorithm.cpp" />
+    <ClCompile Include="Source\deep\DAutoEncoder.cpp" />
+    <ClCompile Include="Source\deep\AutoLSTM.cpp" />
+    <ClCompile Include="Source\deep\RBM.cpp" />
+    <ClCompile Include="Source\dnf\Field.cpp" />
+    <ClCompile Include="Source\elman\ElmanNetwork.cpp" />
     <ClCompile Include="Source\experiments\ExperimentAND.cpp" />
     <ClCompile Include="Source\experiments\ExperimentOR.cpp" />
     <ClCompile Include="Source\experiments\ExperimentPoleBalancing.cpp" />
     <ClCompile Include="Source\experiments\ExperimentXOR.cpp" />
+    <ClCompile Include="Source\falcon\Falcon.cpp" />
     <ClCompile Include="Source\hypernet\BayesianOptimizer.cpp" />
     <ClCompile Include="Source\hypernet\BayesianOptimizerTrainer.cpp" />
     <ClCompile Include="Source\hypernet\Boid.cpp" />
@@ -162,6 +170,7 @@
     <ClCompile Include="Source\lstmrl\LSTMRL.cpp" />
     <ClCompile Include="Source\lstm\LSTMActorCritic.cpp" />
     <ClCompile Include="Source\lstm\LSTMG.cpp" />
+    <ClCompile Include="Source\lstm\LSTMGQ.cpp" />
     <ClCompile Include="Source\lstm\LSTMNet.cpp" />
     <ClCompile Include="Source\nn\MultiQ.cpp" />
     <ClCompile Include="Source\nn\NCPSOAgent.cpp" />
@@ -185,10 +194,18 @@
     <ClCompile Include="Source\raahn\RAAHN.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\ctrnn\CTRNN.h" />
+    <ClInclude Include="Source\ctrnn\GeneticAlgorithm.h" />
+    <ClInclude Include="Source\deep\DAutoEncoder.h" />
+    <ClInclude Include="Source\deep\AutoLSTM.h" />
+    <ClInclude Include="Source\deep\RBM.h" />
+    <ClInclude Include="Source\dnf\Field.h" />
+    <ClInclude Include="Source\elman\ElmanNetwork.h" />
     <ClInclude Include="Source\experiments\ExperimentAND.h" />
     <ClInclude Include="Source\experiments\ExperimentOR.h" />
     <ClInclude Include="Source\experiments\ExperimentPoleBalancing.h" />
     <ClInclude Include="Source\experiments\ExperimentXOR.h" />
+    <ClInclude Include="Source\falcon\Falcon.h" />
     <ClInclude Include="Source\hypernet\BayesianOptimizer.h" />
     <ClInclude Include="Source\hypernet\BayesianOptimizerTrainer.h" />
     <ClInclude Include="Source\hypernet\Boid.h" />
@@ -206,6 +223,7 @@
     <ClInclude Include="Source\lstmrl\LSTMRL.h" />
     <ClInclude Include="Source\lstm\LSTMActorCritic.h" />
     <ClInclude Include="Source\lstm\LSTMG.h" />
+    <ClInclude Include="Source\lstm\LSTMGQ.h" />
     <ClInclude Include="Source\lstm\LSTMNet.h" />
     <ClInclude Include="Source\lstm\TupleHash.h" />
     <ClInclude Include="Source\nn\MultiQ.h" />

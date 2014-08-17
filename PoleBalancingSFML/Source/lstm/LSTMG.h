@@ -34,6 +34,7 @@ namespace lstm {
 			int _gaterIndex;
 
 			float _eligibility;
+			float _prevWeight;
 		};
 
 		struct Unit {
@@ -43,6 +44,7 @@ namespace lstm {
 
 			float _bias;
 			float _biasEligibility;
+			float _prevBias;
 	
 			std::vector<int> _ingoingConnectionIndices;
 			std::vector<int> _outgoingConnectionIndices;
@@ -85,7 +87,9 @@ namespace lstm {
 
 		void getDeltas(const std::vector<float> &targets, float eligibilityDecay, bool linearOutput);
 
-		void moveAlongDeltas(float error);
+		void getDeltas(const std::vector<float> &targets, std::vector<float> &inputError, float eligibilityDecay, bool linearOutput);
+
+		void moveAlongDeltas(float error, float momentum = 0.0f);
 
 		void setInput(int index, float value) {
 			_units[_inputIndices[index]]._activation = value;
@@ -97,6 +101,14 @@ namespace lstm {
 
 		float getOutput(int index) const {
 			return _units[_outputIndices[index]]._activation;
+		}
+
+		int getNumInputs() const {
+			return _inputIndices.size();
+		}
+
+		int getNumOutputs() const {
+			return _outputIndices.size();
 		}
 
 		void clear();

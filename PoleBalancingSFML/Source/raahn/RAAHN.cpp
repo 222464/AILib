@@ -33,29 +33,30 @@ void RAAHN::createRandom(size_t numInputs, size_t numFeatures, size_t numOutputs
 	_numOutputs = numOutputs;
 	_inputs.assign(numInputs, 0.0f);
 	_features.assign(numFeatures, 0.0f);
-	_outputs.resize(numOutputs + numRecurrentConnections);
 	_hebbianInputs.assign(numFeatures + numRecurrentConnections, 0.0f);
-
-	std::uniform_real_distribution<float> distWeight(minWeight, maxWeight);
-
-	for (size_t n = 0; n < _outputs.size(); n++) {
-		_outputs[n]._bias._weight = distWeight(generator);
-		_outputs[n]._bias._trace = 0.0f;
-
-		_outputs[n]._output = 0.0f;
-
-		_outputs[n]._weights.resize(_hebbianInputs.size());
-
-		for (size_t w = 0; w < _hebbianInputs.size(); w++) {
-			_outputs[n]._weights[w]._weight = distWeight(generator);
-			_outputs[n]._weights[w]._trace = 0.0f;
-		}
-	}
+	_outputs.resize(numOutputs + numRecurrentConnections);
 
 	_autoEncoder.createRandom(numInputs, numFeatures, minWeight, maxWeight, generator);
+	_hebbianLearner.createRandom(numFeatures + numRecurrentConnections, numOutputs + numRecurrentConnections, numHebbianHidden, numNeuronsPerHebbianHidden, minWeight, maxWeight, generator);
 }
 
-void RAAHN::update(float autoEncoderAlpha, float modulation, float traceDecay, float breakRate, std::mt19937 &generator) {
+void RAAHN::createFromParents(const RAAHN &parent1, const RAAHN &parent2, float averageChance, std::mt19937 &generator) {
+	_numOutputs = parent1._numOutputs;
+	_inputs.assign(parent1._inputs.size(), 0.0f);
+	_features.assign(parent1._features.size(), 0.0f);
+	_hebbianInputs.assign(parent1._hebbianInputs.size(), 0.0f);
+	_outputs.resize(parent1._outputs.size());
+
+	_autoEncoder.createFromParents(parent1._autoEncoder, parent2._autoEncoder, averageChance, generator);
+	_hebbianLearner.createFromParents(parent1._hebbianLearner, parent2._hebbianLearner, averageChance, generator);
+}
+
+void RAAHN::mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator) {
+	_autoEncoder.mutate(perturbationChance, perturbationStdDev, generator);
+	_hebbianLearner.mutate(perturbationChance, perturbationStdDev, generator);
+}
+
+void RAAHN::update(float autoEncoderAlpha, float modulation, float traceDecay, float outputDecay, float breakRate, std::mt19937 &generator) {
 	_autoEncoder.update(_inputs, _features, autoEncoderAlpha);
 
 	size_t hebbianInputIndex = 0;
@@ -66,26 +67,7 @@ void RAAHN::update(float autoEncoderAlpha, float modulation, float traceDecay, f
 
 	// Add recurrent outputs to inputs
 	for (size_t i = _numOutputs; i < _outputs.size(); i++)
-		_hebbianInputs[hebbianInputIndex++] = _outputs[i]._output;
+		_hebbianInputs[hebbianInputIndex++] = _outputs[i];
 
-	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
-
-	for (size_t n = 0; n < _outputs.size(); n++) {
-		_outputs[n]._bias._weight += modulation * _outputs[n]._bias._trace;
-
-		float sum = _outputs[n]._bias._weight;
-
-		for (size_t w = 0; w < _outputs[n]._weights.size(); w++) {
-			_outputs[n]._weights[w]._weight += modulation * _outputs[n]._weights[w]._trace;
-			std::cout << _outputs[n]._weights[w]._weight << std::endl;
-			sum += _outputs[n]._weights[w]._weight * _hebbianInputs[w];
-		}
-
-		_outputs[n]._output = (dist01(generator) < breakRate) ? (dist01(generator) * 2.0f) - 1.0f : std::min(1.0f, std::max(-1.0f, sum));
-
-		_outputs[n]._bias._trace += -traceDecay * _outputs[n]._bias._trace + _outputs[n]._output;
-
-		for (size_t w = 0; w < _outputs[n]._weights.size(); w++)
-			_outputs[n]._weights[w]._trace += -traceDecay * _outputs[n]._weights[w]._trace + _outputs[n]._output * _hebbianInputs[w];
-	}
+	_hebbianLearner.process(_hebbianInputs, _outputs, modulation, traceDecay, outputDecay, breakRate, generator);
 }

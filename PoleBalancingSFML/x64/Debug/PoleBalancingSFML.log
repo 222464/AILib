@@ -1,14 +1,29 @@
-﻿Build started 6/14/2014 8:09:09 PM.
-     1>Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
+﻿Build started 8/17/2014 4:10:07 PM.
+     1>Project "C:\Users\Eric\Documents\AILib\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(381,5): warning MSB8028: The intermediate directory (x64\Debug\) contains files shared from another project (PoleBalancingSFML.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(935,5): warning MSB8027: Two or more files with the name of GeneticAlgorithm.cpp will produce outputs to the same location. This can lead to an incorrect build result.  The files involved are Source\ctrnn\GeneticAlgorithm.cpp, Source\nn\GeneticAlgorithm.cpp.
      1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /Od /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:strict /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Source\Main.cpp
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /Od /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:strict /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Source\deep\RBM.cpp Source\Main.cpp
          Main.cpp
-     1>Source\Main.cpp(451): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\lstm/LSTMG.h(107): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
+     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\lstm/LSTMG.h(111): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
+     1>Source\Main.cpp(1156): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+     1>Source\Main.cpp(1251): warning C4244: 'argument' : conversion from 'size_t' to 'float', possible loss of data
+         RBM.cpp
+         Generating Code...
        Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.exe" /INCREMENTAL /NOLOGO "sfml-main-d.lib" "sfml-system-d.lib" "sfml-window-d.lib" "sfml-graphics-d.lib" "sfml-audio-d.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.lib" /MACHINE:X64 x64\Debug\ExperimentAND.obj
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Eric\Documents\AILib\x64\Debug\AILib.exe" /INCREMENTAL /NOLOGO "sfml-main-d.lib" "sfml-system-d.lib" "sfml-window-d.lib" "sfml-graphics-d.lib" "sfml-audio-d.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Eric\Documents\AILib\x64\Debug\AILib.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Eric\Documents\AILib\x64\Debug\AILib.lib" /MACHINE:X64 x64\Debug\CTRNN.obj
+         x64\Debug\GeneticAlgorithm.obj
+         x64\Debug\DAutoEncoder.obj
+         x64\Debug\AutoLSTM.obj
+         x64\Debug\RBM.obj
+         x64\Debug\Field.obj
+         x64\Debug\ElmanNetwork.obj
+         x64\Debug\ExperimentAND.obj
          x64\Debug\ExperimentOR.obj
          x64\Debug\ExperimentPoleBalancing.obj
          x64\Debug\ExperimentXOR.obj
+         x64\Debug\Falcon.obj
          x64\Debug\BayesianOptimizer.obj
          x64\Debug\BayesianOptimizerTrainer.obj
          x64\Debug\Boid.obj
@@ -26,6 +41,7 @@
          x64\Debug\LSTMRL.obj
          x64\Debug\LSTMActorCritic.obj
          x64\Debug\LSTMG.obj
+         x64\Debug\LSTMGQ.obj
          x64\Debug\LSTMNet.obj
          x64\Debug\MultiQ.obj
          x64\Debug\NCPSOAgent.obj
@@ -47,9 +63,10 @@
          x64\Debug\AutoEncoder.obj
          x64\Debug\HebbianLearner.obj
          x64\Debug\RAAHN.obj
-         PoleBalancingSFML.vcxproj -> C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\x64\Debug\PoleBalancingSFML.exe
-     1>Done Building Project "C:\Users\Eric\Documents\Visual Studio 2013\Projects\PoleBalancingSFML\PoleBalancingSFML\PoleBalancingSFML.vcxproj" (Build target(s)).
+     1>x64\Debug\GeneticAlgorithm.obj : warning LNK4042: object specified more than once; extras ignored
+         PoleBalancingSFML.vcxproj -> C:\Users\Eric\Documents\AILib\x64\Debug\AILib.exe
+     1>Done Building Project "C:\Users\Eric\Documents\AILib\PoleBalancingSFML\PoleBalancingSFML.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:02.22
+Time Elapsed 00:00:08.32

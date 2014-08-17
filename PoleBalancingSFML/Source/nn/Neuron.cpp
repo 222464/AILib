@@ -49,12 +49,12 @@ void Neuron::activateAndReinforce(float activationMultiplier, float outputTraceD
 	_outputTrace += (2.0f * _output - 1.0f - _outputTrace) * outputTraceDecay;
 
 	for (Synapse &synapse : _synapses) {
-		synapse._trace += -weightTraceDecay * synapse._trace + (2.0f * _output - 1.0f) * (synapse._pInput->_output);
 		synapse._weight += error * synapse._trace;
+		synapse._trace += -weightTraceDecay * synapse._trace + (2.0f * _output - 1.0f) * (synapse._pInput->_output);
 	}
 
-	_biasTrace += -weightTraceDecay * _biasTrace + 2.0f * _output - 1.0f;
 	_bias += error * _biasTrace;
+	_biasTrace += -weightTraceDecay * _biasTrace + 2.0f * _output - 1.0f;
 }
 
 void Neuron::activateAndReinforceTraceless(float activationMultiplier, float error) {
@@ -87,12 +87,12 @@ void Neuron::activateArp(float activationMultiplier, float outputTraceDecay, std
 
 void Neuron::reinforce(float error, float weightTraceDecay) {
 	for (Synapse &synapse : _synapses) {
-		synapse._trace += -weightTraceDecay * synapse._trace + (2.0f * _output - 1.0f) * (synapse._pInput->_output);
 		synapse._weight += error * synapse._trace;
+		synapse._trace += -weightTraceDecay * synapse._trace + (2.0f * _output - 1.0f) * (synapse._pInput->_output);
 	}
 
-	_biasTrace += -weightTraceDecay * _biasTrace + 2.0f * _output - 1.0f;
 	_bias += error * _biasTrace;
+	_biasTrace += -weightTraceDecay * _biasTrace + 2.0f * _output - 1.0f;
 }
 
 void Neuron::reinforceTraceless(float error) {

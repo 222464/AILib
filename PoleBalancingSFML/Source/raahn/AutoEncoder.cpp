@@ -43,6 +43,48 @@ void AutoEncoder::createRandom(size_t numInputs, size_t numOutputs, float minWei
 	}
 }
 
+float AutoEncoder::crossoverChooseWeight(float w1, float w2, float averageChance, std::mt19937 &generator) {
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	if (dist01(generator) < averageChance)
+		return (w1 + w2) * 0.5f;
+
+	return dist01(generator) < 0.5f ? w1 : w2;
+}
+
+void AutoEncoder::createFromParents(const AutoEncoder &parent1, const AutoEncoder &parent2, float averageChance, std::mt19937 &generator) {
+	_inputBiases.resize(parent1._inputBiases.size());
+	_hidden.resize(parent1._hidden.size());
+	_inputErrorBuffer.resize(parent1._inputErrorBuffer.size());
+
+	for (size_t n = 0; n < _inputBiases.size(); n++)
+		_inputBiases[n] = crossoverChooseWeight(parent1._inputBiases[n], parent2._inputBiases[n], averageChance, generator);
+
+	for (size_t n = 0; n < _hidden.size(); n++) {
+		_hidden[n]._bias = crossoverChooseWeight(parent1._hidden[n]._bias, parent2._hidden[n]._bias, averageChance, generator);
+
+		_hidden[n]._weights.resize(_inputBiases.size());
+
+		for (size_t w = 0; w < _inputBiases.size(); w++)
+			_hidden[n]._weights[w] = crossoverChooseWeight(parent1._hidden[n]._weights[w], parent2._hidden[n]._weights[w], averageChance, generator);
+	}
+}
+
+void AutoEncoder::mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator) {
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+	std::normal_distribution<float> distPerturbation(0.0f, perturbationStdDev);
+
+	for (size_t n = 0; n < _inputBiases.size(); n++)
+		_inputBiases[n] += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+
+	for (size_t n = 0; n < _hidden.size(); n++) {
+		_hidden[n]._bias += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+
+		for (size_t w = 0; w < _inputBiases.size(); w++)
+			_hidden[n]._weights[w] += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+	}
+}
+
 void AutoEncoder::update(const std::vector<float> &inputs, std::vector<float> &outputs, float alpha) {
 	if (outputs.size() != _hidden.size())
 		outputs.resize(_hidden.size());

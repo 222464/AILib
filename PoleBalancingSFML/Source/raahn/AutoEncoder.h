@@ -36,8 +36,12 @@ namespace raahn {
 		std::vector<float> _inputBiases;
 		std::vector<float> _inputErrorBuffer;
 
+		float crossoverChooseWeight(float w1, float w2, float averageChance, std::mt19937 &generator);
+
 	public:
 		void createRandom(size_t numInputs, size_t numOutputs, float minWeight, float maxWeight, std::mt19937 &generator);
+		void createFromParents(const AutoEncoder &parent1, const AutoEncoder &parent2, float averageChance, std::mt19937 &generator);
+		void mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator);
 
 		void update(const std::vector<float> &inputs, std::vector<float> &outputs, float alpha);
 

@@ -51,6 +51,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 		inputUnit._prevState = 0.0f;
 		inputUnit._bias = 0.0f;
 		inputUnit._biasEligibility = 0.0f;
+		inputUnit._prevBias = 0.0f;
 
 		_units.push_back(inputUnit);
 	}
@@ -79,6 +80,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			inputGate._prevState = 0.0f;
 			inputGate._bias = weightDist(randomGenerator);
 			inputGate._biasEligibility = 0.0f;
+			inputGate._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -87,6 +89,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -107,6 +110,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			forgetGate._prevState = 0.0f;
 			forgetGate._bias = weightDist(randomGenerator);
 			forgetGate._biasEligibility = 0.0f;
+			forgetGate._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -115,6 +119,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -133,6 +138,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			memoryUnit._prevState = 0.0f;
 			memoryUnit._bias = weightDist(randomGenerator);
 			memoryUnit._biasEligibility = 0.0f;
+			memoryUnit._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -141,6 +147,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -151,6 +158,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(static_cast<int>(_units.size()), static_cast<int>(_units.size()))] = c;
 
@@ -170,6 +178,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			outputGater._prevState = 0.0f;
 			outputGater._bias = weightDist(randomGenerator);
 			outputGater._biasEligibility = 0.0f;
+			outputGater._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -178,6 +187,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -192,6 +202,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + inputGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -203,6 +214,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + forgetGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -214,6 +226,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + outputGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -243,6 +256,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			inputGate._prevState = 0.0f;
 			inputGate._bias = weightDist(randomGenerator);
 			inputGate._biasEligibility = 0.0f;
+			inputGate._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -251,6 +265,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -262,6 +277,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
 			}
@@ -282,6 +298,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			forgetGate._prevState = 0.0f;
 			forgetGate._bias = weightDist(randomGenerator);
 			forgetGate._biasEligibility = 0.0f;
+			forgetGate._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -290,6 +307,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -301,6 +319,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
 			}
@@ -319,6 +338,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			memoryUnit._prevState = 0.0f;
 			memoryUnit._bias = weightDist(randomGenerator);
 			memoryUnit._biasEligibility = 0.0f;
+			memoryUnit._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -327,18 +347,22 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
 
 			// Recurrent connection
-			Connection c;
-			c._gaterIndex = forgetGatersStart + _units.size() - memoryUnitsStart;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
+			{
+				Connection c;
+				c._gaterIndex = forgetGatersStart + _units.size() - memoryUnitsStart;
+				c._weight = weightDist(randomGenerator);
+				c._trace = 0.0f;
+				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(static_cast<int>(_units.size()), static_cast<int>(_units.size()))] = c;
+				_connections[std::make_tuple(static_cast<int>(_units.size()), static_cast<int>(_units.size()))] = c;
+			}
 
 			// Previous memory cell connections
 			for (int i = 0; i < memoryLayerSize; i++) {
@@ -347,6 +371,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
 			}
@@ -367,6 +392,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			outputGater._prevState = 0.0f;
 			outputGater._bias = weightDist(randomGenerator);
 			outputGater._biasEligibility = 0.0f;
+			outputGater._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -375,6 +401,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -386,6 +413,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
 			}
@@ -400,6 +428,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + inputGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -411,6 +440,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + forgetGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -422,6 +452,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			c._weight = weightDist(randomGenerator);
 			c._trace = 0.0f;
 			c._eligibility = 0.0f;
+			c._prevWeight = 0.0f;
 
 			_connections[std::make_tuple(i + outputGatersStart, i + memoryUnitsStart)] = c;
 		}
@@ -444,6 +475,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			hiddenUnit._prevState = 0.0f;
 			hiddenUnit._bias = weightDist(randomGenerator);
 			hiddenUnit._biasEligibility = 0.0f;
+			hiddenUnit._prevBias = 0.0f;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -452,6 +484,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -464,6 +497,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 					c._weight = weightDist(randomGenerator);
 					c._trace = 0.0f;
 					c._eligibility = 0.0f;
+					c._prevWeight = 0.0f;
 
 					_connections[std::make_tuple(static_cast<int>(_units.size()), memoryUnitsStarts[ogl] + i)] = c;
 				}
@@ -487,6 +521,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				hiddenUnit._prevState = 0.0f;
 				hiddenUnit._bias = weightDist(randomGenerator);
 				hiddenUnit._biasEligibility = 0.0f;
+				hiddenUnit._prevBias = 0.0f;
 
 				// Previous hidden connections
 				for (int i = 0; i < hiddenLayerSize; i++) {
@@ -495,6 +530,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 					c._weight = weightDist(randomGenerator);
 					c._trace = 0.0f;
 					c._eligibility = 0.0f;
+					c._prevWeight = 0.0f;
 
 					_connections[std::make_tuple(static_cast<int>(_units.size()), prevHiddenUnitsStart + i)] = c;
 				}
@@ -520,6 +556,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				outputUnit._prevState = 0.0f;
 				outputUnit._bias = weightDist(randomGenerator);
 				outputUnit._biasEligibility = 0.0f;
+				outputUnit._prevBias = 0.0f;
 
 				// Previous hidden connections
 				for (int i = 0; i < hiddenLayerSize; i++) {
@@ -528,6 +565,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 					c._weight = weightDist(randomGenerator);
 					c._trace = 0.0f;
 					c._eligibility = 0.0f;
+					c._prevWeight = 0.0f;
 
 					_connections[std::make_tuple(static_cast<int>(_units.size()), prevHiddenUnitsStart + i)] = c;
 				}
@@ -550,6 +588,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 			outputUnit._prevState = 0.0f;
 			outputUnit._bias = weightDist(randomGenerator);
 			outputUnit._biasEligibility = 0.0f;
+			outputUnit._prevBias;
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
@@ -558,6 +597,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 				c._weight = weightDist(randomGenerator);
 				c._trace = 0.0f;
 				c._eligibility = 0.0f;
+				c._prevWeight = 0.0f;
 
 				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
 			}
@@ -570,6 +610,7 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 					c._weight = weightDist(randomGenerator);
 					c._trace = 0.0f;
 					c._eligibility = 0.0f;
+					c._prevWeight = 0.0f;
 
 					_connections[std::make_tuple(static_cast<int>(_units.size()), memoryUnitsStarts[ogl] + i)] = c;
 				}
@@ -710,7 +751,7 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 	for (int i = 0; i < _outputIndices.size(); i++)
 		errorResp[_outputIndices[i]] = targets[i] - _units[_outputIndices[i]]._activation;
 
-	// Loop over all units in revered order of activation
+	// Loop over all units in reversed order of activation
 	for (int j = _units.size() - _outputIndices.size() - 1; j >= _inputIndices.size(); j--) {
 		errorResp[j] = errorProj[j] = 0.0f;
 
@@ -777,15 +818,101 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 	}
 }
 
-void LSTMG::moveAlongDeltas(float error) {
+void LSTMG::getDeltas(const std::vector<float> &targets, std::vector<float> &inputError, float eligibilityDecay, bool linearOutput) {
+	std::vector<float> errorResp(_units.size(), 0.0f);
+	std::vector<float> errorProj(_units.size(), 0.0f);
+
+	// Output layer errors
+	for (int i = 0; i < _outputIndices.size(); i++)
+		errorResp[_outputIndices[i]] = targets[i] - _units[_outputIndices[i]]._activation;
+
+	// Loop over all units in reversed order of activation
+	for (int j = _units.size() - _outputIndices.size() - 1; j >= 0; j--) {
+		errorResp[j] = errorProj[j] = 0.0f;
+
+		for (int ci = 0; ci < _units[j]._outgoingConnectionIndices.size(); ci++) {
+			int k = _units[j]._outgoingConnectionIndices[ci];
+
+			errorProj[j] += errorResp[k] * _prevGains[std::make_tuple(k, j)] * _connections[std::make_tuple(k, j)]._weight;
+		}
+
+		float jDeriv = sigmoidDerivative(_units[j]._state);
+
+		errorProj[j] *= jDeriv;
+
+		int lastK = 0;
+
+		for (int gi = 0; gi < _orderedGaterIndices.size(); gi++) {
+			if (j == _orderedGaterIndices[gi]) {
+				// For each connection
+				const std::vector<std::tuple<int, int>> &gaterConnections = _reverseGaterIndices[_orderedGaterIndices[gi]];
+
+				for (int gci = 0; gci < gaterConnections.size(); gci++) {
+					int k = std::get<0>(gaterConnections[gci]);
+					int a = std::get<1>(gaterConnections[gci]);
+
+					if (lastK < k && j < k) {
+						lastK = k;
+
+						errorResp[j] += errorResp[k] * theTerm(j, k);
+					}
+				}
+			}
+		}
+
+		errorResp[j] = errorProj[j] + jDeriv * errorResp[j];
+	}
+
 	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
 		int j = std::get<0>(it0->first);
 		int i = std::get<1>(it0->first);
 
-		it0->second._weight += error * it0->second._eligibility;
+		it0->second._eligibility *= eligibilityDecay;
+
+		// If not output
+		if (j < _units.size() - _outputIndices.size()) {
+			it0->second._eligibility += errorProj[j] * it0->second._trace;
+
+			for (std::unordered_map<std::tuple<int, int, int>, float>::iterator it1 = _extendedTraces.begin(); it1 != _extendedTraces.end(); it1++) {
+				int l = std::get<0>(it1->first);
+				int m = std::get<1>(it1->first);
+				int k = std::get<2>(it1->first);
+
+				if (l == j && m == i)
+					it0->second._eligibility += errorResp[k] * it1->second;
+			}
+		}
+		else
+			it0->second._eligibility += errorResp[j] * it0->second._trace;
 	}
 
 	// Update biases
-	for (int j = 0; j < _units.size(); j++)
-		_units[j]._bias += error * _units[j]._biasEligibility;
+	for (int j = 0; j < _units.size(); j++) {
+		_units[j]._biasEligibility *= eligibilityDecay;
+		_units[j]._biasEligibility += errorResp[j];
+	}
+
+	if (inputError.size() != _inputIndices.size())
+		inputError.resize(_inputIndices.size());
+
+	for (int j = 0; j < _inputIndices.size(); j++)
+		inputError[j] = errorResp[_inputIndices[j]];
+}
+
+void LSTMG::moveAlongDeltas(float error, float momentum) {
+	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
+		int j = std::get<0>(it0->first);
+		int i = std::get<1>(it0->first);
+
+		float d = error * it0->second._eligibility + momentum * it0->second._prevWeight;
+		it0->second._weight += d;
+		it0->second._prevWeight = d;
+	}
+
+	// Update biases
+	for (int j = 0; j < _units.size(); j++) {
+		float d = error * _units[j]._biasEligibility + momentum * _units[j]._prevBias;
+		_units[j]._bias += d;
+		_units[j]._prevBias = d;
+	}
 }

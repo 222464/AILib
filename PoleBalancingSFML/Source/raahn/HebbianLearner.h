@@ -36,6 +36,7 @@ namespace raahn {
 			std::vector<Synapse> _weights;
 
 			float _output;
+			float _outputTrace;
 
 			Synapse _bias;
 		};
@@ -47,8 +48,11 @@ namespace raahn {
 
 	public:
 		void createRandom(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, float minWeight, float maxWeight, std::mt19937 &generator);
-		
-		void process(const std::vector<float> &inputs, std::vector<float> &outputs, float activationMultiplier, float modulation, float traceDecay, float breakRate, std::mt19937 &generator);
+		void createFromParents(const HebbianLearner &parent1, const HebbianLearner &parent2, float averageChance, std::mt19937 &generator);
+		void mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator);
+
+		void process(const std::vector<float> &inputs, std::vector<float> &outputs, float modulation, float traceDecay, float outputDecay, float breakRate, std::mt19937 &generator);
+		void process(const std::vector<float> &inputs, std::vector<float> &outputs, float activationMultiplier, float modulation, float traceDecay, float outputDecay, float breakRate, std::mt19937 &generator);
 
 		static float sigmoid(float x) {
 			return 1.0f / (1.0f + std::exp(-x));

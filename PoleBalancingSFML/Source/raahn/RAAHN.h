@@ -22,45 +22,37 @@ misrepresented as being the original software.
 #pragma once
 
 #include <raahn/AutoEncoder.h>
+#include <raahn/HebbianLearner.h>
 
 namespace raahn {
 	class RAAHN {
 	private:
-		struct Synapse {
-			float _weight;
-			float _trace;
-		};
-
-		struct Node {
-			std::vector<Synapse> _weights;
-
-			Synapse _bias;
-
-			float _output;
-		};
-
 		AutoEncoder _autoEncoder;
+
+		HebbianLearner _hebbianLearner;
 
 		size_t _numOutputs;
 
 		std::vector<float> _inputs;
 		std::vector<float> _features;
-		std::vector<Node> _outputs;
 		std::vector<float> _hebbianInputs;
+		std::vector<float> _outputs;
 
 	public:
 		void createRandom(size_t numInputs, size_t numFeatures, size_t numOutputs,
 			size_t numRecurrentConnections, size_t numHebbianHidden, size_t numNeuronsPerHebbianHidden,
 			float minWeight, float maxWeight, std::mt19937 &generator);
+		void createFromParents(const RAAHN &parent1, const RAAHN &parent2, float averageChance, std::mt19937 &generator);
+		void mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator);
 
-		void update(float autoEncoderAlpha, float modulation, float traceDecay, float breakRate, std::mt19937 &generator);
+		void update(float autoEncoderAlpha, float modulation, float traceDecay, float outputDecay, float breakRate, std::mt19937 &generator);
 
 		void setInput(size_t index, float value) {
 			_inputs[index] = value;
 		}
 
 		float getOutput(size_t index) const {
-			return _outputs[index]._output;
+			return _outputs[index];
 		}
 
 		size_t getNumInputs() const {

@@ -39,6 +39,7 @@ void LSTMActorCritic::createRandom(int numInputs, int numOutputs,
 
 	_currentInputs.assign(numInputs, 0.0f);
 	_currentOutputs.assign(numOutputs, 0.0f);
+	_outputOffsets.assign(numOutputs, 0.0f);
 
 	for (size_t i = 0; i < _currentInputs.size(); i++) {
 		_actor.setInput(i, _currentInputs[i]);
@@ -49,48 +50,59 @@ void LSTMActorCritic::createRandom(int numInputs, int numOutputs,
 	_critic.step(true);
 }
 
-void LSTMActorCritic::step(float reward, float actorAlpha, float offsetStdDev, float criticAlpha, float gamma, float eligibiltyDecay, std::mt19937 &generator) {
-	LSTMG nextCritic = _critic;
+void LSTMActorCritic::step(float reward, float actorAlpha, float breakChance, float criticAlpha, float gamma, float eligibiltyDecayActor, float eligibiltyDecayCritic, float varianceDecay, float actorMomentum, float criticMomentum, float outputOffsetDecay, std::mt19937 &generator) {
+	std::vector<float> prevInputs(_currentInputs.size());
 
+	for (size_t i = 0; i < prevInputs.size(); i++)
+		prevInputs[i] = _critic.getInput(i);
+
+	LSTMG nextCritic = _critic;
+	
 	for (size_t i = 0; i < _currentInputs.size(); i++)
 		nextCritic.setInput(i, _currentInputs[i]);
-
-	//for (size_t i = 0; i < _currentOutputs.size(); i++)
-	//	nextCritic.setInput(i + _currentInputs.size(), _actor.getOutput(i));
 
 	nextCritic.step(true);
 
 	float q = reward + gamma * nextCritic.getOutput(0);
 
-	_error = q - _prevValue;
+	_error = q - _critic.getOutput(0);
 
-	_critic.moveAlongDeltas(criticAlpha * _error);
+	std::cout << _critic.getOutput(0) << std::endl;
+
+	_critic.getDeltas(std::vector<float>(1, q), eligibiltyDecayCritic, true);
+	_critic.moveAlongDeltas(criticAlpha, criticMomentum);
 
 	for (size_t i = 0; i < _currentInputs.size(); i++)
 		_critic.setInput(i, _currentInputs[i]);
 
-	//for (size_t i = 0; i < _currentOutputs.size(); i++)
-	//	_critic.setInput(i + _currentInputs.size(), _actor.getOutput(i));
-
 	_critic.step(true);
-	_critic.getDeltas(std::vector<float>(1, _critic.getOutput(0) + 1.0f), eligibiltyDecay, true);
-	
-	_prevValue = nextCritic.getOutput(0);
 
-	if (_error > -0.01f)
-		_actor.moveAlongDeltas(actorAlpha);
+	if (_error > 0.0f) {
+		std::cout << "T";
+		_actor.moveAlongDeltas(actorAlpha, actorMomentum);
+	}
 
 	for (size_t i = 0; i < _currentInputs.size(); i++)
 		_actor.setInput(i, _currentInputs[i]);
 
 	_actor.step(true);
 
-	std::normal_distribution<float> distOffset(0.0f, offsetStdDev);
+	// Decay output offsets
+	for (size_t i = 0; i < _outputOffsets.size(); i++)
+		_outputOffsets[i] *= outputOffsetDecay;
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
 	for (size_t i = 0; i < _currentOutputs.size(); i++)
-		_currentOutputs[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _actor.getOutput(i))) + distOffset(generator)));
+	if (dist01(generator) < breakChance) {
+		_currentOutputs[i] = dist01(generator) * 2.0f - 1.0f;
 
-	_actor.getDeltas(_currentOutputs, eligibiltyDecay, true);
+		_outputOffsets[i] = _currentOutputs[i] - _actor.getOutput(i);
+	}
+	else
+		_currentOutputs[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _actor.getOutput(i))) + _outputOffsets[i]));
 
-	std::cout << _prevValue << " " << _error << std::endl;
+	_actor.getDeltas(_currentOutputs, 0.0f, true);
+
+	_variance += (_error - _variance) * varianceDecay;
 }

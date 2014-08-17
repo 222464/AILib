@@ -56,7 +56,8 @@ float ExperimentAND::evaluate(hn::HyperNet &hypernet, const hn::Config &config, 
 
 	float reward = 0.0f;
 	float prevReward = 0.0f;
-	float totalReward = 0.0f;
+
+	float initReward = 0.0f;
 
 	std::vector<float> values(4);
 
@@ -86,10 +87,11 @@ float ExperimentAND::evaluate(hn::HyperNet &hypernet, const hn::Config &config, 
 		prevReward = reward;
 		reward = newReward;
 
-		totalReward += newReward;
+		if (i == 0)
+			initReward = std::min(1.0f, std::max(0.0f, reward));
 	}
 
-	std::cout << "Finished AND experiment with total reward of " << totalReward << "." << std::endl;
+	std::cout << "Finished AND experiment with total reward of " << (reward - initReward) * std::min(1.0f, std::max(0.0f, (reward * reward))) << "." << std::endl;
 
-	return totalReward;
+	return (reward - initReward) * std::min(1.0f, std::max(0.0f, (reward * reward)));
 }

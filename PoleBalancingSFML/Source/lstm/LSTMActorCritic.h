@@ -33,12 +33,18 @@ namespace lstm {
 		std::vector<float> _currentOutputs;
 		std::vector<float> _prevOutputs;
 
+		std::vector<float> _outputOffsets;
+
 		float _prevValue;
 		float _error;
 
+		float _variance;
+
+		bool _explored;
+
 	public:
 		LSTMActorCritic()
-			: _prevValue(0.0f), _error(0.0f)
+			: _prevValue(0.0f), _error(0.0f), _variance(0.0f), _explored(false)
 		{}
 
 		void createRandom(int numInputs, int numOutputs,
@@ -48,7 +54,7 @@ namespace lstm {
 			int numCriticMemoryCells, int numCriticMemoryCellLayers,
 			float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void step(float reward, float actorAlpha, float offsetStdDev, float criticAlpha, float gamma, float eligibiltyDecay, std::mt19937 &generator);
+		void step(float reward, float actorAlpha, float breakChance, float criticAlpha, float gamma, float eligibiltyDecayActor, float eligibiltyDecayCritic, float varianceDecay, float actorMomentum, float criticMomentum, float outputOffsetDecay, std::mt19937 &generator);
 
 		void setInput(size_t index, float value) {
 			_currentInputs[index] = value;
