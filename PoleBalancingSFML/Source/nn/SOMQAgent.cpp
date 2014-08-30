@@ -26,114 +26,121 @@ misrepresented as being the original software.
 using namespace nn;
 
 SOMQAgent::SOMQAgent()
-: _alpha(0.1f), _gamma(0.98f),
-_tupleChainSize(20)
+: _prevQ(0.0f)
 {}
 
-void SOMQAgent::createRandom(size_t numInputs, size_t numOutputs, size_t dimensions, size_t dimensionSize, const nn::BrownianPerturbation &perturbation, float minWeight, float maxWeight, unsigned long seed) {
+void SOMQAgent::createRandom(size_t numInputs, size_t numOutputs, size_t dimensions, size_t dimensionSize, const nn::BrownianPerturbation &perturbation, float minWeight, float maxWeight, std::mt19937 &generator) {
 	_numInputs = numInputs;
 	_numOutputs = numOutputs;
 
-	/*_stateActionSOM.createRandom(_numInputs, dimensions, dimensionSize, _numStates, minWeight, maxWeight, seed + 1);
-
-	_qMatrix.assign(_numStates * _numActions, 0.0f);
-
-	_generator.seed(seed);
+	_stateActionSOM.createRandom(_numInputs + _numOutputs + 2, dimensions, dimensionSize, minWeight, maxWeight, generator);
 
 	_input.assign(_numInputs, 0.0f);
 	_output.assign(_numOutputs, 0.0f);
 
 	_prevInput.assign(_numInputs, 0.0f);
 	_prevOutput.assign(_numOutputs, 0.0f);
+	_prevExploratoryOutput.assign(_numOutputs, 0.0f);
 
-	_outputOffsets.assign(_numOutputs, perturbation);*/
+	_stateOnlyMask.resize(_stateActionSOM.getNumInputs());
+
+	for (size_t i = 0; i < _numInputs; i++)
+		_stateOnlyMask[i] = true;
+
+	for (size_t i = _numInputs; i < _stateActionSOM.getNumInputs(); i++)
+		_stateOnlyMask[i] = false;
+
+	_stateActionMask.resize(_stateActionSOM.getNumInputs());
+
+	for (size_t i = 0; i < _numInputs + _numOutputs; i++)
+		_stateActionMask[i] = true;
+
+	for (size_t i = _numInputs + _numOutputs; i < _stateActionSOM.getNumInputs(); i++)
+		_stateActionMask[i] = false;
+
+	_stateRewardMask = _stateOnlyMask;
+
+	_stateRewardMask[_stateActionSOM.getNumInputs() - 2] = true;
+
+	_stateActionRewardMask = _stateActionMask;
+
+	_stateActionRewardMask[_stateActionSOM.getNumInputs() - 2] = true;
+
+	for (size_t i = 0; i < _stateActionSOM.getNumNodes(); i++)
+		_stateActionSOM.getNode(i)._weights[_stateActionSOM.getNumInputs() - 1] = 0.0f;
 }
 
-void SOMQAgent::step(float fitness, float dt) {
-	/*// Identify unit in state map closest to input
-	SOM::SOMCoords closestState = _stateSOM.getBestMatchingUnit(_input);
+void SOMQAgent::step(float fitness, float alpha, float gamma, float traceDecay, float breakRate, float dt, std::mt19937 &generator) {
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
-	size_t state = closestState._coords[0];
+	std::vector<float> initialVector(_stateActionSOM.getNumInputs());
+	
+	for (size_t i = 0; i < _numInputs; i++)
+		initialVector[i] = _input[i];
 
-	// Find action with best Q for this state
-	float maxQ = getQ(state, 0);
-	size_t action = 0;
+	for (size_t i = _numInputs; i < _numInputs + _numOutputs; i++)
+		initialVector[i] = _output[i];
 
-	for (size_t a = 1; a < _numActions; a++)
-	if (getQ(state, a) > maxQ) {
-		maxQ = getQ(state, a);
-		action = a;
+	initialVector[_numInputs + _numOutputs] = 0.0f;
+	initialVector[_numInputs + _numOutputs + 1] = 0.0f;
+
+	// Identify unit in state map closest to input
+	SOM::SOMCoords closestState = _stateActionSOM.getBestMatchingUnit(initialVector, _stateActionMask);
+
+	float thisQ = _stateActionSOM.getNode(closestState)._weights[_numInputs + _numOutputs];
+
+	float newQ = fitness + gamma * thisQ;
+
+	std::cout << newQ << std::endl;
+
+	float error = newQ - _prevQ;
+
+	float originalPrevQ = _prevQ;
+
+	_prevQ = thisQ;
+
+	std::vector<float> updateVector(_numInputs + _numOutputs + 2);
+
+	for (size_t i = 0; i < _numInputs; i++)
+		updateVector[i] = _prevInput[i];
+
+	if (error > 0.0f) {
+		// Go towards exploratory output
+		for (size_t i = 0; i < _numOutputs; i++)
+			updateVector[i + _numInputs] = _prevExploratoryOutput[i];
+	}
+	else {
+		// Stick with previous output without exploratory modification
+		for (size_t i = 0; i < _numOutputs; i++)
+			updateVector[i + _numInputs] = _prevOutput[i];
 	}
 
-	SOM::SOMCoords prevClosestState = _stateSOM.getBestMatchingUnit(_prevInput);
-	SOM::SOMCoords prevClosestAction = _actionSOM.getBestMatchingUnit(_prevOutput);
+	updateVector[_numInputs + _numOutputs] = newQ;
+	updateVector[_numInputs + _numOutputs + 1] = 1.0f;
 
-	// If previously selected action was good
-	if (fitness + _gamma * maxQ > getQ(prevClosestState._coords[0], prevClosestAction._coords[0]))
-		// Update action map towards the selected action
-		_actionSOM.updateNeighborhood(prevClosestAction, _prevOutput);
+	// Update traces and associated Q values
+	for (size_t i = 0; i < _stateActionSOM.getNumNodes(); i++) {
+		_stateActionSOM.getNode(i)._weights[_numInputs + _numOutputs] += alpha * error * _stateActionSOM.getNode(i)._weights[_numInputs + _numOutputs + 1];
 
-	int stateRadius = static_cast<int>(std::ceil(static_cast<float>(_stateSOM.getDimensionSize()) * _stateSOM._neighborhoodRadius));
-	float stateRadiusSquaredf = static_cast<float>(stateRadius * stateRadius);
-
-	int actionRadius = static_cast<int>(std::ceil(static_cast<float>(_actionSOM.getDimensionSize()) * _actionSOM._neighborhoodRadius));
-	float actionRadiusSquaredf = static_cast<float>(actionRadius * actionRadius);
-
-	// Update Q values
-	for (size_t s = 0; s < _numStates; s++)
-	for (size_t a = 0; a < _numActions; a++) {
-		float deltaState = static_cast<float>(s) - static_cast<float>(prevClosestState._coords[0]);
-		float stateInfluence = std::expf(-(deltaState * deltaState) / (2.0f * stateRadiusSquaredf));
-
-		float deltaAction = static_cast<float>(a) - static_cast<float>(prevClosestAction._coords[0]);
-		float actionInfluence = std::expf(-(deltaAction * deltaAction) / (2.0f * actionRadiusSquaredf));
-
-		setQ(s, a, getQ(s, a) + _alpha * stateInfluence * actionInfluence * (fitness + _gamma * maxQ - getQ(s, a)));
+		_stateActionSOM.getNode(i)._weights[_numInputs + _numOutputs + 1] *= traceDecay;
 	}
 
-	// Update previous tuples
-	float gamma = _gamma;
+	SOM::SOMCoords closestForUpdate = _stateActionSOM.getBestMatchingUnit(updateVector, _stateActionRewardMask);
 
-	for (std::list<StateActionTuple>::iterator it = _tupleChain.begin(); it != _tupleChain.end(); it++, gamma *= _gamma) {
-		SOM::SOMCoords closestState = _stateSOM.getBestMatchingUnit(it->_input);
-		SOM::SOMCoords closestAction = _actionSOM.getBestMatchingUnit(it->_output);
+	_stateActionSOM.updateNeighborhood(closestForUpdate, updateVector);
 
-		for (size_t s = 0; s < _numStates; s++)
-		for (size_t a = 0; a < _numActions; a++) {
-			float deltaState = static_cast<float>(s) - static_cast<float>(closestState._coords[0]);
-			float stateInfluence = std::expf(-(deltaState * deltaState) / (2.0f * stateRadiusSquaredf));
+	//_stateActionSOM.getNode(closestForUpdate)._weights[_stateActionSOM.getNumInputs() - 1] = 1.0f;
 
-			float deltaAction = static_cast<float>(a) - static_cast<float>(closestAction._coords[0]);
-			float actionInfluence = std::expf(-(deltaAction * deltaAction) / (2.0f * actionRadiusSquaredf));
-
-			setQ(closestState._coords[0], closestAction._coords[0], getQ(closestState._coords[0], closestAction._coords[0]) + _alpha * stateInfluence * actionInfluence * gamma * fitness);
-		}
-	}
-
-	// Update input map
-	_stateSOM.updateNeighborhood(closestState, _input);
-
-	_prevOutput = _output;
-
-	// Get new action
-	SOM::SOMCoords actionCoords;
-	actionCoords._coords.assign(1, action);
-
-	// Get action vector, perturb it for exploration
+	// Select action
 	for (size_t i = 0; i < _numOutputs; i++) {
-		_outputOffsets[i].update(_generator, dt);
-		_output[i] = _actionSOM.getNode(actionCoords)._weights[i] + _outputOffsets[i]._position;
+		if (dist01(generator) < breakRate)
+			_output[i] = dist01(generator) * 2.0f - 1.0f;
+		else
+			_output[i] = _stateActionSOM.getNode(closestState)._weights[_numInputs + i];
+
+		_prevExploratoryOutput[i] = _output[i];
+		_prevOutput[i] = _stateActionSOM.getNode(closestState)._weights[_numInputs + i];
 	}
 
-	// Add tuple
-	StateActionTuple tuple;
-	tuple._input = _input;
-	tuple._output = _output;
-
-	_tupleChain.push_front(tuple);
-
-	if (_tupleChain.size() > _tupleChainSize)
-		_tupleChain.pop_back();
-
-	_prevInput = _input;*/
+	_prevInput = _input;
 }

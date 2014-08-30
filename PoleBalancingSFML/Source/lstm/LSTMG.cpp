@@ -37,24 +37,17 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 
 	// First numInputs units are input units
 	_inputIndices.resize(numInputs);
-	
+
 	for (int i = 0; i < numInputs; i++)
 		_inputIndices[i] = i;
 
+	_units.resize(numInputs + numMemoryLayers * memoryLayerSize * 4 + numHiddenLayers * hiddenLayerSize + numOutputs);
+
+	int inputIndex = 0;
+
 	// -------------------------------- Input Layer ---------------------------------
 
-	for (int ui = 0; ui < numInputs; ui++) {
-		Unit inputUnit;
-
-		inputUnit._activation = 0.0f;
-		inputUnit._state = 0.0f;
-		inputUnit._prevState = 0.0f;
-		inputUnit._bias = 0.0f;
-		inputUnit._biasEligibility = 0.0f;
-		inputUnit._prevBias = 0.0f;
-
-		_units.push_back(inputUnit);
-	}
+	inputIndex = numInputs;
 
 	// ----------------------------- First memory layer -----------------------------
 
@@ -67,168 +60,136 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 	int outputGatersStart;
 
 	if (numMemoryLayers > 0) {
-		inputGatersStart = _units.size();
+		inputGatersStart = inputIndex;
 
 		// Create input gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit inputGate;
+			Unit &inputGate = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
-
-			inputGate._activation = 0.0f;
-			inputGate._state = 0.0f;
-			inputGate._prevState = 0.0f;
-			inputGate._bias = weightDist(randomGenerator);
-			inputGate._biasEligibility = 0.0f;
-			inputGate._prevBias = 0.0f;
+			inputGate._bias = inputGate._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				inputGate._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(inputGate);
+			inputIndex++;
 		}
 
-		forgetGatersStart = _units.size();
+		forgetGatersStart = inputIndex;
 
 		// Create forget gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit forgetGate;
+			Unit &forgetGate = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
-
-			forgetGate._activation = 0.0f;
-			forgetGate._state = 0.0f;
-			forgetGate._prevState = 0.0f;
-			forgetGate._bias = weightDist(randomGenerator);
-			forgetGate._biasEligibility = 0.0f;
-			forgetGate._prevBias = 0.0f;
+			forgetGate._bias = forgetGate._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				forgetGate._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(forgetGate);
+			inputIndex++;
 		}
 
-		memoryUnitsStart = _units.size();
+		memoryUnitsStart = inputIndex;
 
 		// Create memory units
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit memoryUnit;
+			Unit &memoryUnit = _units[inputIndex];
 
-			memoryUnit._activation = 0.0f;
-			memoryUnit._state = 0.0f;
-			memoryUnit._prevState = 0.0f;
-			memoryUnit._bias = weightDist(randomGenerator);
-			memoryUnit._biasEligibility = 0.0f;
-			memoryUnit._prevBias = 0.0f;
+			memoryUnit._bias = memoryUnit._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = inputGatersStart + i;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._gaterIndex = inputGatersStart + i;
+				_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				memoryUnit._ingoingConnections.push_back(c);
 			}
 
 			// Recurrent connection
 			Connection c;
-			c._gaterIndex = forgetGatersStart + _units.size() - memoryUnitsStart;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(static_cast<int>(_units.size()), static_cast<int>(_units.size()))] = c;
+			c._gaterIndex = forgetGatersStart + inputIndex - memoryUnitsStart;
+			_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
 
-			_units.push_back(memoryUnit);
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = inputIndex;
+
+			memoryUnit._ingoingConnections.push_back(c);
+
+			memoryUnit._recurrentConnectionIndex = memoryUnit._ingoingConnections.size() - 1;
+
+			inputIndex++;
 		}
 
-		outputGatersStart = _units.size();
+		outputGatersStart = inputIndex;
 
 		// Create output gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit outputGater;
+			Unit &outputGater = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
+			_orderedGaterIndices.push_back(inputIndex);
 
-			outputGater._activation = 0.0f;
-			outputGater._state = 0.0f;
-			outputGater._prevState = 0.0f;
-			outputGater._bias = weightDist(randomGenerator);
-			outputGater._biasEligibility = 0.0f;
-			outputGater._prevBias = 0.0f;
+			outputGater._bias = outputGater._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				outputGater._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(outputGater);
+			inputIndex++;
 		}
 
 		// Add connections to input gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + inputGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + inputGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		// Add connections to forget gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + forgetGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + forgetGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		// Add connections to output gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + outputGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + outputGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		outputGatersStarts.push_back(outputGatersStart);
@@ -243,218 +204,179 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 		int prevMemoryUnitsStart = memoryUnitsStart;
 		int prevOutputGatersStart = outputGatersStart;
 
-		inputGatersStart = _units.size();
+		inputGatersStart = inputIndex;
 
 		// Create input gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit inputGate;
+			Unit &inputGate = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
-
-			inputGate._activation = 0.0f;
-			inputGate._state = 0.0f;
-			inputGate._prevState = 0.0f;
-			inputGate._bias = weightDist(randomGenerator);
-			inputGate._biasEligibility = 0.0f;
-			inputGate._prevBias = 0.0f;
+			inputGate._bias = inputGate._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				inputGate._ingoingConnections.push_back(c);
 			}
 
 			// Previous memory cell connections
 			for (int i = 0; i < memoryLayerSize; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = prevMemoryUnitsStart + i;
+
+				inputGate._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(inputGate);
+			inputIndex++;
 		}
 
-		forgetGatersStart = _units.size();
+		forgetGatersStart = inputIndex;
 
 		// Create forget gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit forgetGate;
+			Unit &forgetGate = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
-
-			forgetGate._activation = 0.0f;
-			forgetGate._state = 0.0f;
-			forgetGate._prevState = 0.0f;
-			forgetGate._bias = weightDist(randomGenerator);
-			forgetGate._biasEligibility = 0.0f;
-			forgetGate._prevBias = 0.0f;
+			forgetGate._bias = forgetGate._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				forgetGate._ingoingConnections.push_back(c);
 			}
 
 			// Previous memory cell connections
 			for (int i = 0; i < memoryLayerSize; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = prevMemoryUnitsStart + i;
+
+				forgetGate._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(forgetGate);
+			inputIndex++;
 		}
 
-		memoryUnitsStart = _units.size();
+		memoryUnitsStart = inputIndex;
 
 		// Create memory units
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit memoryUnit;
+			Unit &memoryUnit = _units[inputIndex];
 
-			memoryUnit._activation = 0.0f;
-			memoryUnit._state = 0.0f;
-			memoryUnit._prevState = 0.0f;
-			memoryUnit._bias = weightDist(randomGenerator);
-			memoryUnit._biasEligibility = 0.0f;
-			memoryUnit._prevBias = 0.0f;
+			memoryUnit._bias = memoryUnit._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = inputGatersStart + i;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._gaterIndex = inputGatersStart + i;
+				_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				memoryUnit._ingoingConnections.push_back(c);
 			}
 
 			// Recurrent connection
 			{
 				Connection c;
-				c._gaterIndex = forgetGatersStart + _units.size() - memoryUnitsStart;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), static_cast<int>(_units.size()))] = c;
+				c._gaterIndex = forgetGatersStart + inputIndex - memoryUnitsStart;
+				_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = inputIndex;
+
+				memoryUnit._ingoingConnections.push_back(c);
+
+				memoryUnit._recurrentConnectionIndex = memoryUnit._ingoingConnections.size() - 1;
 			}
 
 			// Previous memory cell connections
 			for (int i = 0; i < memoryLayerSize; i++) {
 				Connection c;
-				c._gaterIndex = inputGatersStart + i;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
+				c._gaterIndex = inputGatersStart + i;
+				_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = prevMemoryUnitsStart + i;
+
+				memoryUnit._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(memoryUnit);
+			inputIndex++;
 		}
 
-		outputGatersStart = _units.size();
+		outputGatersStart = inputIndex;
 
 		// Create output gaters
 		for (int ui = 0; ui < memoryLayerSize; ui++) {
-			Unit outputGater;
+			Unit &outputGater = _units[inputIndex];
 
-			_orderedGaterIndices.push_back(_units.size());
-
-			outputGater._activation = 0.0f;
-			outputGater._state = 0.0f;
-			outputGater._prevState = 0.0f;
-			outputGater._bias = weightDist(randomGenerator);
-			outputGater._biasEligibility = 0.0f;
-			outputGater._prevBias = 0.0f;
+			outputGater._bias = outputGater._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				outputGater._ingoingConnections.push_back(c);
 			}
 
 			// Previous memory cell connections
 			for (int i = 0; i < memoryLayerSize; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), prevMemoryUnitsStart + i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = prevMemoryUnitsStart + i;
+
+				outputGater._ingoingConnections.push_back(c);
 			}
 
-			_units.push_back(outputGater);
+			inputIndex++;
 		}
 
 		// Add connections to input gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + inputGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + inputGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		// Add connections to forget gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + forgetGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + forgetGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		// Add connections to output gaters (not fully connected)
 		for (int i = 0; i < memoryLayerSize; i++) {
 			Connection c;
-			c._gaterIndex = -1;
-			c._weight = weightDist(randomGenerator);
-			c._trace = 0.0f;
-			c._eligibility = 0.0f;
-			c._prevWeight = 0.0f;
 
-			_connections[std::make_tuple(i + outputGatersStart, i + memoryUnitsStart)] = c;
+			c._weight = c._prevWeight = weightDist(randomGenerator);
+			c._inputIndex = i + memoryUnitsStart;
+
+			_units[i + outputGatersStart]._ingoingConnections.push_back(c);
 		}
 
 		outputGatersStarts.push_back(outputGatersStart);
@@ -465,45 +387,39 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 
 		// --------------------------- First hidden layer ---------------------------
 
-		int hiddenUnitsStart = _units.size();
+		int hiddenUnitsStart = inputIndex;
 
 		for (int ui = 0; ui < hiddenLayerSize; ui++) {
-			Unit hiddenUnit;
+			Unit &hiddenUnit = _units[inputIndex];
 
-			hiddenUnit._activation = 0.0f;
-			hiddenUnit._state = 0.0f;
-			hiddenUnit._prevState = 0.0f;
-			hiddenUnit._bias = weightDist(randomGenerator);
-			hiddenUnit._biasEligibility = 0.0f;
-			hiddenUnit._prevBias = 0.0f;
+			hiddenUnit._bias = hiddenUnit._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				hiddenUnit._ingoingConnections.push_back(c);
 			}
 
 			// Memory cell (gated) connections
 			for (int ogl = 0; ogl < outputGatersStarts.size(); ogl++) {
 				for (int i = 0; i < memoryLayerSize; i++) {
 					Connection c;
-					c._gaterIndex = outputGatersStarts[ogl] + i;
-					c._weight = weightDist(randomGenerator);
-					c._trace = 0.0f;
-					c._eligibility = 0.0f;
-					c._prevWeight = 0.0f;
 
-					_connections[std::make_tuple(static_cast<int>(_units.size()), memoryUnitsStarts[ogl] + i)] = c;
+					c._gaterIndex = outputGatersStarts[ogl] + i;
+					_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+					c._weight = c._prevWeight = weightDist(randomGenerator);
+					c._inputIndex = memoryUnitsStarts[ogl] + i;
+
+					hiddenUnit._ingoingConnections.push_back(c);
 				}
 			}
 
-			_units.push_back(hiddenUnit);
+			inputIndex++;
 		}
 
 		// ------------------------- All other hidden layers -------------------------
@@ -511,31 +427,24 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 		for (int hl = 1; hl < numHiddenLayers; hl++) {
 			int prevHiddenUnitsStart = hiddenUnitsStart;
 
-			hiddenUnitsStart = _units.size();
+			hiddenUnitsStart = inputIndex;
 
 			for (int ui = 0; ui < hiddenLayerSize; ui++) {
-				Unit hiddenUnit;
+				Unit &hiddenUnit = _units[inputIndex];
 
-				hiddenUnit._activation = 0.0f;
-				hiddenUnit._state = 0.0f;
-				hiddenUnit._prevState = 0.0f;
-				hiddenUnit._bias = weightDist(randomGenerator);
-				hiddenUnit._biasEligibility = 0.0f;
-				hiddenUnit._prevBias = 0.0f;
+				hiddenUnit._bias = hiddenUnit._prevBias = weightDist(randomGenerator);
 
 				// Previous hidden connections
 				for (int i = 0; i < hiddenLayerSize; i++) {
 					Connection c;
-					c._gaterIndex = -1;
-					c._weight = weightDist(randomGenerator);
-					c._trace = 0.0f;
-					c._eligibility = 0.0f;
-					c._prevWeight = 0.0f;
 
-					_connections[std::make_tuple(static_cast<int>(_units.size()), prevHiddenUnitsStart + i)] = c;
+					c._weight = c._prevWeight = weightDist(randomGenerator);
+					c._inputIndex = prevHiddenUnitsStart + i;
+
+					hiddenUnit._ingoingConnections.push_back(c);
 				}
 
-				_units.push_back(hiddenUnit);
+				inputIndex++;
 			}
 		}
 
@@ -544,33 +453,26 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 		{
 			int prevHiddenUnitsStart = hiddenUnitsStart;
 
-			hiddenUnitsStart = _units.size();
+			hiddenUnitsStart = inputIndex;
 
 			for (int ui = 0; ui < numOutputs; ui++) {
-				_outputIndices.push_back(_units.size());
+				_outputIndices.push_back(inputIndex);
 
-				Unit outputUnit;
+				Unit &outputUnit = _units[inputIndex];
 
-				outputUnit._activation = 0.0f;
-				outputUnit._state = 0.0f;
-				outputUnit._prevState = 0.0f;
-				outputUnit._bias = weightDist(randomGenerator);
-				outputUnit._biasEligibility = 0.0f;
-				outputUnit._prevBias = 0.0f;
+				outputUnit._bias = outputUnit._prevBias = weightDist(randomGenerator);
 
 				// Previous hidden connections
 				for (int i = 0; i < hiddenLayerSize; i++) {
 					Connection c;
-					c._gaterIndex = -1;
-					c._weight = weightDist(randomGenerator);
-					c._trace = 0.0f;
-					c._eligibility = 0.0f;
-					c._prevWeight = 0.0f;
 
-					_connections[std::make_tuple(static_cast<int>(_units.size()), prevHiddenUnitsStart + i)] = c;
+					c._weight = c._prevWeight = weightDist(randomGenerator);
+					c._inputIndex = prevHiddenUnitsStart + i;
+
+					outputUnit._ingoingConnections.push_back(c);
 				}
 
-				_units.push_back(outputUnit);
+				inputIndex++;
 			}
 		}
 	}
@@ -579,59 +481,47 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 		// --------------------------- Output layer ---------------------------
 
 		for (int ui = 0; ui < numOutputs; ui++) {
-			_outputIndices.push_back(_units.size());
+			_outputIndices.push_back(inputIndex);
 
-			Unit outputUnit;
+			Unit &outputUnit = _units[inputIndex];
 
-			outputUnit._activation = 0.0f;
-			outputUnit._state = 0.0f;
-			outputUnit._prevState = 0.0f;
-			outputUnit._bias = weightDist(randomGenerator);
-			outputUnit._biasEligibility = 0.0f;
-			outputUnit._prevBias;
+			outputUnit._bias = outputUnit._prevBias = weightDist(randomGenerator);
 
 			// Input connections
 			for (int i = 0; i < numInputs; i++) {
 				Connection c;
-				c._gaterIndex = -1;
-				c._weight = weightDist(randomGenerator);
-				c._trace = 0.0f;
-				c._eligibility = 0.0f;
-				c._prevWeight = 0.0f;
 
-				_connections[std::make_tuple(static_cast<int>(_units.size()), i)] = c;
+				c._weight = c._prevWeight = weightDist(randomGenerator);
+				c._inputIndex = i;
+
+				outputUnit._ingoingConnections.push_back(c);
 			}
 
 			// Memory cell (gated) connections
 			for (int ogl = 0; ogl < outputGatersStarts.size(); ogl++) {
 				for (int i = 0; i < memoryLayerSize; i++) {
 					Connection c;
-					c._gaterIndex = outputGatersStarts[ogl] + i;
-					c._weight = weightDist(randomGenerator);
-					c._trace = 0.0f;
-					c._eligibility = 0.0f;
-					c._prevWeight = 0.0f;
 
-					_connections[std::make_tuple(static_cast<int>(_units.size()), memoryUnitsStarts[ogl] + i)] = c;
+					c._gaterIndex = outputGatersStarts[ogl] + i;
+					_units[c._gaterIndex]._gatingConnections.push_back(inputIndex);
+
+					c._weight = c._prevWeight = weightDist(randomGenerator);
+					c._inputIndex = memoryUnitsStarts[ogl] + i;
+
+					outputUnit._ingoingConnections.push_back(c);
 				}
 			}
 
-			_units.push_back(outputUnit);
+			inputIndex++;
 		}
 	}
 
 	// Build gaters maps as well as ingoing and outgoing connection arrays
-	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
+	for (int j = 0; j < _units.size(); j++)
+	for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+		Connection &c = _units[j]._ingoingConnections[ci];
 
-		if (it0->second._gaterIndex != -1) {
-			_gaterIndices[it0->first] = it0->second._gaterIndex;
-			_reverseGaterIndices[it0->second._gaterIndex].push_back(it0->first);
-		}
-
-		_units[j]._ingoingConnectionIndices.push_back(i);
-		_units[i]._outgoingConnectionIndices.push_back(j);
+		_units[c._inputIndex]._outgoingConnectionIndices.push_back(ConnectionIndex(j, ci));
 	}
 
 	// Build sorted list of gater indices
@@ -640,79 +530,95 @@ void LSTMG::createRandomLayered(int numInputs, int numOutputs,
 	clear();
 }
 
+bool LSTMG::connectionExists(int j, int i) {
+	for (int ii = 0; ii < _units[j]._ingoingConnections.size(); ii++)
+	if (_units[j]._ingoingConnections[ii]._inputIndex == i)
+		return true;
+
+	return false;
+}
+
 void LSTMG::clear() {
-	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
+	for (int j = 0; j < _units.size(); j++) {
+		_units[j]._state = _units[j]._activation = 0.0f;
 
-		if (i != j) {
-			_units[j]._state = _units[j]._activation = it0->second._trace = 0.0f;
+		for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+			_units[j]._ingoingConnections[ci]._trace = 0.0f;
 
-			for (std::unordered_map<std::tuple<int, int>, int>::iterator it1 = _gaterIndices.begin(); it1 != _gaterIndices.end(); it1++) {
-				int k = std::get<0>(it1->first);
-				int a = std::get<1>(it1->first);
+			_units[j]._ingoingConnections[ci]._extendedTraces.clear();
 
-				if (j < k && j == it1->second)
-					_extendedTraces[std::make_tuple(j, i, k)] = 0.0f;
+			if (_units[j]._ingoingConnections[ci]._inputIndex != j && !_units[j]._gatingConnections.empty()) {
+				for (int oi = 0; oi < _units[j]._outgoingConnectionIndices.size(); oi++)
+					_units[j]._ingoingConnections[ci]._extendedTraces.push_back(ExtendedTrace(0.0f, _units[j]._outgoingConnectionIndices[oi]._nodeIndex));
 			}
 		}
 	}
 }
 
-float LSTMG::gain(int j, int i) {
-	std::unordered_map<std::tuple<int, int>, int>::iterator it0 = _gaterIndices.find(std::make_tuple(j, i));
+float LSTMG::gain(int j, int ci) {
+	if (ci == -1) // Unused
+		return 0.0f;
 
-	if (it0 != _gaterIndices.end())
-		return _units[it0->second]._activation;
+	int gaterIndex = _units[j]._ingoingConnections[ci]._gaterIndex;
 
-	if (_connections.find(std::make_tuple(j, i)) != _connections.end())
-		return 1.0f;
+	if (gaterIndex != -1)
+		return _units[gaterIndex]._activation;
 
-	return 0.0f;
+	if (j == _units[j]._ingoingConnections[ci]._inputIndex)
+		return 0.0f;
+
+	assert(connectionExists(j, _units[j]._ingoingConnections[ci]._inputIndex));
+
+	return 1.0f;
 }
 
 float LSTMG::theTerm(int j, int k) {
 	float term = 0.0f;
 
-	std::unordered_map<std::tuple<int, int>, int>::iterator it0 = _gaterIndices.find(std::make_tuple(k, k));
+	if (_units[k]._ingoingConnections.empty())
+		return 0.0f;
 
-	if (it0 != _gaterIndices.end() && it0->second == j)
+	int gaterIndex;
+
+	if (_units[k]._recurrentConnectionIndex == -1)
+		return 0.0f;
+	else
+		gaterIndex = _units[k]._ingoingConnections[_units[k]._recurrentConnectionIndex]._gaterIndex;
+
+	if (gaterIndex == j)
 		term = _units[k]._prevState;
 
-	for (std::unordered_map<std::tuple<int, int>, int>::iterator it1 = _gaterIndices.begin(); it1 != _gaterIndices.end(); it1++) {
-		int l = std::get<0>(it1->first);
-		int a = std::get<1>(it1->first);
-
-		if (l == k && a != k && j == _gaterIndices[std::make_tuple(k, a)])
-			term += _connections[std::make_tuple(k, a)]._weight * _prevActivations[std::make_tuple(k, a)];
-	}
+	for (int ii = 0; ii < _units[k]._ingoingConnections.size(); ii++)
+		term += _units[k]._ingoingConnections[ii]._weight * _units[_units[k]._ingoingConnections[ii]._gaterIndex]._prevActivation;
 
 	return term;
 }
 
 void LSTMG::step(bool linearOutput) {
-	_prevGains.clear();
-	_prevActivations.clear();
+	for (int j = 0; j < _units.size(); j++) {
+		_units[j]._prevGain = 0.0f;
+		_units[j]._prevActivation = 0.0f;
+	}
 
 	// Copy previous states
 	for (int j = 0; j < _units.size(); j++)
 		_units[j]._prevState = _units[j]._state;
 
 	for (int j = _inputIndices.size(); j < _units.size(); j++) {
-		float sg = _prevGains[std::make_tuple(j, -1)] = gain(j, j); // -1 means unused
+		float sg = _units[j]._prevGain = gain(j, -1);
 
 		_units[j]._state *= sg;
 
-		for (int ci = 0; ci < _units[j]._ingoingConnectionIndices.size(); ci++) {
-			int i = _units[j]._ingoingConnectionIndices[ci];
+		for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+			int i = _units[j]._ingoingConnections[ci]._inputIndex;
 
-			float g = _prevGains[std::make_tuple(j, i)] = gain(j, i);
+			float g = _units[j]._ingoingConnections[ci]._prevGain = gain(j, ci);
 
-			float a = _prevActivations[std::make_tuple(j, i)] = _units[i]._activation;
+			float a = _units[j]._ingoingConnections[ci]._prevActivation = _units[i]._activation;
 
-			Connection &c = _connections[std::make_tuple(j, i)];
+			Connection &c = _units[j]._ingoingConnections[ci];
 
-			_units[j]._state += gain(j, i) * c._weight * _units[i]._activation;
+			_units[j]._state += g * c._weight * _units[i]._activation;
 
 			c._trace *= sg;
 			c._trace += g * a;
@@ -733,13 +639,11 @@ void LSTMG::step(bool linearOutput) {
 		}
 	}
 
-	for (std::unordered_map<std::tuple<int, int, int>, float>::iterator it0 = _extendedTraces.begin(); it0 != _extendedTraces.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
-		int k = std::get<2>(it0->first);
-
-		float terms = sigmoidDerivative(_units[j]._prevState) * _connections[std::make_tuple(j, i)]._trace * theTerm(j, k);
-		it0->second = _prevGains[std::make_tuple(k, -1)] * it0->second + terms;
+	for (size_t j = 0; j < _units.size(); j++)
+	for (size_t ci = 0; ci < _units[j]._ingoingConnections.size(); ci++)
+	for (size_t ti = 0; ti < _units[j]._ingoingConnections[ci]._extendedTraces.size(); ti++) {
+		float terms = sigmoidDerivative(_units[j]._prevState) * _units[j]._ingoingConnections[ci]._trace * theTerm(j, ti);
+		_units[j]._ingoingConnections[ci]._extendedTraces[ti]._trace = _units[ti]._prevGain * _units[j]._ingoingConnections[ci]._extendedTraces[ti]._trace + terms;
 	}
 }
 
@@ -756,9 +660,9 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 		errorResp[j] = errorProj[j] = 0.0f;
 
 		for (int ci = 0; ci < _units[j]._outgoingConnectionIndices.size(); ci++) {
-			int k = _units[j]._outgoingConnectionIndices[ci];
+			int k = _units[j]._outgoingConnectionIndices[ci]._nodeIndex;
 
-			errorProj[j] += errorResp[k] * _prevGains[std::make_tuple(k, j)] * _connections[std::make_tuple(k, j)]._weight;
+			errorProj[j] += errorResp[k] * _units[k]._ingoingConnections[_units[j]._outgoingConnectionIndices[ci]._connectionIndex]._prevGain * _units[k]._ingoingConnections[_units[j]._outgoingConnectionIndices[ci]._connectionIndex]._weight;
 		}
 
 		float jDeriv = sigmoidDerivative(_units[j]._state);
@@ -770,11 +674,10 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 		for (int gi = 0; gi < _orderedGaterIndices.size(); gi++) {
 			if (j == _orderedGaterIndices[gi]) {
 				// For each connection
-				const std::vector<std::tuple<int, int>> &gaterConnections = _reverseGaterIndices[_orderedGaterIndices[gi]];
+				const std::vector<int> &gaterConnections = _units[j]._gatingConnections;
 
 				for (int gci = 0; gci < gaterConnections.size(); gci++) {
-					int k = std::get<0>(gaterConnections[gci]);
-					int a = std::get<1>(gaterConnections[gci]);
+					int k = gaterConnections[gci];
 
 					if (lastK < k && j < k) {
 						lastK = k;
@@ -788,27 +691,21 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 		errorResp[j] = errorProj[j] + jDeriv * errorResp[j];
 	}
 
-	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
+	for (int j = 0; j < _units.size(); j++)
+	for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+		int i = _units[j]._ingoingConnections[ci]._inputIndex;
 
-		it0->second._eligibility *= eligibilityDecay;
+		_units[j]._ingoingConnections[ci]._eligibility *= eligibilityDecay;
 
 		// If not output
 		if (j < _units.size() - _outputIndices.size()) {
-			it0->second._eligibility += errorProj[j] * it0->second._trace;
+			_units[j]._ingoingConnections[ci]._eligibility += errorProj[j] * _units[j]._ingoingConnections[ci]._trace;
 
-			for (std::unordered_map<std::tuple<int, int, int>, float>::iterator it1 = _extendedTraces.begin(); it1 != _extendedTraces.end(); it1++) {
-				int l = std::get<0>(it1->first);
-				int m = std::get<1>(it1->first);
-				int k = std::get<2>(it1->first);
-
-				if (l == j && m == i)
-					it0->second._eligibility += errorResp[k] * it1->second;
-			}
+			for (int ti = 0; ti < _units[j]._ingoingConnections[ci]._extendedTraces.size(); ti++)
+				_units[j]._ingoingConnections[ci]._eligibility += errorResp[_units[j]._ingoingConnections[ci]._extendedTraces[ti]._index] * _units[j]._ingoingConnections[ci]._extendedTraces[ti]._trace;
 		}
 		else
-			it0->second._eligibility += errorResp[j] * it0->second._trace;
+			_units[j]._ingoingConnections[ci]._eligibility += errorResp[j] * _units[j]._ingoingConnections[ci]._trace;
 	}
 
 	// Update biases
@@ -816,102 +713,41 @@ void LSTMG::getDeltas(const std::vector<float> &targets, float eligibilityDecay,
 		_units[j]._biasEligibility *= eligibilityDecay;
 		_units[j]._biasEligibility += errorResp[j];
 	}
-}
-
-void LSTMG::getDeltas(const std::vector<float> &targets, std::vector<float> &inputError, float eligibilityDecay, bool linearOutput) {
-	std::vector<float> errorResp(_units.size(), 0.0f);
-	std::vector<float> errorProj(_units.size(), 0.0f);
-
-	// Output layer errors
-	for (int i = 0; i < _outputIndices.size(); i++)
-		errorResp[_outputIndices[i]] = targets[i] - _units[_outputIndices[i]]._activation;
-
-	// Loop over all units in reversed order of activation
-	for (int j = _units.size() - _outputIndices.size() - 1; j >= 0; j--) {
-		errorResp[j] = errorProj[j] = 0.0f;
-
-		for (int ci = 0; ci < _units[j]._outgoingConnectionIndices.size(); ci++) {
-			int k = _units[j]._outgoingConnectionIndices[ci];
-
-			errorProj[j] += errorResp[k] * _prevGains[std::make_tuple(k, j)] * _connections[std::make_tuple(k, j)]._weight;
-		}
-
-		float jDeriv = sigmoidDerivative(_units[j]._state);
-
-		errorProj[j] *= jDeriv;
-
-		int lastK = 0;
-
-		for (int gi = 0; gi < _orderedGaterIndices.size(); gi++) {
-			if (j == _orderedGaterIndices[gi]) {
-				// For each connection
-				const std::vector<std::tuple<int, int>> &gaterConnections = _reverseGaterIndices[_orderedGaterIndices[gi]];
-
-				for (int gci = 0; gci < gaterConnections.size(); gci++) {
-					int k = std::get<0>(gaterConnections[gci]);
-					int a = std::get<1>(gaterConnections[gci]);
-
-					if (lastK < k && j < k) {
-						lastK = k;
-
-						errorResp[j] += errorResp[k] * theTerm(j, k);
-					}
-				}
-			}
-		}
-
-		errorResp[j] = errorProj[j] + jDeriv * errorResp[j];
-	}
-
-	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
-
-		it0->second._eligibility *= eligibilityDecay;
-
-		// If not output
-		if (j < _units.size() - _outputIndices.size()) {
-			it0->second._eligibility += errorProj[j] * it0->second._trace;
-
-			for (std::unordered_map<std::tuple<int, int, int>, float>::iterator it1 = _extendedTraces.begin(); it1 != _extendedTraces.end(); it1++) {
-				int l = std::get<0>(it1->first);
-				int m = std::get<1>(it1->first);
-				int k = std::get<2>(it1->first);
-
-				if (l == j && m == i)
-					it0->second._eligibility += errorResp[k] * it1->second;
-			}
-		}
-		else
-			it0->second._eligibility += errorResp[j] * it0->second._trace;
-	}
-
-	// Update biases
-	for (int j = 0; j < _units.size(); j++) {
-		_units[j]._biasEligibility *= eligibilityDecay;
-		_units[j]._biasEligibility += errorResp[j];
-	}
-
-	if (inputError.size() != _inputIndices.size())
-		inputError.resize(_inputIndices.size());
-
-	for (int j = 0; j < _inputIndices.size(); j++)
-		inputError[j] = errorResp[_inputIndices[j]];
 }
 
 void LSTMG::moveAlongDeltas(float error, float momentum) {
-	for (std::unordered_map<std::tuple<int, int>, Connection>::iterator it0 = _connections.begin(); it0 != _connections.end(); it0++) {
-		int j = std::get<0>(it0->first);
-		int i = std::get<1>(it0->first);
-
-		float d = error * it0->second._eligibility + momentum * it0->second._prevWeight;
-		it0->second._weight += d;
-		it0->second._prevWeight = d;
+	for (int j = 0; j < _units.size(); j++)
+	for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+		float d = error * _units[j]._ingoingConnections[ci]._eligibility + momentum * _units[j]._ingoingConnections[ci]._prevWeight;
+		_units[j]._ingoingConnections[ci]._weight += d;
+		_units[j]._ingoingConnections[ci]._prevWeight = d;
 	}
 
 	// Update biases
 	for (int j = 0; j < _units.size(); j++) {
 		float d = error * _units[j]._biasEligibility + momentum * _units[j]._prevBias;
+		_units[j]._bias += d;
+		_units[j]._prevBias = d;
+	}
+}
+
+void LSTMG::moveAlongDeltasAndHebbian(float error, float hebbianAlpha, float momentum) {
+	for (int j = 0; j < _units.size(); j++) {
+		float postTerm = _units[j]._activation;
+
+		for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+			float preTerm = _units[_units[j]._ingoingConnections[ci]._inputIndex]._activation;
+			float d = error * _units[j]._ingoingConnections[ci]._eligibility + momentum * _units[j]._ingoingConnections[ci]._prevWeight + hebbianAlpha * postTerm * (preTerm - _units[j]._ingoingConnections[ci]._weight * postTerm);
+			_units[j]._ingoingConnections[ci]._weight += d;
+			_units[j]._ingoingConnections[ci]._prevWeight = d;
+		}
+	}
+
+	// Update biases
+	for (int j = 0; j < _units.size(); j++) {
+		float postTerm = _units[j]._activation;
+
+		float d = error * _units[j]._biasEligibility + momentum * _units[j]._prevBias + hebbianAlpha * postTerm * (1.0f - _units[j]._bias * postTerm);
 		_units[j]._bias += d;
 		_units[j]._prevBias = d;
 	}

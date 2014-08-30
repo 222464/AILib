@@ -38,9 +38,12 @@ void RLLSTMAgent::createRandom(size_t numInputs, size_t numActions,
 	_numInputs = numInputs;
 	_numActions = numActions;
 
-	_rnn.createRandom(_numInputs + numMemoryCells, _numActions + numMemoryCells * 4, recNumHiddenLayers, recNumNeuronsPerHiddenLayer, minWeight, maxWeight, seed + 1);
+	std::mt19937 generator;
+	generator.seed(seed);
 
-	_expnn.createRandom(_numInputs, 1, expNumHiddenLayers, expNumNeuronsPerHiddenLayer, minWeight, maxWeight, seed + 2);
+	_rnn.createRandom(_numInputs + numMemoryCells, _numActions + numMemoryCells * 4, recNumHiddenLayers, recNumNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
+
+	_expnn.createRandom(_numInputs, 1, expNumHiddenLayers, expNumNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
 
 	_memoryCells.resize(numMemoryCells);
 

@@ -48,7 +48,10 @@ void NCPSOAgent::createRandom(size_t numInputs, size_t numOutputs,
 	_numInputs = numInputs;
 	_numOutputs = numOutputs;
 
-	_actor.createRandom(_numInputs, _numOutputs, actorNumHiddenLayers, actorNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, seed + 1);
+	std::mt19937 generator;
+	generator.seed(seed);
+
+	_actor.createRandom(_numInputs, _numOutputs, actorNumHiddenLayers, actorNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, generator);
 
 	_generator.seed(seed);
 

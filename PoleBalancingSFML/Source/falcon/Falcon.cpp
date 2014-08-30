@@ -225,14 +225,14 @@ void Falcon::learn(const std::vector<float> &artInputs, const std::array<FieldPa
 
 				nodeIt->_eligibility = 1.0f;
 
-				Node newNode;
+				//Node newNode;
 
-				newNode._weights.assign(_artInputSize, 0.0f);
-				newNode._committed = false;
+				//newNode._weights.assign(_artInputSize, 0.0f);
+				//newNode._committed = false;
 
-				newNode._eligibility = 0.0f;
+				//newNode._eligibility = 0.0f;
 
-				chooseNodes.push_back(newNode);
+				//chooseNodes.push_back(newNode);
 			}
 			else {
 				// Update this node
@@ -254,9 +254,20 @@ void Falcon::learn(const std::vector<float> &artInputs, const std::array<FieldPa
 		}
 		else {
 			// Continue search
-			usedNodes.push_back(*nodeIt);
+			//usedNodes.push_back(*nodeIt);
 
-			chooseNodes.erase(nodeIt);
+			//chooseNodes.erase(nodeIt);
+
+			Node newNode;
+
+			newNode._weights = artInputs;
+			newNode._committed = true;
+
+			newNode._eligibility = 1.0f;
+
+			chooseNodes.push_back(newNode);
+
+			break;
 		}
 	}
 
@@ -365,12 +376,12 @@ void Falcon::update(float reward, float epsilon, float gamma, float alpha, std::
 	qUpdateVector[qUpdateVectorIndex++] = newQ;
 	qUpdateVector[qUpdateVectorIndex++] = 0.0f;
 
-	learn(qUpdateVector, fieldParams);
-
 	for (std::list<Node>::iterator it = _nodes.begin(); it != _nodes.end(); it++) {
 		it->_weights[it->_weights.size() - 2] += alpha * error * it->_eligibility;
 		it->_eligibility *= eligibilityDecay;
 	}
+
+	learn(qUpdateVector, fieldParams);
 
 	_prevInputs = _inputs;
 	_prevOutputs = _outputs;

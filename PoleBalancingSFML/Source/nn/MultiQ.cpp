@@ -33,7 +33,10 @@ MultiQ::~MultiQ() {
 }
 
 void MultiQ::createRandom(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, float minWeight, float maxWeight, unsigned long seed) {
-	_network.createRandom(numInputs, numOutputs, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, seed);
+	std::mt19937 generator;
+	generator.seed(seed);
+
+	_network.createRandom(numInputs, numOutputs, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
 
 	_currentInputs.assign(numOutputs, 0.0f);
 	_prevInputs.assign(numOutputs, 0.0f);

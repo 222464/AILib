@@ -43,8 +43,11 @@ void ActorCriticAgent::createRandom(size_t numInputs, size_t numOutputs,
 	size_t numCriticHiddenLayers, size_t numCriticNeuronsPerHiddenLayer,
 	float minWeight, float maxWeight, unsigned long seed)
 {
-	_actor.createRandom(numInputs, numOutputs, numActorHiddenLayers, numActorNeuronsPerHiddenLayer, minWeight, maxWeight, seed);
-	_critic.createRandom(numInputs, 1, numCriticHiddenLayers, numCriticNeuronsPerHiddenLayer, minWeight, maxWeight, seed + 1);
+	std::mt19937 generator;
+	generator.seed(seed);
+
+	_actor.createRandom(numInputs, numOutputs, numActorHiddenLayers, numActorNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
+	_critic.createRandom(numInputs, 1, numCriticHiddenLayers, numCriticNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
 
 	_prevInputs.assign(numInputs, 0.0f);
 }

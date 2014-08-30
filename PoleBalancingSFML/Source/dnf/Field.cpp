@@ -1,6 +1,7 @@
 #include <dnf/Field.h>
 
 #include <tuple>
+#include <algorithm>
 
 using namespace dnf;
 
@@ -114,9 +115,9 @@ void Field::step(const std::vector<float> &input, float dt, float threshold, flo
 
 			float g = _gLookup[wCoord];
 
-			newNodes[n]._wee[wCoord]._weight = (_nodes[n]._wee[wCoord]._weight + _nodes[n]._wee[wCoord]._eligibilityTrace * reward) / (_nodes[n]._bdnfE * _nodes[nCoord]._bdnfE);
-			newNodes[n]._wei[wCoord]._weight = (_nodes[n]._wei[wCoord]._weight + _nodes[n]._wei[wCoord]._eligibilityTrace * reward) * _nodes[n]._bdnfE;
-			newNodes[n]._wie[wCoord]._weight = (_nodes[n]._wie[wCoord]._weight + _nodes[n]._wie[wCoord]._eligibilityTrace * reward) * _nodes[nCoord]._bdnfE;
+			newNodes[n]._wee[wCoord]._weight = std::min(1.0f, std::max(0.0f, _nodes[n]._wee[wCoord]._weight + _nodes[n]._wee[wCoord]._eligibilityTrace * reward) / (_nodes[n]._bdnfE * _nodes[nCoord]._bdnfE));
+			newNodes[n]._wei[wCoord]._weight = std::min(1.0f, std::max(0.0f, (_nodes[n]._wei[wCoord]._weight + _nodes[n]._wei[wCoord]._eligibilityTrace * reward) * _nodes[n]._bdnfE));
+			newNodes[n]._wie[wCoord]._weight = std::min(1.0f, std::max(0.0f, (_nodes[n]._wie[wCoord]._weight + _nodes[n]._wie[wCoord]._eligibilityTrace * reward) * _nodes[nCoord]._bdnfE));
 
 			eeSum += g * newNodes[n]._wee[wCoord]._weight * ou;
 			eiSum += newNodes[n]._wei[wCoord]._weight * ov;
@@ -125,7 +126,7 @@ void Field::step(const std::vector<float> &input, float dt, float threshold, flo
 		}
 
 		for (int i = 0; i < _numInputs; i++) {
-			newNodes[n]._wext[i]._weight = (_nodes[n]._wext[i]._weight + _nodes[n]._wext[i]._eligibilityTrace * reward) / (newNodes[n]._bdnfE * _inputData[i]._bdnf);
+			newNodes[n]._wext[i]._weight = std::min(1.0f, std::max(0.0f, (_nodes[n]._wext[i]._weight + _nodes[n]._wext[i]._eligibilityTrace * reward) / (newNodes[n]._bdnfE * _inputData[i]._bdnf)));
 
 			extSum += newNodes[n]._wext[i]._weight * input[i];
 		}

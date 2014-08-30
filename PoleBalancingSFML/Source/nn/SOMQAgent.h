@@ -40,41 +40,28 @@ namespace nn {
 		size_t _numStates;
 		size_t _numActions;
 
-		std::vector<float> _qMatrix;
-
-		float getQ(size_t s, size_t a) const {
-			return _qMatrix[s + a * _numStates];
-		}
-
-		void setQ(size_t s, size_t a, float q) {
-			_qMatrix[s + a * _numStates] = q;
-		}
-
 		std::vector<float> _input;
 		std::vector<float> _output;
 
 		std::vector<float> _prevInput;
 		std::vector<float> _prevOutput;
+		std::vector<float> _prevExploratoryOutput;
 
-		std::list<StateActionTuple> _tupleChain;
+		std::vector<bool> _stateOnlyMask;
+		std::vector<bool> _stateActionMask;
+		std::vector<bool> _stateRewardMask;
+		std::vector<bool> _stateActionRewardMask;
+
+		float _prevQ;
 
 	public:
-		std::vector<nn::BrownianPerturbation> _outputOffsets;
-
-		size_t _tupleChainSize;
-
 		SOM _stateActionSOM;
-
-		float _alpha;
-		float _gamma;
-
-		std::mt19937 _generator;
 
 		SOMQAgent();
 
-		void createRandom(size_t numInputs, size_t numOutputs, size_t dimensions, size_t dimensionSize, const nn::BrownianPerturbation &perturbation, float minWeight, float maxWeight, unsigned long seed);
+		void createRandom(size_t numInputs, size_t numOutputs, size_t dimensions, size_t dimensionSize, const nn::BrownianPerturbation &perturbation, float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void step(float fitness, float dt);
+		void step(float fitness, float alpha, float gamma, float traceDecay, float breakRate, float dt, std::mt19937 &generator);
 
 		void setInput(size_t i, float value) {
 			_input[i] = value;

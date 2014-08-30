@@ -30,9 +30,9 @@ misrepresented as being the original software.
 #include <nn/RLLSTMAgent.h>
 #include <nn/PSOAgent.h>
 #include <nn/MultiQ.h>
+#include <nn/SOMQAgent.h>
 
 #include <lstm/LSTMActorCritic.h>
-#include <lstm/LSTMGQ.h>
 
 #include <deep/AutoLSTM.h>
 
@@ -51,17 +51,25 @@ misrepresented as being the original software.
 
 #include <ctrnn/GeneticAlgorithm.h>
 
+#include <nn/GeneticAlgorithm.h>
+
 #include <falcon/Falcon.h>
 
 #include <elman/ElmanNetwork.h>
 
 #include <deep/RBM.h>
+#include <deep/DeepSOMNet.h>
+#include <deep/DBN.h>
+#include <deep/ConvNet2D.h>
+
+#include <apssc/APSSC.h>
 
 #include <time.h>
 #include <iostream>
 #include <random>
 #include <array>
 #include <fstream>
+#include <sstream>
 
 /*int main() {
 	std::mt19937 generator(time(nullptr));*/
@@ -1048,7 +1056,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float dt = 0.017f;
 
 	float switchPatternTimer = 0.0f;
-	float switchPatternTime = 180.0f;
+	float switchPatternTime = 280.0f;
 
 	int pattern = 0;
 
@@ -1061,8 +1069,8 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 	float outputPattern[4] = {
 		0.0f,
-		1.0f,
-		1.0f,
+		0.0f,
+		0.0f,
 		0.0f
 	};
 
@@ -1102,7 +1110,8 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		window.clear();
 
-		field.step(input, 0.2f, 0.0f, 2.0f, (reward - prevReward) * 0.005f, 0.05f, 0.005f, 0.005f, 0.005f, 0.3f);
+		for (int i = 0; i < 1; i++)
+		field.step(input, 0.1f, 0.2f, 0.3f, (reward - prevReward) * 0.001f, 0.05f, 0.001f, 0.001f, 0.002f, 0.5f);
 
 		// Draw grid
 		int lIndex = 0;
@@ -1129,7 +1138,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		if (switchPatternTimer > switchPatternTime) {
 			prevReward = reward;
 
-			reward = -std::pow(std::abs(outputPattern[pattern] - field.getOutputE(16, 16)), 2.0f);
+			reward = -std::pow(std::abs(outputPattern[pattern] - std::min(1.0f, std::max(0.0f, field.getOutputE(16, 16)))), 2.0f);
 
 			averageReward += (reward - averageReward) * 0.1f;
 
@@ -1152,7 +1161,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -1244,16 +1253,16 @@ int main() {
 
 	lstm::LSTMActorCritic lstmAC;
 
-	lstmAC.createRandom(4, 1, 1, 10, 2, 1, 1, 10, 2, 1, -0.5f, 0.5f, generator);
+	lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
 	falcon::Falcon fal;
 	fal.create(4, 1);
 
 	std::array<falcon::Falcon::FieldParams, 3> fieldParams;
 
-	fieldParams[0]._baseVigilance = 0.2f;
-	fieldParams[1]._baseVigilance = 0.3f;
-	fieldParams[2]._baseVigilance = 0.1f;
+	fieldParams[0]._baseVigilance = 1.2f;
+	fieldParams[1]._baseVigilance = 1.4f;
+	fieldParams[2]._baseVigilance = 1.0f;
 
 	fieldParams[0]._alpha = 0.1f;
 	fieldParams[1]._alpha = 0.01f;
@@ -1263,9 +1272,17 @@ int main() {
 	fieldParams[1]._gamma = 0.5f;
 	fieldParams[2]._gamma = 0.2f;
 
+	nn::SOMQAgent sqa;
+
+	sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
+
 	sf::Font font;
 
 	font.loadFromFile("Resources/pixelated.ttf");
+
+	sf::Image image;
+
+	image.create(60, 60);
 
 	do {
 		clock.restart();
@@ -1313,9 +1330,11 @@ int main() {
 		lstmAC.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
 		lstmAC.setInput(3, poleAngleVel);
 
-		lstmAC.step(dFitness * 50.0f, 0.001f, 0.04f, 0.001f, 0.9f, 0.0f, 0.5f, 0.6f, 0.2f, 0.2f, 0.75f, generator);
+		lstmAC.step(dFitness * 50.0f, 0.2f, 0.005f, 0.015f, 0.16f, 0.0001f, 0.95f, 0.7f, 0.7f, 0.05f, 0.4f, 0.4f, 0.6f, generator);
 
-		//fal.update(fitness, 0.1f, 0.95f, 0.05f, fieldParams, 0.5f, 0.95f, 0.05f, generator);
+		//fal.update(fitness, 0.1f, 0.9f, 0.2f, fieldParams, 1.5f, 0.8f, 0.07f, generator);
+
+		//sqa.step(fitness, 0.3f, 0.96f, 0.5f, 0.07f, dt, generator);
 
 		lowPassFitness += (fitness - lowPassFitness) * 0.2f;
 
@@ -1428,10 +1447,493 @@ int main() {
 			window.draw(text);
 		}
 
+		for (size_t i = 0; i < sqa._stateActionSOM.getNumNodes(); i++) {
+			int x = i % 60;
+			int y = i / 60;
+
+			sf::Color c;
+			c.r = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[4]);
+			c.g = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[5]);
+			c.b = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[6]);
+
+			image.setPixel(x, y, c);
+		}
+
+		sf::Texture t;
+
+		t.loadFromImage(image);
+
+		sf::Sprite s;
+
+		s.setPosition(window.getSize().x - 256.0f, 0.0f);
+
+		s.setScale(256.0f / 60.0f, 256.0f / 60.0f);
+
+		s.setTexture(t);
+
+		window.draw(s);
+
 		// -------------------------------------------------------------------
 
 		window.display();
 
 		dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
+}*/
+
+/*const size_t entrySize = 30; // 31 if you include the weight
+
+struct DataEntry {
+	std::array<double, entrySize> _data;
+
+	unsigned int _eventID;
+
+	double _weight;
+
+	bool _s;
+};
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	std::ifstream fromFile("Resources/training/training.csv");
+
+	if (!fromFile.is_open()) {
+		std::cerr << "Could not find training data!" << std::endl;
+	}
+
+	std::array<bool, entrySize> hasNulls;
+
+	hasNulls.assign(false);
+
+	std::array<double, entrySize> mins;
+
+	mins.assign(999999.0);
+
+	std::array<double, entrySize> maxs;
+
+	maxs.assign(-999999.0);
+
+	std::string line;
+
+	std::getline(fromFile, line);
+
+	std::vector<DataEntry> entries;
+
+	int t = 0;
+
+	while (!fromFile.eof() && fromFile.good()) {
+		std::getline(fromFile, line);
+
+		if (line == "")
+			continue;
+		
+		DataEntry entry;
+
+		std::istringstream is(line);
+
+		std::string value;
+
+		std::getline(is, value, ',');
+
+		entry._eventID = std::stoi(value) - 100000;
+
+		for (size_t i = 0; i < entrySize; i++) {
+			std::getline(is, value, ',');
+
+			entry._data[i] = std::stof(value);
+
+			if (entry._data[i] == -999.0) {
+				hasNulls[i] = true;
+			}
+			else {
+				mins[i] = std::min(mins[i], entry._data[i]);
+				maxs[i] = std::max(maxs[i], entry._data[i]);
+			}
+		}
+
+		std::getline(is, value, ',');
+
+		entry._weight = std::stof(value);
+
+		std::getline(is, value, ',');
+
+		entry._s = value == "s";
+
+		entries.push_back(entry);
+
+		t++;
+	}
+
+	int numNulls = 0;
+
+	for (size_t i = 0; i < entrySize; i++)
+	if (hasNulls[i])
+		numNulls++;
+
+	// Normalize the data
+	for (size_t i = 0; i < entries.size(); i++) {
+		for (size_t j = 0; j < entrySize; j++) {
+			if (entries[i]._data[j] != -999.0)
+				entries[i]._data[j] = (entries[i]._data[j] - mins[j]) / (maxs[j] - mins[j]);
+		}
+	}
+
+	deep::DBN dbn;
+
+	//nn::FeedForwardNeuralNetwork ffnn;
+
+	//ffnn.createRandom(entrySize + numNulls, 1, 1, 60, -0.1f, 0.1f, generator);
+
+	std::vector<size_t> rbmHiddenSizes(2);
+
+	rbmHiddenSizes[0] = 60;
+	rbmHiddenSizes[1] = 60;
+
+	dbn.createRandom(entrySize + numNulls, 1, rbmHiddenSizes, -0.1, 0.1, generator);
+
+	double rbmAlpha = 0.1;
+	double ffnnAlphaTune = 0.05;
+	double alphaMultiplier = 1.0;
+	double momentum = 0.0;
+	double weightDecayMultiplier = 1.0;
+	size_t miniBatchSize = 1;
+
+	// Pre-train layers
+	for (size_t l = 0; l < rbmHiddenSizes.size(); l++) {
+		std::cout << "Pre-training layer " << l + 1 << std::endl;
+
+		for (size_t i = 0; i < 30000000; i++) {
+			// Select random
+			std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
+
+			int entryIndex = distEntry(generator);
+
+			std::vector<double> data(entrySize + numNulls);
+
+			size_t nIndex = 0;
+
+			for (size_t j = 0; j < entrySize; j++) {
+				if (hasNulls[j]) {
+					if (entries[entryIndex]._data[j] == -999.0) {
+						data[entrySize + nIndex] = 1.0;
+						data[j] = 0.0f;
+					}
+					else {
+						data[entrySize + nIndex] = 0.0;
+						data[j] = entries[entryIndex]._data[j];
+					}
+
+					nIndex++;
+				}
+				else {
+					data[j] = entries[entryIndex]._data[j];
+				}
+
+				assert(data[j] >= 0.0 && data[j] <= 1.0);
+			}
+
+			// Execute layers up till here
+			std::vector<double> input;
+
+			dbn.getOutputMeanThroughLayers(l, data, input);
+
+			dbn.trainLayerUnsupervised(l, input, rbmAlpha, generator);
+
+			if (i % 1000 == 0)
+				std::cout << "Pre-training iteration " << i + 1 << std::endl;
+		}
+	}
+
+	dbn.prepareForGradientDescent();
+
+	// Fine tuning
+	for (size_t i = 0; i < 8000000; i++) {
+		// Select random
+		std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
+
+		int entryIndex = distEntry(generator);
+
+		std::vector<double> data(entrySize + numNulls);
+
+		size_t nIndex = 0;
+
+		for (size_t j = 0; j < entrySize; j++) {
+			if (hasNulls[j]) {
+				if (entries[entryIndex]._data[j] == -999.0) {
+					data[entrySize + nIndex] = 1.0;
+					data[j] = 0.0f;
+				}
+				else {
+					data[entrySize + nIndex] = 0.0;
+					data[j] = entries[entryIndex]._data[j];
+				}
+
+				nIndex++;
+			}
+			else {
+				data[j] = entries[entryIndex]._data[j];
+			}
+
+			assert(data[j] >= 0.0 && data[j] <= 1.0);
+		}
+
+		std::vector<double> output;
+
+		dbn.execute(data, output);
+
+		std::vector<double> target(1);
+
+		target[0] = entries[entryIndex]._s ? 1.0 : -1.0;
+
+		dbn.getError(target);
+
+		//dbn.signError();
+
+		dbn.accumulateGradient();
+
+		if ((i % miniBatchSize) == (miniBatchSize - 1)) {
+			dbn.moveAlongAccumulatedGradient(ffnnAlphaTune);
+
+			dbn.decayWeights(weightDecayMultiplier);
+		}
+
+		if (i % 1000 == 0)
+			std::cout << "Fine-tuning iteration " << i + 1 << std::endl;
+	}
+
+	int numAccurate = 0;
+
+	// Train
+	int numTestTrials = entries.size();
+
+	float sRate = 0.0;
+	float bRate = 0.0;
+
+	for (size_t i = 0; i < numTestTrials; i++) {
+		// Select random
+		//std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
+
+		size_t entryIndex = i;
+
+		std::vector<double> data(entrySize + numNulls);
+
+		size_t nIndex = 0;
+
+		for (size_t j = 0; j < entrySize; j++) {
+			if (hasNulls[j]) {
+				if (entries[entryIndex]._data[j] == -999.0) {
+					data[entrySize + nIndex] = 1.0;
+					data[j] = 0.0f;
+				}
+				else {
+					data[entrySize + nIndex] = 0.0;
+					data[j] = entries[entryIndex]._data[j];
+				}
+
+				nIndex++;
+			}
+			else {
+				data[j] = entries[entryIndex]._data[j];
+			}
+
+			//assert(data[j] >= 0.0 && data[j] <= 1.0);
+		}
+
+		std::vector<double> output;
+
+		dbn.execute(data, output);
+
+		int label = output[0] > 0.0 ? 1 : 0;
+
+		if ((label == 1) == entries[entryIndex]._s) {
+			std::cout << entryIndex << ": Accurate. Output: " << output[0] << " Result: " << (entries[entryIndex]._s ? "s" : "b") << std::endl;
+		}
+		else {
+			std::cout << entryIndex << ": Innaccurate. Output: " << output[0] << " Result: " << (entries[entryIndex]._s ? "s" : "b") << std::endl;
+		}
+
+		if ((label == 1) == entries[entryIndex]._s) {
+			numAccurate++;
+		}
+
+		if (label == 1) { // Predicted s
+			if (entries[entryIndex]._s)
+				sRate += entries[entryIndex]._weight;
+			else
+				bRate += entries[entryIndex]._weight;
+		}
+
+		if (i % 1000 == 0)
+			std::cout << "Testing iteration " << i + 1 << std::endl;
+	}
+
+	int numInnaccurate = numTestTrials - numAccurate;
+
+	std::cout << "Error: " << numInnaccurate / static_cast<float>(numTestTrials)* 100.0 << "%" << std::endl;
+
+	std::cout << "AMS: " << std::sqrt(2.0 * ((sRate + bRate + 10.0) * std::log(1.0 + sRate / (bRate + 10.0)) - sRate)) << std::endl;
+
+	system("pause");
+
+	std::cout << "Loading test data..." << std::endl;
+
+	std::ifstream fromFileTest("Resources/test/test.csv");
+
+	if (!fromFileTest.is_open()) {
+		std::cerr << "Could not find test data!" << std::endl;
+	}
+
+
+	std::getline(fromFileTest, line);
+
+	entries.clear();
+
+	t = 0;
+
+	while (!fromFileTest.eof() && fromFileTest.good()) {
+		std::getline(fromFileTest, line);
+
+		if (line == "")
+			continue;
+
+		DataEntry entry;
+
+		std::istringstream is(line);
+
+		std::string value;
+
+		std::getline(is, value, ',');
+
+		entry._eventID = std::stoi(value);
+
+		for (size_t i = 0; i < entrySize; i++) {
+			std::getline(is, value, ',');
+
+			entry._data[i] = std::stof(value);
+		}
+
+		entries.push_back(entry);
+
+		t++;
+	}
+
+	fromFileTest.close();
+
+	// Normalize the data
+	for (size_t i = 0; i < entries.size(); i++) {
+		for (size_t j = 0; j < entrySize; j++) {
+			if (entries[i]._data[j] != -999.0)
+				entries[i]._data[j] = (entries[i]._data[j] - mins[j]) / (maxs[j] - mins[j]);
+		}
+	}
+
+	std::cout << "Number of entries: " << entries.size() << std::endl;;
+
+	system("pause");
+
+	// Output file
+	std::cout << "Evaluating test data..." << std::endl;
+
+	std::ofstream evaluationToFile("evaluation.txt");
+
+	evaluationToFile << "EventId,RankOrder,Class" << std::endl;
+
+	for (size_t i = 0; i < entries.size(); i++) {
+		// Select random
+		//std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
+
+		size_t entryIndex = i;
+
+		std::vector<double> data(entrySize + numNulls);
+
+		size_t nIndex = 0;
+
+		for (size_t j = 0; j < entrySize; j++) {
+			if (hasNulls[j]) {
+				if (entries[entryIndex]._data[j] == -999.0) {
+					data[entrySize + nIndex] = 1.0;
+					data[j] = 0.0f;
+				}
+				else {
+					data[entrySize + nIndex] = 0.0;
+					data[j] = entries[entryIndex]._data[j];
+				}
+
+				nIndex++;
+			}
+			else {
+				data[j] = entries[entryIndex]._data[j];
+			}
+
+			//assert(data[j] >= 0.0 && data[j] <= 1.0);
+		}
+
+		std::vector<double> output;
+
+		dbn.execute(data, output);
+
+		int label = output[0] > 0.0 ? 1 : 0;
+
+		//size_t rankOrder = static_cast<size_t>(std::min(1.0, std::max(0.0, output[0] * 0.5 + 0.5)) * 550000.0) + 1;
+
+		evaluationToFile << entries[entryIndex]._eventID << "," << (i + 1) << "," << (label == 1 ? "s" : "b") << std::endl;
+
+		if (i % 1000 == 0)
+			std::cout << "Evaluated iteration " << i + 1 << std::endl;
+	}
+
+	evaluationToFile.close();
+
+	std::cout << "Done." << std::endl;
+
+	system("pause");
+
+	return 0;
+}*/
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	sf::Image img;
+
+	img.loadFromFile("testImage.png");
+
+	deep::ConvNet2D convNet;
+
+	std::vector<deep::ConvNet2D::LayerPairDesc> descs(3);
+
+	convNet.createRandom(img.getSize().x, img.getSize().y, 1, descs, -0.5f, 0.5f, generator);
+
+	float bInv = 1.0f / 255.0f;
+
+	for (size_t x = 0; x < img.getSize().x; x++)
+	for (size_t y = 0; y < img.getSize().y; y++) {
+		float greyscale = ((img.getPixel(x, y).r * bInv + img.getPixel(x, y).g * bInv + img.getPixel(x, y).b * bInv) * 0.3333f - 0.5f) * 6.0f;
+
+		convNet.setInput(x, y, 0, greyscale);
+	}
+
+	convNet.activate();
+
+	sf::Image result;
+
+	result.create(convNet.getOutputWidth(), convNet.getOutputHeight());
+
+	for (size_t x = 0; x < convNet.getOutputWidth(); x++)
+	for (size_t y = 0; y < convNet.getOutputHeight(); y++) {
+		sf::Color c;
+
+		float g = 255.0f * std::min(1.0f, std::max(0.0f, ((convNet.getOutput(x, y, 0) - 0.5f) * 1.0f + 0.5f)));
+
+		c.r = g;
+		c.g = g;
+		c.b = g;
+
+		result.setPixel(x, y, c);
+	}
+
+	result.saveToFile("result.png");
+
+	return 0;
 }

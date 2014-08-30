@@ -71,16 +71,16 @@
     <LibraryPath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)/ExtLibs/Eigen3/;$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)/ExtLibs/Eigen3/;$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\Eric\Documents\Visual Studio 2013\Libraries\SFML-2.1-windows-vc11-64bits\SFML-2.1\lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)/ExtLibs/Eigen3/;$(ProjectDir)/Extlibs/SFML-2.1/include;$(ProjectDir)/Source;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)/ExtLibs/Eigen3/;$(ProjectDir)/Extlibs/SFML-2.1/lib;$(ProjectDir)/Source;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -141,11 +141,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\apssc\APSSC.cpp" />
     <ClCompile Include="Source\ctrnn\CTRNN.cpp" />
     <ClCompile Include="Source\ctrnn\GeneticAlgorithm.cpp" />
+    <ClCompile Include="Source\deep\ConvNet2D.cpp" />
     <ClCompile Include="Source\deep\DAutoEncoder.cpp" />
     <ClCompile Include="Source\deep\AutoLSTM.cpp" />
+    <ClCompile Include="Source\deep\DBN.cpp" />
+    <ClCompile Include="Source\deep\DeepSOMNet.cpp" />
+    <ClCompile Include="Source\deep\FA.cpp" />
     <ClCompile Include="Source\deep\RBM.cpp" />
+    <ClCompile Include="Source\deep\DSOM.cpp" />
     <ClCompile Include="Source\dnf\Field.cpp" />
     <ClCompile Include="Source\elman\ElmanNetwork.cpp" />
     <ClCompile Include="Source\experiments\ExperimentAND.cpp" />
@@ -170,7 +176,6 @@
     <ClCompile Include="Source\lstmrl\LSTMRL.cpp" />
     <ClCompile Include="Source\lstm\LSTMActorCritic.cpp" />
     <ClCompile Include="Source\lstm\LSTMG.cpp" />
-    <ClCompile Include="Source\lstm\LSTMGQ.cpp" />
     <ClCompile Include="Source\lstm\LSTMNet.cpp" />
     <ClCompile Include="Source\nn\MultiQ.cpp" />
     <ClCompile Include="Source\nn\NCPSOAgent.cpp" />
@@ -194,11 +199,17 @@
     <ClCompile Include="Source\raahn\RAAHN.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\apssc\APSSC.h" />
     <ClInclude Include="Source\ctrnn\CTRNN.h" />
     <ClInclude Include="Source\ctrnn\GeneticAlgorithm.h" />
+    <ClInclude Include="Source\deep\ConvNet2D.h" />
     <ClInclude Include="Source\deep\DAutoEncoder.h" />
     <ClInclude Include="Source\deep\AutoLSTM.h" />
+    <ClInclude Include="Source\deep\DBN.h" />
+    <ClInclude Include="Source\deep\DeepSOMNet.h" />
+    <ClInclude Include="Source\deep\FA.h" />
     <ClInclude Include="Source\deep\RBM.h" />
+    <ClInclude Include="Source\deep\DSOM.h" />
     <ClInclude Include="Source\dnf\Field.h" />
     <ClInclude Include="Source\elman\ElmanNetwork.h" />
     <ClInclude Include="Source\experiments\ExperimentAND.h" />
@@ -223,7 +234,6 @@
     <ClInclude Include="Source\lstmrl\LSTMRL.h" />
     <ClInclude Include="Source\lstm\LSTMActorCritic.h" />
     <ClInclude Include="Source\lstm\LSTMG.h" />
-    <ClInclude Include="Source\lstm\LSTMGQ.h" />
     <ClInclude Include="Source\lstm\LSTMNet.h" />
     <ClInclude Include="Source\lstm\TupleHash.h" />
     <ClInclude Include="Source\nn\MultiQ.h" />

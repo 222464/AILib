@@ -27,41 +27,38 @@ misrepresented as being the original software.
 namespace deep {
 	class RBM {
 	public:
-		static float sigmoid(float x) {
-			return 1.0f / (1.0f + std::exp(-x));
+		static double sigmoid(double x) {
+			return 1.0 / (1.0 + std::exp(-x));
 		}
 
 	private:
 		struct Connection {
-			float _weight;
-			float _positive;
-			float _negative;
+			double _weight;
+			double _positive;
+			double _negative;
 
 			Connection()
-				: _positive(0.0f),
-				_negative(0.0f)
+				: _positive(0.0),
+				_negative(0.0)
 			{}
 		};
 
 		struct HiddenNode {
 			std::vector<Connection> _connections;
 
-			float _output;
-
-			Connection _bias;
+			double _output;
+			double _probability;
 
 			HiddenNode()
-				: _output(0.0f)
+				: _output(0.0), _probability(0.0)
 			{}
 		};
 
 		struct VisibleNode {
-			float _output;
-
-			Connection _bias;
+			double _probability;
 
 			VisibleNode()
-				: _output(0.0f)
+				: _probability(0.0)
 			{}
 		};
 
@@ -69,26 +66,29 @@ namespace deep {
 		std::vector<HiddenNode> _hidden;
 
 	public:
-		void createRandom(size_t numVisible, size_t numHidden, float minWeight, float maxWeight, std::mt19937 &generator);
+		void createRandom(size_t numVisible, size_t numHidden, double minWeight, double maxWeight, std::mt19937 &generator);
 
 		void activate(std::mt19937 &generator);
+		void activateLight();
 
-		void learn(float alpha, std::mt19937 &generator);
+		void learn(double alpha, std::mt19937 &generator);
 
-		void setVisible(size_t index, float value) {
-			_visible[index]._output = value;
+		void setVisible(size_t index, double value) {
+			_visible[index]._probability = value;
 		}
 
-		float getHidden(size_t index) const {
-			return _hidden[index]._output;
+		double getHidden(size_t index) const {
+			return _hidden[index]._probability;
 		}
 
 		size_t getNumVisible() const {
-			return _visible.size();
+			return _visible.size() - 1; // -1 to account for bias
 		}
 
 		size_t getNumHidden() const {
-			return _hidden.size();
+			return _hidden.size() - 1; // -1 to account for bias
 		}
+
+		friend class DBN;
 	};
 }

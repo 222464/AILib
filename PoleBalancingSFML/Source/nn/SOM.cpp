@@ -27,17 +27,16 @@ misrepresented as being the original software.
 using namespace nn;
 
 SOM::SOM()
-: _neighborhoodRadius(0.125f), _alpha(0.1f)
+: _neighborhoodRadius(0.0625f), _alpha(0.01f),
+_gaussianScalar(8.0f)
 {}
 
-void SOM::createRandom(size_t numInputs, size_t dimensions, size_t dimensionSize, float minWeight, float maxWeight, unsigned long seed) {
+void SOM::createRandom(size_t numInputs, size_t dimensions, size_t dimensionSize, float minWeight, float maxWeight, std::mt19937 &generator) {
 	_numInputs = numInputs;
 	_dimensions = dimensions;
 	_dimensionSize = dimensionSize;
 
 	_nodes.resize(std::pow(_dimensionSize, _dimensions));
-
-	std::mt19937 generator(seed);
 
 	std::uniform_real_distribution<float> distribution(minWeight, maxWeight);
 
@@ -54,7 +53,7 @@ SOM::SOMNode &SOM::getNode(const SOMCoords &coords) {
 
 	// Wrap coordinates
 	for (size_t d = 0; d < coords._coords.size(); d++) {
-		wrapped._coords[d] = wrapped._coords[d] % _dimensionSize;
+		wrapped._coords[d] = wrapped._coords[d] % static_cast<int>(_dimensionSize);
 
 		if (wrapped._coords[d] < 0)
 			wrapped._coords[d] += _dimensionSize;
@@ -68,13 +67,13 @@ SOM::SOMNode &SOM::getNode(const SOMCoords &coords) {
 	return _nodes[linearCoord];
 }
 
-SOM::SOMCoords SOM::getBestMatchingUnit(const std::vector<float> &input) {
-	float minDifference = _nodes[0].differenceSquared(input);
+SOM::SOMCoords SOM::getBestMatchingUnit(const std::vector<float> &input, const std::vector<bool> &mask) {
+	float minDifference = _nodes[0].differenceSquared(input, mask);
 
 	size_t minIndex = 0;
 
 	for (size_t n = 1; n < _nodes.size(); n++) {
-		float difference = _nodes[n].differenceSquared(input);
+		float difference = _nodes[n].differenceSquared(input, mask);
 
 		if (difference < minDifference) {
 			minDifference = difference;
@@ -97,19 +96,19 @@ void SOM::updateNeighborhood(const SOMCoords &centerCoords, const std::vector<fl
 	int dimensionSizei = static_cast<int>(_dimensionSize);
 	float radiusSquaredf = static_cast<float>(radius * radius);
 
-	SOMCoords min, max;
-	min._coords.resize(_dimensions);
-	max._coords.resize(_dimensions);
+	SOMCoords minimum, maximum;
+	minimum._coords.resize(_dimensions);
+	maximum._coords.resize(_dimensions);
 
 	for (size_t d = 0; d < _dimensions; d++) {
-		min._coords[d] = centerCoords._coords[d] - radius;
-		max._coords[d] = centerCoords._coords[d] + radius;
+		minimum._coords[d] = centerCoords._coords[d] - radius;
+		maximum._coords[d] = centerCoords._coords[d] + radius;
 	}
 
 	SOMCoords parseCoords;
-	parseCoords._coords = min._coords;
+	parseCoords._coords = minimum._coords;
 
-	while (parseCoords._coords != max._coords) {
+	while (parseCoords._coords != maximum._coords) {
 		// Update current unit
 		SOMNode &node = getNode(parseCoords);
 
@@ -120,7 +119,7 @@ void SOM::updateNeighborhood(const SOMCoords &centerCoords, const std::vector<fl
 			distSquared += delta * delta;
 		}
 
-		float influence = std::expf(-distSquared / (2.0f * radiusSquaredf));
+		float influence = std::expf(-_gaussianScalar * distSquared / (2.0f * radiusSquaredf));
 
 		for (size_t i = 0; i < node._weights.size(); i++)
 			node._weights[i] += influence * _alpha * (target[i] - node._weights[i]);
@@ -129,8 +128,8 @@ void SOM::updateNeighborhood(const SOMCoords &centerCoords, const std::vector<fl
 		parseCoords._coords[0]++;
 
 		for (size_t d = 0; d < _dimensions - 1; d++)
-		if (parseCoords._coords[d] >= max._coords[d]) {
-			parseCoords._coords[d] = min._coords[d];
+		if (parseCoords._coords[d] > maximum._coords[d]) {
+			parseCoords._coords[d] = minimum._coords[d];
 			parseCoords._coords[d + 1]++;
 		}
 	}

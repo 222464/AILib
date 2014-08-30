@@ -42,7 +42,10 @@ void QAgent::createRandom(size_t numInputs, size_t numOutputs,
 {
 	_numInputs = numInputs;
 
-	_qNetwork.createRandom(_numInputs + numOutputs, 1, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, seed + 1);
+	std::mt19937 generator;
+	generator.seed(seed);
+
+	_qNetwork.createRandom(_numInputs + numOutputs, 1, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
 
 	_prevInputs.assign(_qNetwork.getNumInputs(), 0.0f);
 	_outputBuffer.assign(numOutputs, 0.0f);

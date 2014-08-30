@@ -23,6 +23,7 @@ misrepresented as being the original software.
 
 #include <vector>
 #include <numeric>
+#include <random>
 
 namespace nn {
 	class SOM {
@@ -30,10 +31,13 @@ namespace nn {
 		struct SOMNode {
 			std::vector<float> _weights;
 
-			float differenceSquared(const std::vector<float> &input) const {
+			float differenceSquared(const std::vector<float> &input, const std::vector<bool> &mask) const {
 				float sum = 0.0f;
 
 				for (size_t i = 0; i < _weights.size(); i++) {
+					if (!mask[i])
+						continue;
+
 					float delta = input[i] - _weights[i];
 
 					sum += delta * delta;
@@ -56,15 +60,20 @@ namespace nn {
 
 	public:
 		float _neighborhoodRadius; // Neighborhood radius as a fraction of the size of the map
+		float _gaussianScalar; // Scales the falloff
 		float _alpha; // Learning rate
 
 		SOM();
 
-		void createRandom(size_t numInputs, size_t dimensions, size_t dimensionSize, float minWeight, float maxWeight, unsigned long seed);
+		void createRandom(size_t numInputs, size_t dimensions, size_t dimensionSize, float minWeight, float maxWeight, std::mt19937 &generator);
 
 		SOMNode &getNode(const SOMCoords &coords);
 
-		SOMCoords getBestMatchingUnit(const std::vector<float> &input);
+		SOMNode &getNode(size_t index) {
+			return _nodes[index];
+		}
+
+		SOMCoords getBestMatchingUnit(const std::vector<float> &input, const std::vector<bool> &mask);
 
 		void updateNeighborhood(const SOMCoords &centerCoords, const std::vector<float> &target);
 
@@ -78,6 +87,10 @@ namespace nn {
 
 		size_t getDimensionSize() const {
 			return _dimensionSize;
+		}
+
+		size_t getNumNodes() const {
+			return _nodes.size();
 		}
 	};
 }

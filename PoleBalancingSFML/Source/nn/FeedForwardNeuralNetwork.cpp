@@ -167,13 +167,11 @@ const FeedForwardNeuralNetwork &FeedForwardNeuralNetwork::operator=(const FeedFo
 
 void FeedForwardNeuralNetwork::createRandom(size_t numInputs, size_t numOutputs,
 	size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer,
-	float minWeight, float maxWeight, unsigned long seed)
+	float minWeight, float maxWeight, std::mt19937 &generator)
 {
 	_inputs.resize(numInputs);
 	_outputs.resize(numOutputs);
 
-	std::mt19937 generator;
-	generator.seed(seed);
 	std::uniform_real_distribution<float> distribution(minWeight, maxWeight);
 
 	if (numHiddenLayers == 0) {

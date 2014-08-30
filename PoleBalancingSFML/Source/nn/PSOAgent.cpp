@@ -61,9 +61,12 @@ void PSOAgent::createRandom(size_t numInputs, size_t numOutputs,
 	_numInputs = numInputs;
 	_numOutputs = numOutputs;
 
-	_actor.createRandom(_numInputs, _numOutputs, actorNumHiddenLayers, actorNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, seed + 1);
+	std::mt19937 generator;
+	generator.seed(seed);
 
-	_critic.createRandom(_numInputs, 1, criticNumHiddenLayers, criticNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, seed + 2);
+	_actor.createRandom(_numInputs, _numOutputs, actorNumHiddenLayers, actorNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, generator);
+
+	_critic.createRandom(_numInputs, 1, criticNumHiddenLayers, criticNumNeuronsPerHiddenLayer, _minWeight, _maxWeight, generator);
 
 	_generator.seed(seed);
 

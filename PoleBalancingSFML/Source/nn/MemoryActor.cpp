@@ -27,7 +27,10 @@ void MemoryActor::createRandom(size_t numInputs, size_t numOutputs,
 	size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer,
 	size_t numMemoryCells, float minWeight, float maxWeight, unsigned long seed)
 {
-	_actor.createRandom(numInputs + numMemoryCells, numOutputs + numMemoryCells * 4, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, seed);
+	std::mt19937 generator;
+	generator.seed(seed);
+
+	_actor.createRandom(numInputs + numMemoryCells, numOutputs + numMemoryCells * 4, numHiddenLayers, numNeuronsPerHiddenLayer, minWeight, maxWeight, generator);
 
 	_memoryCells.resize(numMemoryCells);
 }

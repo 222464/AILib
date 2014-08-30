@@ -50,8 +50,6 @@ _greedExponent(2.0f)
 void GeneticAlgorithm::create(size_t populationSize, const NetworkDesc &desc, unsigned long seed) {
 	_generator.seed(seed);
 
-	std::uniform_int_distribution<int> distribution;
-
 	_population.resize(populationSize);
 	_fitnesses.assign(populationSize, 0.0f);
 
@@ -59,7 +57,7 @@ void GeneticAlgorithm::create(size_t populationSize, const NetworkDesc &desc, un
 		network.createRandom(desc._numInputs, desc._numOutputs,
 			desc._numHiddenLayers, desc._numNeuronsPerHiddenLayer,
 			desc._minWeight, desc._maxWeight,
-			distribution(_generator));
+			_generator);
 
 		network._activationMultiplier = desc._activationMultiplier;
 		network._outputTraceDecay = desc._outputTraceDecay;
@@ -86,7 +84,7 @@ size_t GeneticAlgorithm::rouletteWheel(float totalFitness) {
 	for (size_t i = 0; i < _fitnesses.size(); i++) {
 		sumSoFar += _fitnesses[i];
 
-		if (sumSoFar > randomCusp)
+		if (sumSoFar >= randomCusp)
 			return i;
 	}
 

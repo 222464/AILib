@@ -141,9 +141,6 @@
     <ClCompile Include="Source\raahn\HebbianLearner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\lstm\LSTMGQ.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\dnf\Field.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -166,6 +163,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\deep\RBM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\deep\DeepSOMNet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\deep\FA.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\deep\DSOM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\apssc\APSSC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\deep\DBN.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\deep\ConvNet2D.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -299,9 +314,6 @@
     <ClInclude Include="Source\raahn\HebbianLearner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\lstm\LSTMGQ.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\dnf\Field.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -324,6 +336,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\deep\RBM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\deep\DeepSOMNet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\deep\FA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\deep\DSOM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\apssc\APSSC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\deep\DBN.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\deep\ConvNet2D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
