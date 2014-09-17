@@ -109,7 +109,7 @@ namespace deep {
 		void createRandom(size_t inputMapWidth, size_t inputMapHeight, size_t inputNumMaps, const std::vector<LayerPairDesc> &layerDescs, float minWeight, float maxWeight, std::mt19937 &generator);
 
 		void activate();
-		void activateAndLearn();
+		void activateAndLearn(float alpha, std::mt19937 &generator);
 
 		size_t getInputWidth() const {
 			return _inputLayer._mapWidth;

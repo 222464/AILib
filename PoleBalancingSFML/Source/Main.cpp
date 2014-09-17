@@ -1,6 +1,6 @@
 /*
 AI Lib
-Copyright (C) 2014 Eric Laukien
+Copyright (C) 4014 Eric Laukien
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -36,6 +36,8 @@ misrepresented as being the original software.
 
 #include <deep/AutoLSTM.h>
 
+#include <deep/FERL.h>
+
 #include <hypernet/BayesianOptimizerTrainer.h>
 #include <hypernet/EvolutionaryTrainer.h>
 
@@ -56,6 +58,9 @@ misrepresented as being the original software.
 #include <falcon/Falcon.h>
 
 #include <elman/ElmanNetwork.h>
+
+#include <htm/Region.h>
+#include <htmrl/HTMRL.h>
 
 #include <deep/RBM.h>
 #include <deep/DeepSOMNet.h>
@@ -414,7 +419,7 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float pixelsPerMeter = 128.0f;
 	float poleLength = 1.0f;
 	float g = -2.8f;
-	float massMass = 20.0f;
+	float massMass = 40.0f;
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
@@ -474,7 +479,7 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		//dir = 1.4f * (dir * 2.0f - 1.0f);
 
 		float agentForce = 4000.0f * dir;
-		//float agentForce = 2000.0f * agent.getOutput(0);
+		//float agentForce = 4000.0f * agent.getOutput(0);
 
 		// ---------------------------- Physics ----------------------------
 
@@ -869,7 +874,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float pixelsPerMeter = 128.0f;
 	float poleLength = 1.0f;
 	float g = -2.8f;
-	float massMass = 20.0f;
+	float massMass = 40.0f;
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
@@ -960,7 +965,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		//dir = 1.4f * (dir * 2.0f - 1.0f);
 
 		float agentForce = 4000.0f * dir;
-		//float agentForce = 2000.0f * agent.getOutput(0);
+		//float agentForce = 4000.0f * agent.getOutput(0);
 
 		// ---------------------------- Physics ----------------------------
 
@@ -1209,7 +1214,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float pixelsPerMeter = 128.0f;
 	float poleLength = 1.0f;
 	float g = -2.8f;
-	float massMass = 20.0f;
+	float massMass = 40.0f;
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
@@ -1251,12 +1256,19 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 	//en.createRandom(4, 1, 10, -0.5f, 0.5f, generator);
 
-	lstm::LSTMActorCritic lstmAC;
+	//lstm::LSTMActorCritic lstmAC;
 
-	lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
+	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
-	falcon::Falcon fal;
-	fal.create(4, 1);
+	//htmrl::HTMRL agent;
+	//htmrl::HTMRL::RegionDesc regionDesc;
+	//agent.createRandom(2, 2, 8, 8, 1, regionDesc, 0.1f, generator);
+
+	//falcon::Falcon fal;
+	//fal.create(4, 1);
+
+	deep::FERL ferl;
+	ferl.createRandom(4, 1, 32, 0.1f, generator);
 
 	std::array<falcon::Falcon::FieldParams, 3> fieldParams;
 
@@ -1272,9 +1284,9 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	fieldParams[1]._gamma = 0.5f;
 	fieldParams[2]._gamma = 0.2f;
 
-	nn::SOMQAgent sqa;
+	//nn::SOMQAgent sqa;
 
-	sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
+	//sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
 
 	sf::Font font;
 
@@ -1282,7 +1294,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 	sf::Image image;
 
-	image.create(60, 60);
+	image.create(16, 16);
 
 	do {
 		clock.restart();
@@ -1310,7 +1322,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		else
 			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
 
-		//fitness = fitness - std::fabsf(poleAngleVel * 40.0f);
+		fitness = fitness - std::fabsf(poleAngleVel * 1.0f);
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			fitness = -cartX;
@@ -1321,33 +1333,55 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		float dFitness = fitness - prevFitness;
 
-		float error = dFitness * 5.0f;
+		//reward = dFitness * 5.0f;
+
+		reward = fitness;
 
 		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
 
-		lstmAC.setInput(0, cartX * 0.25f);
-		lstmAC.setInput(1, cartVelX);
-		lstmAC.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
-		lstmAC.setInput(3, poleAngleVel);
+		//agent.setInput(0, 0, cartX * 0.5f);
+		//agent.setInput(0, 1, cartVelX);
+		//agent.setInput(1, 0, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi) / std::_Pi * 2.0f - 1.0f));
+		//agent.setInput(1, 1, poleAngleVel * 0.1f);
 
-		lstmAC.step(dFitness * 50.0f, 0.2f, 0.005f, 0.015f, 0.16f, 0.0001f, 0.95f, 0.7f, 0.7f, 0.05f, 0.4f, 0.4f, 0.6f, generator);
+		//agent.step(dFitness * 6.0f, 0.97f, 0.5f, 0.1f, 0.001f, regionDesc, 0.2f, 0.3f, 0.05f, generator);
+
+		//lstmAC.setInput(0, cartX * 0.25f);
+		//lstmAC.setInput(1, cartVelX);
+		//lstmAC.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
+		//lstmAC.setInput(3, poleAngleVel);
+
+		//lstmAC.step(dFitness * 10.0f, 0.2f, 0.01f, 0.02f, 0.4f, 0.0001f, 0.97f, 0.5f, 0.5f, 0.05f, 0.2f, 0.2f, 0.99f, generator);
 
 		//fal.update(fitness, 0.1f, 0.9f, 0.2f, fieldParams, 1.5f, 0.8f, 0.07f, generator);
 
 		//sqa.step(fitness, 0.3f, 0.96f, 0.5f, 0.07f, dt, generator);
+
+		std::vector<float> state(4);
+
+		state[0] = cartX * 0.25f;
+		state[1] = cartVelX;
+		state[2] = std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi));
+		state[3] = poleAngleVel;
+
+		std::vector<float> output;
+
+		ferl.step(state, output, reward, 0.0001f, 0.97f, 0.8f, 6.0f, 8, 8, 0.05f, 0.05f, 0.1f, generator);
 
 		lowPassFitness += (fitness - lowPassFitness) * 0.2f;
 
 		float agentForce = 0.0f;
 
 		//if (!trainMode) {
-		float dir = std::min(1.0f, std::max(-1.0f, lstmAC.getOutput(0)));
+		//float dir = std::min(1.0f, std::max(-1.0f, agent.getOutput(0)));
+
+		float dir = output[0];
 
 			//dir = 1.4f * (dir * 2.0f - 1.0f);
 
 			agentForce = 4000.0f * dir;
 		//}
-		//float agentForce = 2000.0f * agent.getOutput(0);
+		//float agentForce = 4000.0f * agent.getOutput(0);
 
 			prevFitness = fitness;
 
@@ -1447,14 +1481,19 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 			window.draw(text);
 		}
 
-		for (size_t i = 0; i < sqa._stateActionSOM.getNumNodes(); i++) {
-			int x = i % 60;
-			int y = i / 60;
+		std::vector<bool> recon;
+		agent.getRegion().getReconstruction(recon, 2.0f, 0.3f, true);
+
+		for (size_t i = 0; i < 256; i++) {
+			int x = i % 16;
+			int y = i / 16;
 
 			sf::Color c;
-			c.r = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[4]);
-			c.g = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[5]);
-			c.b = 255.0f * nn::Neuron::sigmoid(sqa._stateActionSOM.getNode(i)._weights[6]);
+			
+			if (recon[i])
+				c = sf::Color::Red;
+			else
+				c = sf::Color::White;
 
 			image.setPixel(x, y, c);
 		}
@@ -1467,7 +1506,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		s.setPosition(window.getSize().x - 256.0f, 0.0f);
 
-		s.setScale(256.0f / 60.0f, 256.0f / 60.0f);
+		s.setScale(256.0f / 16.0f, 256.0f / 16.0f);
 
 		s.setTexture(t);
 
@@ -1477,7 +1516,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		window.display();
 
-		dt = clock.getElapsedTime().asSeconds();
+		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
 }*/
 
@@ -1596,14 +1635,14 @@ int main() {
 	double ffnnAlphaTune = 0.05;
 	double alphaMultiplier = 1.0;
 	double momentum = 0.0;
-	double weightDecayMultiplier = 1.0;
+	double weightDecayMultiplier = 0.999;
 	size_t miniBatchSize = 1;
 
 	// Pre-train layers
 	for (size_t l = 0; l < rbmHiddenSizes.size(); l++) {
 		std::cout << "Pre-training layer " << l + 1 << std::endl;
 
-		for (size_t i = 0; i < 30000000; i++) {
+		for (size_t i = 0; i < 1000000; i++) {
 			// Select random
 			std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
 
@@ -1648,7 +1687,7 @@ int main() {
 	dbn.prepareForGradientDescent();
 
 	// Fine tuning
-	for (size_t i = 0; i < 8000000; i++) {
+	for (size_t i = 0; i < 1000000; i++) {
 		// Select random
 		std::uniform_int_distribution<int> distEntry(0, entries.size() - 1);
 
@@ -1892,7 +1931,7 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	sf::Image img;
@@ -1901,9 +1940,9 @@ int main() {
 
 	deep::ConvNet2D convNet;
 
-	std::vector<deep::ConvNet2D::LayerPairDesc> descs(3);
+	std::vector<deep::ConvNet2D::LayerPairDesc> descs(2);
 
-	convNet.createRandom(img.getSize().x, img.getSize().y, 1, descs, -0.5f, 0.5f, generator);
+	convNet.createRandom(img.getSize().x, img.getSize().y, 1, descs, -0.1f, 0.1f, generator);
 
 	float bInv = 1.0f / 255.0f;
 
@@ -1914,26 +1953,219 @@ int main() {
 		convNet.setInput(x, y, 0, greyscale);
 	}
 
-	convNet.activate();
+	sf::RenderWindow window;
+	window.create(sf::VideoMode(convNet.getOutputWidth() * 8, convNet.getOutputHeight() * 8), "ConvNetRBM", sf::Style::Default);
 
-	sf::Image result;
+	for (size_t i = 0; i < 50; i++) {
+		convNet.activateAndLearn(0.01f, generator);
 
-	result.create(convNet.getOutputWidth(), convNet.getOutputHeight());
+		sf::Image result;
 
-	for (size_t x = 0; x < convNet.getOutputWidth(); x++)
-	for (size_t y = 0; y < convNet.getOutputHeight(); y++) {
-		sf::Color c;
+		result.create(convNet.getOutputWidth(), convNet.getOutputHeight());
 
-		float g = 255.0f * std::min(1.0f, std::max(0.0f, ((convNet.getOutput(x, y, 0) - 0.5f) * 1.0f + 0.5f)));
+		for (size_t x = 0; x < convNet.getOutputWidth(); x++)
+		for (size_t y = 0; y < convNet.getOutputHeight(); y++) {
+			sf::Color c;
 
-		c.r = g;
-		c.g = g;
-		c.b = g;
+			c.r = 255.0f * std::min(1.0f, std::max(0.0f, ((convNet.getOutput(x, y, 0) - 0.5f) * 2.0f + 0.5f)));;
+			c.g = 255.0f * std::min(1.0f, std::max(0.0f, ((convNet.getOutput(x, y, 1) - 0.5f) * 2.0f + 0.5f)));;
+			c.b = 255.0f * std::min(1.0f, std::max(0.0f, ((convNet.getOutput(x, y, 2) - 0.5f) * 2.0f + 0.5f)));;
 
-		result.setPixel(x, y, c);
+			result.setPixel(x, y, c);
+		}
+
+		sf::Texture t;
+
+		t.loadFromImage(result);
+
+		sf::Sprite s;
+
+		s.setScale(8.0f, 8.0f);
+
+		s.setTexture(t);
+
+		window.draw(s);
+
+		window.display();
 	}
 
-	result.saveToFile("result.png");
+	return 0;
+}*/
+
+/*float boostFunction(float active, float minimum) {
+	return (1.0f - minimum) + std::max(0.0f, -(minimum - active));
+}
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	std::function<float(float, float)> boostFunc = std::bind(boostFunction, std::placeholders::_1, std::placeholders::_2);
+
+	htm::Region region;
+
+	region.createRandom(40, 40, 6, 3, 0, 80, 80, 4, 0.02f, 2.0f, -0.02f, 0.3f, 0.1f, generator);
+
+	sf::RenderWindow window;
+
+	window.create(sf::VideoMode(1200, 600), "HTM", sf::Style::Default);
+
+	window.setFramerateLimit(40);
+
+	float squareSize = window.getSize().y / 40.0f;
+
+	// ---------------------------- Game Loop -----------------------------
+
+	bool quit = false;
+
+	sf::Clock clock;
+
+	float dt = 0.1f;
+
+	sf::Font font;
+
+	font.loadFromFile("Resources/pixelated.ttf");
+
+	sf::Image image;
+
+	image.create(40, 40);
+
+	sf::Image reconstruction;
+
+	reconstruction.create(40, 40);
+
+	std::vector<bool> input(40 * 40, false);
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	float timer = 0.0f;
+	float time = std::_Pi * 2.0f;
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (window.pollEvent(windowEvent))
+		{
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		// Clear input
+		for (int i = 0; i < input.size(); i++)
+			input[i] = false;
+
+		// Set one dot
+		int dotX = std::round(20.0f + std::cos(timer) * 16.0f);
+		int dotY = std::round(20.0f + std::sin(timer * 2.0f) * 8.0f);
+
+		for (int dx = -2; dx <= 2; dx++)
+		for (int dy = -2; dy <= 2; dy++) {
+			int x = dotX + dx;
+			int y = dotY + dy;
+
+			if (x >= 0 && y >= 0 && x < 40 && y < 40)
+				input[x + 40 * y] = true;
+		}
+
+		region.stepBegin();
+		
+		region.spatialPooling(input, 0.3f, 3.0f, 18, 0.05f, 0.05f, 0.01f, 0.05f, 0.05f, 0.2f, boostFunc);
+
+		region.temporalPoolingLearn(0.3f, 5, 2, 12, 64, 0.04f, 0.02f, 0.31f, 5, generator);
+
+		std::vector<bool> reconstructionData;
+
+		region.getReconstructionAtTime(reconstructionData, 3.0f, 0.3f, 3);
+
+		// ---------------------------- Rendering ----------------------------
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+			for (int x = 0; x < 40; x++)
+			for (int y = 0; y < 40; y++) {
+				sf::Color c;
+
+				if (input[x + 40 * y])
+					c = sf::Color::Blue;
+				else
+					c = sf::Color::White;
+
+				image.setPixel(x, y, c);
+			}
+		}
+		else {
+			for (int x = 0; x < 40; x++)
+			for (int y = 0; y < 40; y++) {
+				sf::Color c;
+
+				if (region.getColumn(x, y).isActive())
+					c = sf::Color::Red;
+				else
+					c = sf::Color::White;
+
+				image.setPixel(x, y, c);
+			}
+		}
+
+		for (int x = 0; x < 40; x++)
+		for (int y = 0; y < 40; y++) {
+			sf::Color c;
+
+			if (reconstructionData[x + y * 40])
+				c = sf::Color::Red;
+			else
+				c = sf::Color::White;
+
+			reconstruction.setPixel(x, y, c);
+		}
+
+		sf::Texture t;
+
+		t.loadFromImage(image);
+
+		sf::Sprite s;
+
+		s.setTexture(t);
+
+		s.setScale(squareSize, squareSize);
+
+		window.draw(s);
+
+		sf::Texture t2;
+
+		t2.loadFromImage(reconstruction);
+
+		sf::Sprite s2;
+
+		s2.setPosition(600, 0);
+
+		s2.setTexture(t2);
+
+		s2.setScale(squareSize, squareSize);
+
+		window.draw(s2);
+
+		// -------------------------------------------------------------------
+
+		window.display();
+
+		//dt = clock.getElapsedTime().asSeconds();
+
+		timer += dt * 1.0f;
+
+		if (timer >= time)
+			timer -= time;
+
+	} while (!quit);
 
 	return 0;
-}
+}*/

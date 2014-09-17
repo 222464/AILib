@@ -67,7 +67,7 @@ void LSTMActorCritic::step(float reward, float qAlpha, float actorAlpha, float b
 
 	_error = q - _critic.getOutput(0);
 
-	std::cout << _outputOffsets[0] << std::endl;
+	//std::cout << _outputOffsets[0] << std::endl;
 
 	_critic.getDeltas(std::vector<float>(1, _critic.getOutput(0) + _error * qAlpha), eligibiltyDecayCritic, true);
 	_critic.moveAlongDeltas(criticAlpha, criticMomentum);
@@ -77,8 +77,8 @@ void LSTMActorCritic::step(float reward, float qAlpha, float actorAlpha, float b
 
 	_critic.step(true);
 
-	if (_error > 0.0f) {
-		std::cout << "T";
+	if (_error > _variance) {
+		//std::cout << "T";
 		_actor.moveAlongDeltas(actorAlpha, actorMomentum);
 	}
 
@@ -136,7 +136,7 @@ void LSTMActorCritic::step(float reward, float qAlpha, float actorAlpha, float b
 
 	_critic.step(true);
 
-	if (_error > 0.0f) {
+	if (_error > _variance) {
 		std::cout << "T";
 		_actor.moveAlongDeltasAndHebbian(actorAlpha, hebbianAlphaActor, actorMomentum);
 	}
