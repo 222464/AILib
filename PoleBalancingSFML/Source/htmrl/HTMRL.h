@@ -23,6 +23,8 @@ misrepresented as being the original software.
 
 #include <htm/Region.h>
 
+#include <deep/FERL.h>
+
 #include <algorithm>
 
 namespace htmrl {
@@ -105,23 +107,6 @@ namespace htmrl {
 		}
 
 	private:
-		struct StateOutput {
-			std::vector<float> _cellWeights;
-			std::vector<float> _columnWeights;
-			std::vector<float> _columnBiases;
-
-			std::vector<float> _columnPrevPrevOutputs;
-			std::vector<float> _columnPrevOutputs;
-			std::vector<float> _columnOutputs;
-			std::vector<float> _columnErrors;
-			float _outputError;
-
-			float _bias;
-			float _prevPrevOutput;
-			float _prevOutput;
-			float _output;
-		};
-
 		int _inputWidth;
 		int _inputHeight;
 		int _inputDotsWidth;
@@ -131,35 +116,19 @@ namespace htmrl {
 		std::vector<float> _inputf;
 		std::vector<bool> _inputb;
 
-		htm::Region _region;
+		std::vector<RegionDesc> _regionDescs;
+		std::vector<htm::Region> _regions;
 
-		StateOutput _criticOutput;
-		std::vector<StateOutput> _actorOutputs;
-
-		std::vector<bool> _prevPrevState;
-		std::vector<bool> _prevState;
-
-		std::vector<float> _prevPrevOutputs;
-		std::vector<float> _prevOutputs;
 		std::vector<float> _outputs;
-		std::vector<float> _outputOffsets;
-
-		float _prevVariance;
-		float _variance;
-		float _prevError;
-
-		float _prevQ;
-		float _prevNextQ;
-		bool _firstStep;
-
-		bool _explore;
 
 		void decodeInput();
 
 	public:
+		deep::FERL _ferl;
+
 		HTMRL();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, const RegionDesc &regionDesc, float stateOutputWeightStdDev, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int ferlNumHidden, float ferlInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, float value) {
 			_inputf[x + y * _inputWidth] = std::min(1.0f, std::max(-1.0f, value));
@@ -177,10 +146,10 @@ namespace htmrl {
 			return _outputs[index];
 		}
 
-		const htm::Region &getRegion() const {
-			return _region;
+		const htm::Region &getRegion(int index) const {
+			return _regions[index];
 		}
 
-		void step(float reward, float gamma, float qAlpha, float hebbianAlphaActor, float backpropAlphaCritic, RegionDesc &regionDesc, float outputPerturbationStdDev, float breakRate, float exploreErrorTolerance, std::mt19937 &generator);
+		void step(float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv, int qSearchIterations, int qSearchSamples, int qSearchAlpha, float perturbationStdDev, float breakRate, std::mt19937 &generator);
 	};
 }

@@ -71,5 +71,25 @@ namespace htm {
 		bool hasConnections(int x, int y) const;
 		void getReconstruction(std::vector<bool> &output, float minOverlap, float minPermanence, bool fromPrediction) const;
 		void getReconstructionAtTime(std::vector<bool> &output, float minOverlap, float minPermanence, int t) const;
+
+		int getRegionWidth() const {
+			return _regionWidth;
+		}
+
+		int getRegionHeight() const {
+			return _regionHeight;
+		}
+
+		int getInputWidth() const {
+			return _inputWidth;
+		}
+
+		int getInputHeight() const {
+			return _inputHeight;
+		}
+
+		int getConnectionRadius() const {
+			return _connectionRadius;
+		}
 	};
 }

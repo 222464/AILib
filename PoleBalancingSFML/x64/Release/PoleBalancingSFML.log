@@ -1,36 +1,20 @@
-﻿Build started 9/15/2014 11:37:48 PM.
+﻿Build started 9/17/2014 7:54:20 PM.
      1>Project "C:\Users\Eric\Documents\AILib\PoleBalancingSFML\PoleBalancingSFML.vcxproj" on node 2 (Build target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(381,5): warning MSB8028: The intermediate directory (x64\Release\) contains files shared from another project (PoleBalancingSFML.vcxproj).  This can lead to incorrect clean and rebuild behavior.
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(935,5): warning MSB8027: Two or more files with the name of GeneticAlgorithm.cpp will produce outputs to the same location. This can lead to an incorrect build result.  The files involved are Source\ctrnn\GeneticAlgorithm.cpp, Source\nn\GeneticAlgorithm.cpp.
      1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /O2 /Oi /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Release\\" /Fd"x64\Release\vc120.pdb" /Gd /TP /errorReport:prompt Source\deep\ConvNet2D.cpp Source\deep\DBN.cpp Source\deep\EQNAC.cpp Source\deep\FERL.cpp Source\deep\RBM.cpp Source\Maze.cpp Source\Main.cpp
-         ConvNet2D.cpp
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(85): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(89): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-         DBN.cpp
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(85): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(89): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/DBN.h(79): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-         EQNAC.cpp
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(85): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(89): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-         FERL.cpp
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/FERL.h(99): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/FERL.h(103): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-         RBM.cpp
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(85): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(89): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-         Maze.cpp
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /O2 /Oi /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Release\\" /Fd"x64\Release\vc120.pdb" /Gd /TP /errorReport:prompt Source\Main.cpp
          Main.cpp
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\lstm/LSTMG.h(150): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\lstm/LSTMG.h(154): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
-     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/FERL.h(99): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/FERL.h(103): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
+     1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/FERL.h(107): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\htm/Column.h(59): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(85): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/RBM.h(89): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>C:\Users\Eric\Documents\AILib\PoleBalancingSFML\Source\deep/DBN.h(79): warning C4267: 'return' : conversion from 'size_t' to 'int', possible loss of data
      1>Source\Main.cpp(1170): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+     1>Source\Main.cpp(1375): warning C4244: 'argument' : conversion from 'float' to 'int', possible loss of data
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Eric\Documents\AILib\x64\Release\AILib.exe" /NOLOGO "sfml-main.lib" "sfml-system.lib" "sfml-window.lib" "sfml-graphics.lib" "sfml-audio.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Eric\Documents\AILib\x64\Release\AILib.pdb" /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Eric\Documents\AILib\x64\Release\AILib.lib" /MACHINE:X64 x64\Release\APSSC.obj
          x64\Release\CTRNN.obj
@@ -105,4 +89,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:06.82
+Time Elapsed 00:00:06.41

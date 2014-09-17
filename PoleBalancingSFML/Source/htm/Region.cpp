@@ -85,7 +85,7 @@ bool Region::getOutput(int i) const {
 	const Column &column = _columns[i];
 
 	for (int j = 0; j < column._cells.size(); j++)
-	if (column._cells[j]._activeState)
+	if (column._cells[j]._activeState || column._cells[j]._predictiveState)
 		return true;
 
 	return false;

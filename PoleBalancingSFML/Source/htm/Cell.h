@@ -52,6 +52,10 @@ namespace htm {
 			return _activeState;
 		}
 
+		bool getOutput() const {
+			return _activeState || _predictiveState;
+		}
+
 		friend class Column;
 		friend class Region;
 	};

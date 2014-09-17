@@ -1166,7 +1166,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	return 0;
 }*/
 
-/*int main() {
+int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -1260,9 +1260,12 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
-	//htmrl::HTMRL agent;
-	//htmrl::HTMRL::RegionDesc regionDesc;
-	//agent.createRandom(2, 2, 8, 8, 1, regionDesc, 0.1f, generator);
+	htmrl::HTMRL htmRL;
+	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
+	regionDescs[0]._regionWidth = 24;
+	regionDescs[0]._regionHeight = 24;
+
+	htmRL.createRandom(2, 2, 6, 6, 1, 32, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1366,7 +1369,15 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		std::vector<float> output;
 
-		ferl.step(state, output, reward, 0.0001f, 0.97f, 0.8f, 6.0f, 8, 8, 0.05f, 0.05f, 0.1f, generator);
+		for (int i = 0; i < state.size(); i++)
+			htmRL.setInput(i % 2, i / 2, state[i]);
+
+		htmRL.step(reward, 0.001f, 0.97f, 0.9f, 5.0f, 6, 6, 0.05f, 0.05f, 0.05f, generator);
+
+		output.resize(1);
+		output[0] = htmRL.getOutput(0);
+
+		//ferl.step(state, output, reward, 0.0001f, 0.97f, 0.8f, 6.0f, 8, 8, 0.05f, 0.05f, 0.1f, generator);
 
 		lowPassFitness += (fitness - lowPassFitness) * 0.2f;
 
@@ -1481,7 +1492,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 			window.draw(text);
 		}
 
-		std::vector<bool> recon;
+		/*std::vector<bool> recon;
 		agent.getRegion().getReconstruction(recon, 2.0f, 0.3f, true);
 
 		for (size_t i = 0; i < 256; i++) {
@@ -1510,7 +1521,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		s.setTexture(t);
 
-		window.draw(s);
+		window.draw(s);*/
 
 		// -------------------------------------------------------------------
 
@@ -1518,7 +1529,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
-}*/
+}
 
 /*const size_t entrySize = 30; // 31 if you include the weight
 
