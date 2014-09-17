@@ -27,38 +27,38 @@ misrepresented as being the original software.
 namespace deep {
 	class RBM {
 	public:
-		static double sigmoid(double x) {
-			return 1.0 / (1.0 + std::exp(-x));
+		static float sigmoid(float x) {
+			return 1.0f / (1.0f + std::exp(-x));
 		}
 
 	private:
 		struct Connection {
-			double _weight;
-			double _positive;
-			double _negative;
+			float _weight;
+			float _positive;
+			float _negative;
 
 			Connection()
-				: _positive(0.0),
-				_negative(0.0)
+				: _positive(0.0f),
+				_negative(0.0f)
 			{}
 		};
 
 		struct HiddenNode {
 			std::vector<Connection> _connections;
 
-			double _output;
-			double _probability;
+			float _output;
+			float _probability;
 
 			HiddenNode()
-				: _output(0.0), _probability(0.0)
+				: _output(0.0f), _probability(0.0f)
 			{}
 		};
 
 		struct VisibleNode {
-			double _probability;
+			float _probability;
 
 			VisibleNode()
-				: _probability(0.0)
+				: _probability(0.0f)
 			{}
 		};
 
@@ -66,26 +66,26 @@ namespace deep {
 		std::vector<HiddenNode> _hidden;
 
 	public:
-		void createRandom(size_t numVisible, size_t numHidden, double minWeight, double maxWeight, std::mt19937 &generator);
+		void createRandom(int numVisible, int numHidden, float minWeight, float maxWeight, std::mt19937 &generator);
 
 		void activate(std::mt19937 &generator);
 		void activateLight();
 
-		void learn(double alpha, std::mt19937 &generator);
+		void learn(float alpha, std::mt19937 &generator);
 
-		void setVisible(size_t index, double value) {
+		void setVisible(int index, float value) {
 			_visible[index]._probability = value;
 		}
 
-		double getHidden(size_t index) const {
+		float getHidden(int index) const {
 			return _hidden[index]._probability;
 		}
 
-		size_t getNumVisible() const {
+		int getNumVisible() const {
 			return _visible.size() - 1; // -1 to account for bias
 		}
 
-		size_t getNumHidden() const {
+		int getNumHidden() const {
 			return _hidden.size() - 1; // -1 to account for bias
 		}
 

@@ -29,53 +29,53 @@ namespace deep {
 	class DBN {
 	public:
 		struct LinearNode {
-			double _output;
-			double _error;
+			float _output;
+			float _error;
 
-			double _bias;
-			double _prevDBias;
-			double _accumulatedDBias;
+			float _bias;
+			float _prevDBias;
+			float _accumulatedDBias;
 
-			std::vector<double> _weights;
-			std::vector<double> _prevDWeights;
-			std::vector<double> _accumulatedDWeight;
+			std::vector<float> _weights;
+			std::vector<float> _prevDWeights;
+			std::vector<float> _accumulatedDWeight;
 
 			LinearNode()
-				: _output(0.0), _error(0.0), _prevDBias(0.0), _accumulatedDBias(0.0)
+				: _output(0.0f), _error(0.0f), _prevDBias(0.0f), _accumulatedDBias(0.0f)
 			{}
 		};
 	private:
 		std::vector<RBM> _rbmLayers;
-		std::vector<std::vector<double>> _rbmErrors;
+		std::vector<std::vector<float>> _rbmErrors;
 
 		std::vector<LinearNode> _outputNodes;
 
-		std::vector<double> _input;
+		std::vector<float> _input;
 
 	public:
-		void createRandom(size_t numInputs, size_t numOutputs, const std::vector<size_t> &rbmNumHiddens, double minWeight, double maxWeight, std::mt19937 &generator);
+		void createRandom(int numInputs, int numOutputs, const std::vector<int> &rbmNumHiddens, float minWeight, float maxWeight, std::mt19937 &generator);
 	
-		void trainLayerUnsupervised(size_t layerIndex, const std::vector<double> &input, double alpha, std::mt19937 &generator);
+		void trainLayerUnsupervised(int layerIndex, const std::vector<float> &input, float alpha, std::mt19937 &generator);
 
-		void getLayerOutputMean(size_t layerIndex, const std::vector<double> &input, std::vector<double> &mean);
-		void getOutputMeanThroughLayers(size_t numLayers, const std::vector<double> &input, std::vector<double> &mean);
+		void getLayerOutputMean(int layerIndex, const std::vector<float> &input, std::vector<float> &mean);
+		void getOutputMeanThroughLayers(int numLayers, const std::vector<float> &input, std::vector<float> &mean);
 
 		void prepareForGradientDescent();
 
-		void execute(const std::vector<double> &input, std::vector<double> &output);
+		void execute(const std::vector<float> &input, std::vector<float> &output);
 
-		void getError(const std::vector<double> &target);
+		void getError(const std::vector<float> &target);
 
-		void moveAlongGradient(double alpha, double momentum, double alphaLayerMuliplier);
+		void moveAlongGradient(float alpha, float momentum, float alphaLayerMuliplier);
 		void signError();
 
 		void accumulateGradient();
-		void moveAlongAccumulatedGradient(double alpha);
+		void moveAlongAccumulatedGradient(float alpha);
 
 		void decayWeights(float decayMultiplier);
 		void decayWeightsLastLayerOnly(float decayMultiplier);
 
-		size_t getNumLayers() const {
+		int getNumLayers() const {
 			return _rbmLayers.size();
 		}
 	};

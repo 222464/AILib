@@ -149,7 +149,9 @@
     <ClCompile Include="Source\deep\AutoLSTM.cpp" />
     <ClCompile Include="Source\deep\DBN.cpp" />
     <ClCompile Include="Source\deep\DeepSOMNet.cpp" />
+    <ClCompile Include="Source\deep\EQNAC.cpp" />
     <ClCompile Include="Source\deep\FA.cpp" />
+    <ClCompile Include="Source\deep\FERL.cpp" />
     <ClCompile Include="Source\deep\RBM.cpp" />
     <ClCompile Include="Source\deep\DSOM.cpp" />
     <ClCompile Include="Source\dnf\Field.cpp" />
@@ -159,6 +161,12 @@
     <ClCompile Include="Source\experiments\ExperimentPoleBalancing.cpp" />
     <ClCompile Include="Source\experiments\ExperimentXOR.cpp" />
     <ClCompile Include="Source\falcon\Falcon.cpp" />
+    <ClCompile Include="Source\htmrl\HTMRL.cpp" />
+    <ClCompile Include="Source\htm\Cell.cpp" />
+    <ClCompile Include="Source\htm\Column.cpp" />
+    <ClCompile Include="Source\htm\Connection.cpp" />
+    <ClCompile Include="Source\htm\Region.cpp" />
+    <ClCompile Include="Source\htm\Segment.cpp" />
     <ClCompile Include="Source\hypernet\BayesianOptimizer.cpp" />
     <ClCompile Include="Source\hypernet\BayesianOptimizerTrainer.cpp" />
     <ClCompile Include="Source\hypernet\Boid.cpp" />
@@ -177,6 +185,7 @@
     <ClCompile Include="Source\lstm\LSTMActorCritic.cpp" />
     <ClCompile Include="Source\lstm\LSTMG.cpp" />
     <ClCompile Include="Source\lstm\LSTMNet.cpp" />
+    <ClCompile Include="Source\Maze.cpp" />
     <ClCompile Include="Source\nn\MultiQ.cpp" />
     <ClCompile Include="Source\nn\NCPSOAgent.cpp" />
     <ClCompile Include="Source\nn\PSOAgent.cpp" />
@@ -207,9 +216,13 @@
     <ClInclude Include="Source\deep\AutoLSTM.h" />
     <ClInclude Include="Source\deep\DBN.h" />
     <ClInclude Include="Source\deep\DeepSOMNet.h" />
+    <ClInclude Include="Source\deep\EQNAC.h" />
     <ClInclude Include="Source\deep\FA.h" />
+    <ClInclude Include="Source\deep\FERL.h" />
     <ClInclude Include="Source\deep\RBM.h" />
     <ClInclude Include="Source\deep\DSOM.h" />
+    <ClInclude Include="Source\htmrl\HTMRL.h" />
+    <ClInclude Include="Source\htm\Segment.h" />
     <ClInclude Include="Source\dnf\Field.h" />
     <ClInclude Include="Source\elman\ElmanNetwork.h" />
     <ClInclude Include="Source\experiments\ExperimentAND.h" />
@@ -217,6 +230,10 @@
     <ClInclude Include="Source\experiments\ExperimentPoleBalancing.h" />
     <ClInclude Include="Source\experiments\ExperimentXOR.h" />
     <ClInclude Include="Source\falcon\Falcon.h" />
+    <ClInclude Include="Source\htm\Cell.h" />
+    <ClInclude Include="Source\htm\Column.h" />
+    <ClInclude Include="Source\htm\Connection.h" />
+    <ClInclude Include="Source\htm\Region.h" />
     <ClInclude Include="Source\hypernet\BayesianOptimizer.h" />
     <ClInclude Include="Source\hypernet\BayesianOptimizerTrainer.h" />
     <ClInclude Include="Source\hypernet\Boid.h" />
