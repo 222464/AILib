@@ -184,6 +184,8 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action, flo
 
 	float error = qAlpha * (newAdv - _prevValue);
 
+	std::cout << predictedQ << std::endl;
+
 	_prevMax = nextQ;
 	_prevValue = predictedQ;
 

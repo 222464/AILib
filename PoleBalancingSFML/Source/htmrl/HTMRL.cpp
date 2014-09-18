@@ -30,6 +30,7 @@ float htmrl::defaultBoostFunction(float active, float minimum) {
 }
 
 HTMRL::HTMRL()
+: _encodeBlobRadius(1)
 {}
 
 void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int ferlNumHidden, float ferlInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
@@ -71,6 +72,9 @@ void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, in
 }
 
 void HTMRL::decodeInput() {
+	for (int i = 0; i < _inputb.size(); i++)
+		_inputb[i] = false;
+
 	int inputBWidth = _inputWidth * _inputDotsWidth;
 
 	for (int x = 0; x < _inputWidth; x++)
@@ -78,15 +82,21 @@ void HTMRL::decodeInput() {
 		int bX = x * _inputDotsWidth;
 		int bY = y * _inputDotsHeight;
 
+		int eX = bX + _inputDotsWidth;
+		int eY = bY + _inputDotsHeight;
+
 		int numDots = static_cast<int>((_inputf[x + y * _inputWidth] * 0.5f + 0.5f) * _inputMax);
 
-		int dotCount = 0;
+		int dotX = bX + numDots % _inputDotsWidth;
+		int dotY = bY + numDots / _inputDotsHeight;
 
-		for (int dx = 0; dx < _inputDotsWidth; dx++)
-		for (int dy = 0; dy < _inputDotsHeight; dy++) {
-			_inputb[(bX + dx) + (bY + dy) * inputBWidth] = dotCount < numDots;
+		for (int dx = -_encodeBlobRadius; dx <= _encodeBlobRadius; dx++)
+		for (int dy = -_encodeBlobRadius; dy <= _encodeBlobRadius; dy++) {
+			int pX = dotX + dx;
+			int pY = dotY + dy;
 
-			dotCount++;
+			if (pX >= bX && pX < eX && pY >= bY && pY < eY)
+				_inputb[pX + pY * inputBWidth] = true;
 		}
 	}
 }

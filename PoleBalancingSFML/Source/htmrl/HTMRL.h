@@ -73,32 +73,32 @@ namespace htmrl {
 				: _regionWidth(32),
 				_regionHeight(32),
 				_columnSize(4),
-				_connectionRadius(6),
+				_connectionRadius(4),
 				_initInhibitionRadius(6.0f),
 				_initNumSegments(0),
-				_permanenceDistanceBias(0.1f),
+				_permanenceDistanceBias(0.2f),
 				_permanenceDistanceFalloff(2.0f),
-				_permanenceBiasFloor(-0.05f),
+				_permanenceBiasFloor(-0.1f),
 				_connectionPermanenceTarget(0.3f),
 				_connectionPermanenceStdDev(0.1f),
 				_minPermanence(0.3f),
-				_minOverlap(2.0f),
-				_desiredLocalActivity(8),
+				_minOverlap(4.0f),
+				_desiredLocalActivity(16),
 				_spatialPermanenceIncrease(0.05f),
 				_spatialPermanenceDecrease(0.04f),
 				_minDutyCycleRatio(0.01f),
 				_activeDutyCycleDecay(0.01f),
 				_overlapDutyCycleDecay(0.01f),
-				_subOverlapPermanenceIncrease(0.04f),
+				_subOverlapPermanenceIncrease(0.03f),
 				_boostFunction(std::bind(defaultBoostFunction, std::placeholders::_1, std::placeholders::_2)),
 				_learningRadius(4),
 				_minLearningThreshold(1),
-				_activationThreshold(6),
+				_activationThreshold(8),
 				_newNumConnections(32),
 				_temporalPermanenceIncrease(0.05f),
 				_temporalPermanenceDecrease(0.04f),
 				_newConnectionPermanence(0.31f),
-				_maxSteps(4)
+				_maxSteps(3)
 			{}
 		};
 
@@ -126,6 +126,8 @@ namespace htmrl {
 	public:
 		deep::FERL _ferl;
 
+		int _encodeBlobRadius;
+
 		HTMRL();
 
 		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int ferlNumHidden, float ferlInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
@@ -151,5 +153,25 @@ namespace htmrl {
 		}
 
 		void step(float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv, int qSearchIterations, int qSearchSamples, int qSearchAlpha, float perturbationStdDev, float breakRate, std::mt19937 &generator);
+	
+		int getInputWidth() const {
+			return _inputWidth;
+		}
+
+		int getInputHeight() const {
+			return _inputHeight;
+		}
+
+		int getInputDotsWidth() const {
+			return _inputDotsWidth;
+		}
+
+		int getInputDotsHeight() const {
+			return _inputDotsHeight;
+		}
+
+		int getInputMax() const {
+			return _inputMax;
+		}
 	};
 }

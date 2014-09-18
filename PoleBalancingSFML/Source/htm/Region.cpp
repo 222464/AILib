@@ -672,7 +672,7 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 				}
 			}
 
-			if (maxActiveConnections <= minLearningThreshold) {
+			if (maxActiveConnections < minLearningThreshold) {
 				int minSegmentsCellIndex = 0;
 
 				for (int j = 1; j < column._cells.size(); j++) {
@@ -785,6 +785,8 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 				}
 			}
 
+			segmentUpdate._src = SegmentUpdate::_1;
+
 			column._cells[segmentUpdate._cellIndex]._segmentUpdates.push_back(segmentUpdate);
 		}
 	}
@@ -843,6 +845,8 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 					else
 						segmentUpdate._inactiveConnectionIndices.push_back(it->first);
 
+					segmentUpdate._src = SegmentUpdate::_2;
+
 					cell._segmentUpdates.push_back(segmentUpdate);
 				}
 			}
@@ -864,7 +868,7 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 					}
 				}
 
-				if (maxActiveConnections <= minLearningThreshold)
+				if (maxActiveConnections < minLearningThreshold)
 					maxActiveConnectionsSegmentIndex = -1;
 
 				SegmentUpdate segmentUpdate;
@@ -963,6 +967,8 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 					}
 				}
 
+				segmentUpdate._src = SegmentUpdate::_3;
+
 				cell._segmentUpdates.push_back(segmentUpdate);
 			}
 		}
@@ -981,17 +987,17 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 			std::vector<int> modifiedSegmentIndices;
 			std::unordered_set<int> modifiedSegmentIndicesSet;
 
+			std::vector<SegmentUpdate> keepUpdates;
+
 			if (cell._learnState) {
-				for (int s = 0; s < cell._segmentUpdates.size();) {
+				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
 					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
 						segmentUpdate._isNew = false;
-						s++;
+						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
-
-					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._segmentIndex == -1) {
 						if (segmentUpdate._activeConnectionIndices.size() > activationThreshold) {
@@ -1051,21 +1057,17 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 							modifiedSegmentIndicesSet.insert(modIndex);
 						}
 					}
-
-					cell._segmentUpdates.erase(cell._segmentUpdates.begin() + s);
 				}
 			}
 			else if (!cell._predictiveState && cell._prevPredictiveState) {
-				for (int s = 0; s < cell._segmentUpdates.size();) {
+				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
 					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
 						segmentUpdate._isNew = false;
-						s++;
+						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
-
-					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._segmentIndex != -1) {
 						Segment &segment = cell._segments[segmentUpdate._segmentIndex];
@@ -1093,21 +1095,17 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 							modifiedSegmentIndicesSet.insert(modIndex);
 						}	
 					}
-
-					cell._segmentUpdates.erase(cell._segmentUpdates.begin() + s);
 				}
 			}
 			else if (cell._predictiveState && cell._prevPredictiveState && cell._numPredictionSteps > 1 && cell._prevNumPredictionSteps == 1) {
-				for (int s = 0; s < cell._segmentUpdates.size();) {
+				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
 					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
 						segmentUpdate._isNew = false;
-						s++;
+						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
-
-					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._numPredictionSteps <= 1) {
 						if (segmentUpdate._segmentIndex != -1) {
@@ -1136,13 +1134,16 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 								modifiedSegmentIndicesSet.insert(modIndex);
 							}	
 						}
-
-						cell._segmentUpdates.erase(cell._segmentUpdates.begin() + s);
 					}
-					else
-						s++;
+					else {
+						segmentUpdate._isNew = false;
+
+						keepUpdates.push_back(segmentUpdate);
+					}
 				}
 			}
+
+			cell._segmentUpdates = keepUpdates;
 
 			if (cell._segmentUpdates.empty())
 			for (int m = 0; m < modifiedSegmentIndices.size(); m++) {

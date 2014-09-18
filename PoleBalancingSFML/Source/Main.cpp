@@ -1262,30 +1262,16 @@ int main() {
 
 	htmrl::HTMRL htmRL;
 	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
-	regionDescs[0]._regionWidth = 24;
-	regionDescs[0]._regionHeight = 24;
+	regionDescs[0]._regionWidth = 16;
+	regionDescs[0]._regionHeight = 16;
 
-	htmRL.createRandom(2, 2, 6, 6, 1, 32, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 2, 8, 8, 1, 32, 0.025f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
 
 	deep::FERL ferl;
-	ferl.createRandom(4, 1, 32, 0.1f, generator);
-
-	std::array<falcon::Falcon::FieldParams, 3> fieldParams;
-
-	fieldParams[0]._baseVigilance = 1.2f;
-	fieldParams[1]._baseVigilance = 1.4f;
-	fieldParams[2]._baseVigilance = 1.0f;
-
-	fieldParams[0]._alpha = 0.1f;
-	fieldParams[1]._alpha = 0.01f;
-	fieldParams[2]._alpha = 0.01f;
-
-	fieldParams[0]._gamma = 0.5f;
-	fieldParams[1]._gamma = 0.5f;
-	fieldParams[2]._gamma = 0.2f;
+	ferl.createRandom(4, 1, 24, 0.1f, generator);
 
 	//nn::SOMQAgent sqa;
 
@@ -1325,7 +1311,7 @@ int main() {
 		else
 			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
 
-		fitness = fitness - std::fabsf(poleAngleVel * 1.0f);
+		//fitness = fitness - std::fabsf(poleAngleVel * 1.0f);
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			fitness = -cartX;
@@ -1364,15 +1350,15 @@ int main() {
 
 		state[0] = cartX * 0.25f;
 		state[1] = cartVelX;
-		state[2] = std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi));
-		state[3] = poleAngleVel;
+		state[2] = std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)) / (2.0f * static_cast<float>(std::_Pi)) * 2.0f - 1.0f;
+		state[3] = poleAngleVel * 0.5f;
 
 		std::vector<float> output;
 
 		for (int i = 0; i < state.size(); i++)
 			htmRL.setInput(i % 2, i / 2, state[i]);
 
-		htmRL.step(reward, 0.001f, 0.97f, 0.9f, 5.0f, 6, 6, 0.05f, 0.05f, 0.05f, generator);
+		htmRL.step(reward, 0.0001f, 0.97f, 0.92f, 5.0f, 8, 6, 0.025f, 0.05f, 0.05f, generator);
 
 		output.resize(1);
 		output[0] = htmRL.getOutput(0);
@@ -1492,8 +1478,8 @@ int main() {
 			window.draw(text);
 		}
 
-		/*std::vector<bool> recon;
-		agent.getRegion().getReconstruction(recon, 2.0f, 0.3f, true);
+		std::vector<bool> recon;
+		htmRL.getRegion(0).getReconstruction(recon, 4.0f, 0.3f, false);
 
 		for (size_t i = 0; i < 256; i++) {
 			int x = i % 16;
@@ -1521,7 +1507,7 @@ int main() {
 
 		s.setTexture(t);
 
-		window.draw(s);*/
+		window.draw(s);
 
 		// -------------------------------------------------------------------
 

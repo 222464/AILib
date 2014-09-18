@@ -28,6 +28,12 @@ misrepresented as being the original software.
 
 namespace htm {
 	struct SegmentUpdate {
+		enum Source {
+			_1, _2, _3, _null
+		};
+
+		Source _src;
+
 		int _columnIndex;
 		int _cellIndex;
 		int _segmentIndex;
@@ -40,7 +46,8 @@ namespace htm {
 
 		SegmentUpdate()
 			: _columnIndex(-1), _cellIndex(-1), _segmentIndex(-1),
-			_isNew(true), _dueToPredictive(true), _numPredictionSteps(1)
+			_isNew(true), _dueToPredictive(true), _numPredictionSteps(1),
+			_src(_null)
 		{}
 
 		size_t operator()(const SegmentUpdate &value) const {
