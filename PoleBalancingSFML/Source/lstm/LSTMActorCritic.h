@@ -22,6 +22,7 @@ misrepresented as being the original software.
 #pragma once
 
 #include <lstm/LSTMG.h>
+#include <deep/FA.h>
 
 namespace lstm {
 	class LSTMActorCritic {

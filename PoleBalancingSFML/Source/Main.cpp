@@ -63,7 +63,6 @@ misrepresented as being the original software.
 #include <htmrl/HTMRL.h>
 
 #include <deep/RBM.h>
-#include <deep/DeepSOMNet.h>
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
 
@@ -1265,13 +1264,13 @@ int main() {
 	regionDescs[0]._regionWidth = 16;
 	regionDescs[0]._regionHeight = 16;
 
-	htmRL.createRandom(2, 2, 8, 8, 1, 32, 0.025f, regionDescs, generator);
+	htmRL.createRandom(2, 2, 16, 16, 1, 1, 16, 1, 16, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
 
-	deep::FERL ferl;
-	ferl.createRandom(4, 1, 24, 0.1f, generator);
+	//deep::FERL ferl;
+	//ferl.createRandom(4, 1, 24, 0.1f, generator);
 
 	//nn::SOMQAgent sqa;
 
@@ -1324,7 +1323,7 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness;
+		reward = fitness * 0.1f;
 
 		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
 
@@ -1358,7 +1357,10 @@ int main() {
 		for (int i = 0; i < state.size(); i++)
 			htmRL.setInput(i % 2, i / 2, state[i]);
 
-		htmRL.step(reward, 0.0001f, 0.97f, 0.92f, 5.0f, 8, 6, 0.025f, 0.05f, 0.05f, generator);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
+			htmRL.step(reward, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f, 0.1f, 0.995f, 0.5f, 1.0f, 0.0f, 0.0f, 0.08f, 0.5f, 0.02f, generator);
+		else
+			htmRL.step(reward, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f, 0.1f, 0.995f, 0.5f, 1.0f, 0.15f, 0.05f, 0.08f, 0.5f, 0.02f, generator);
 
 		output.resize(1);
 		output[0] = htmRL.getOutput(0);
@@ -1479,15 +1481,14 @@ int main() {
 		}
 
 		std::vector<bool> recon;
-		htmRL.getRegion(0).getReconstruction(recon, 4.0f, 0.3f, false);
 
-		for (size_t i = 0; i < 256; i++) {
+		/*for (size_t i = 0; i < 256; i++) {
 			int x = i % 16;
 			int y = i / 16;
 
 			sf::Color c;
 			
-			if (recon[i])
+			if (htmRL.getRegion(1).getOutput(x, y))
 				c = sf::Color::Red;
 			else
 				c = sf::Color::White;
@@ -1508,7 +1509,7 @@ int main() {
 		s.setTexture(t);
 
 		window.draw(s);
-
+		*/
 		// -------------------------------------------------------------------
 
 		window.display();

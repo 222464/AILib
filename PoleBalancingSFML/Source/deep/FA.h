@@ -27,10 +27,27 @@ misrepresented as being the original software.
 namespace deep {
 	class FA {
 	private:
-		struct Node {
-			std::vector<float> _weights;
+		struct Connection {
+			float _weight;
+			float _prevDWeight;
+			float _eligibility;
 
-			float _bias;
+			Connection()
+				: _eligibility(0.0f), _prevDWeight(0.0f)
+			{}
+		};
+
+		struct Node {
+			std::vector<Connection> _connections;
+
+			Connection _bias;
+
+			float _output;
+			float _error;
+
+			Node()
+				: _output(0.0f), _error(0.0f)
+			{}
 		};
 
 		std::vector<std::vector<Node>> _hiddenLayers;
@@ -39,17 +56,19 @@ namespace deep {
 		float crossoverChooseWeight(float w1, float w2, float averageChance, std::mt19937 &generator);
 
 	public:
-		void createRandom(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, float minWeight, float maxWeight, std::mt19937 &generator);
+		void createRandom(int numInputs, int numOutputs, int numHiddenLayers, int numNeuronsPerHiddenLayer, float weightStdDev, std::mt19937 &generator);
 		void createFromParents(const FA &parent1, const FA &parent2, float averageChance, std::mt19937 &generator);
 		void mutate(float perturbationChance, float perturbationStdDev, std::mt19937 &generator);
 
 		// Returns last index of weight vector
-		size_t createFromWeightsVector(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, const std::vector<float> &weights, size_t startIndex = 0);
+		int createFromWeightsVector(int numInputs, int numOutputs, int numHiddenLayers, int numNeuronsPerHiddenLayer, const std::vector<float> &weights, int startIndex = 0);
 		void getWeightsVector(std::vector<float> &weights);
 
-		void process(const std::vector<float> &inputs, std::vector<float> &outputs, float activationMultiplier);
-		void process(const std::vector<float> &inputs, std::vector<std::vector<float>> &layerOutputs, float activationMultiplier);
-		void backpropagate(const std::vector<float> &inputs, const std::vector<std::vector<float>> &layerOutputs, const std::vector<float> &targetOutputs, float alpha);
+		void process(const std::vector<float> &inputs, std::vector<float> &outputs);
+
+		void backpropagate(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float momentum);
+
+		void adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum);
 
 		void writeToStream(std::ostream &os) const;
 		void readFromStream(std::istream &is);
@@ -58,22 +77,22 @@ namespace deep {
 			return 1.0f / (1.0f + std::exp(-x));
 		}
 
-		size_t getNumInputs() const {
+		int getNumInputs() const {
 			if (_hiddenLayers.empty())
-				return _outputLayer[0]._weights.size();
+				return _outputLayer[0]._connections.size();
 
-			return _hiddenLayers[0][0]._weights.size();
+			return _hiddenLayers[0][0]._connections.size();
 		}
 
-		size_t getNumOutputs() const {
+		int getNumOutputs() const {
 			return _outputLayer.size();
 		}
 
-		size_t getNumHiddenLayers() const {
+		int getNumHiddenLayers() const {
 			return _hiddenLayers.size();
 		}
 
-		size_t getNumNeuronsPerHiddenLayer() const {
+		int getNumNeuronsPerHiddenLayer() const {
 			if (_hiddenLayers.empty())
 				return 0;
 

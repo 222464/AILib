@@ -23,7 +23,7 @@ misrepresented as being the original software.
 
 #include <htm/Region.h>
 
-#include <deep/FERL.h>
+#include <deep/FA.h>
 
 #include <algorithm>
 
@@ -82,16 +82,16 @@ namespace htmrl {
 				_connectionPermanenceTarget(0.3f),
 				_connectionPermanenceStdDev(0.1f),
 				_minPermanence(0.3f),
-				_minOverlap(4.0f),
-				_desiredLocalActivity(16),
+				_minOverlap(1.0f),
+				_desiredLocalActivity(10),
 				_spatialPermanenceIncrease(0.05f),
 				_spatialPermanenceDecrease(0.04f),
 				_minDutyCycleRatio(0.01f),
 				_activeDutyCycleDecay(0.01f),
 				_overlapDutyCycleDecay(0.01f),
-				_subOverlapPermanenceIncrease(0.03f),
+				_subOverlapPermanenceIncrease(0.05f),
 				_boostFunction(std::bind(defaultBoostFunction, std::placeholders::_1, std::placeholders::_2)),
-				_learningRadius(4),
+				_learningRadius(3),
 				_minLearningThreshold(1),
 				_activationThreshold(8),
 				_newNumConnections(32),
@@ -100,6 +100,19 @@ namespace htmrl {
 				_newConnectionPermanence(0.31f),
 				_maxSteps(3)
 			{}
+		};
+
+		struct ReplaySample {
+			std::vector<bool> _actorInputsb;
+			std::vector<float> _actorOutputsOptimal;
+			std::vector<float> _actorOutputsExploratory;
+			float _criticOutput;
+			float _reward;
+
+			float _optimalQ;
+			float _exploratoryQ;
+
+			std::vector<float> _prevDAction;
 		};
 
 		static float sigmoid(float x) {
@@ -116,21 +129,40 @@ namespace htmrl {
 		std::vector<float> _inputf;
 		std::vector<bool> _inputb;
 
+		std::vector<bool> _prevLayerInputb;
+
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
 		std::vector<float> _outputs;
+		std::vector<float> _exploratoryOutputs;
+
+		std::vector<float> _prevOutputs;
+		std::vector<float> _prevExploratoryOutputs;
+
+		deep::FA _actor;
+		deep::FA _critic;
+
+		float _prevMaxQ;
+		float _prevValue;
+
+		std::list<ReplaySample> _replayChain;
+
+		float _variance;
 
 		void decodeInput();
 
 	public:
-		deep::FERL _ferl;
-
 		int _encodeBlobRadius;
+		int _replaySampleFrames;
+		int _maxReplayChainSize;
+		int _backpropPassesActor;
+		int _backpropPassesCritic;
+		float _actionInputVocalness;
 
 		HTMRL();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int ferlNumHidden, float ferlInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, float value) {
 			_inputf[x + y * _inputWidth] = std::min(1.0f, std::max(-1.0f, value));
@@ -145,14 +177,14 @@ namespace htmrl {
 		}
 
 		float getOutput(int index) const {
-			return _outputs[index];
+			return _exploratoryOutputs[index];
 		}
 
 		const htm::Region &getRegion(int index) const {
 			return _regions[index];
 		}
 
-		void step(float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv, int qSearchIterations, int qSearchSamples, int qSearchAlpha, float perturbationStdDev, float breakRate, std::mt19937 &generator);
+		void step(float reward, float backpropAlphaActor, float backpropAlphaCritic, float alphaActor, float alphaCritic, float momentumActor, float momentumCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator);
 	
 		int getInputWidth() const {
 			return _inputWidth;

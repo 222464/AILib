@@ -165,9 +165,6 @@
     <ClCompile Include="Source\deep\RBM.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\deep\DeepSOMNet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\deep\FA.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -363,9 +360,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\deep\RBM.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\deep\DeepSOMNet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\deep\FA.h">

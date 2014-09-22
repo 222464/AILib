@@ -148,7 +148,6 @@
     <ClCompile Include="Source\deep\DAutoEncoder.cpp" />
     <ClCompile Include="Source\deep\AutoLSTM.cpp" />
     <ClCompile Include="Source\deep\DBN.cpp" />
-    <ClCompile Include="Source\deep\DeepSOMNet.cpp" />
     <ClCompile Include="Source\deep\EQNAC.cpp" />
     <ClCompile Include="Source\deep\FA.cpp" />
     <ClCompile Include="Source\deep\FERL.cpp" />
@@ -215,7 +214,6 @@
     <ClInclude Include="Source\deep\DAutoEncoder.h" />
     <ClInclude Include="Source\deep\AutoLSTM.h" />
     <ClInclude Include="Source\deep\DBN.h" />
-    <ClInclude Include="Source\deep\DeepSOMNet.h" />
     <ClInclude Include="Source\deep\EQNAC.h" />
     <ClInclude Include="Source\deep\FA.h" />
     <ClInclude Include="Source\deep\FERL.h" />

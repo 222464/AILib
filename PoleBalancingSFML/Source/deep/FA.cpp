@@ -21,10 +21,12 @@ misrepresented as being the original software.
 
 #include <deep/FA.h>
 
+#include <list>
+
 using namespace deep;
 
-void FA::createRandom(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, float minWeight, float maxWeight, std::mt19937 &generator) {
-	std::uniform_real_distribution<float> distWeight(minWeight, maxWeight);
+void FA::createRandom(int numInputs, int numOutputs, int numHiddenLayers, int numNeuronsPerHiddenLayer, float weightStdDev, std::mt19937 &generator) {
+	std::normal_distribution<float> distWeight(0.0f, weightStdDev);
 
 	if (numHiddenLayers > 0) {
 		_hiddenLayers.resize(numHiddenLayers);
@@ -32,50 +34,50 @@ void FA::createRandom(size_t numInputs, size_t numOutputs, size_t numHiddenLayer
 		// First hidden layer
 		_hiddenLayers[0].resize(numNeuronsPerHiddenLayer);
 
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			_hiddenLayers[0][n]._weights.resize(numInputs);
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			_hiddenLayers[0][n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				_hiddenLayers[0][n]._weights[w] = distWeight(generator);
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				_hiddenLayers[0][n]._connections[w]._weight = distWeight(generator);
 
-			_hiddenLayers[0][n]._bias = distWeight(generator);
+			_hiddenLayers[0][n]._bias._weight = distWeight(generator);
 		}
 
 		// All other hidden layers
-		for (size_t l = 1; l < _hiddenLayers.size(); l++) {
+		for (int l = 1; l < _hiddenLayers.size(); l++) {
 			_hiddenLayers[l].resize(numNeuronsPerHiddenLayer);
 
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-				_hiddenLayers[l][n]._weights.resize(numNeuronsPerHiddenLayer);
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				_hiddenLayers[l][n]._connections.resize(numNeuronsPerHiddenLayer);
 
-				for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-					_hiddenLayers[l][n]._weights[w] = distWeight(generator);
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					_hiddenLayers[l][n]._connections[w]._weight = distWeight(generator);
 
-				_hiddenLayers[l][n]._bias = distWeight(generator);
+				_hiddenLayers[l][n]._bias._weight = distWeight(generator);
 			}
 		}
 
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numNeuronsPerHiddenLayer);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numNeuronsPerHiddenLayer);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = distWeight(generator);
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = distWeight(generator);
 
-			_outputLayer[n]._bias = distWeight(generator);
+			_outputLayer[n]._bias._weight = distWeight(generator);
 		}
 	}
 	else {
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numInputs);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = distWeight(generator);
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = distWeight(generator);
 
-			_outputLayer[n]._bias = distWeight(generator);
+			_outputLayer[n]._bias._weight = distWeight(generator);
 		}
 	}
 }
@@ -90,10 +92,10 @@ float FA::crossoverChooseWeight(float w1, float w2, float averageChance, std::mt
 }
 
 void FA::createFromParents(const FA &parent1, const FA &parent2, float averageChance, std::mt19937 &generator) {
-	size_t numInputs = parent1.getNumInputs();
-	size_t numOutputs = parent1.getNumOutputs();
-	size_t numHiddenLayers = parent1.getNumHiddenLayers();
-	size_t numNeuronsPerHiddenLayer = parent1.getNumNeuronsPerHiddenLayer();
+	int numInputs = parent1.getNumInputs();
+	int numOutputs = parent1.getNumOutputs();
+	int numHiddenLayers = parent1.getNumHiddenLayers();
+	int numNeuronsPerHiddenLayer = parent1.getNumNeuronsPerHiddenLayer();
 
 	if (numHiddenLayers > 0) {
 		_hiddenLayers.resize(numHiddenLayers);
@@ -101,50 +103,50 @@ void FA::createFromParents(const FA &parent1, const FA &parent2, float averageCh
 		// First hidden layer
 		_hiddenLayers[0].resize(numNeuronsPerHiddenLayer);
 
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			_hiddenLayers[0][n]._weights.resize(numInputs);
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			_hiddenLayers[0][n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				_hiddenLayers[0][n]._weights[w] = crossoverChooseWeight(parent1._hiddenLayers[0][n]._weights[w], parent2._hiddenLayers[0][n]._weights[w], averageChance, generator);
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				_hiddenLayers[0][n]._connections[w]._weight = crossoverChooseWeight(parent1._hiddenLayers[0][n]._connections[w]._weight, parent2._hiddenLayers[0][n]._connections[w]._weight, averageChance, generator);
 
-			_hiddenLayers[0][n]._bias = crossoverChooseWeight(parent1._hiddenLayers[0][n]._bias, parent2._hiddenLayers[0][n]._bias, averageChance, generator);
+			_hiddenLayers[0][n]._bias._weight = crossoverChooseWeight(parent1._hiddenLayers[0][n]._bias._weight, parent2._hiddenLayers[0][n]._bias._weight, averageChance, generator);
 		}
 
 		// All other hidden layers
-		for (size_t l = 1; l < _hiddenLayers.size(); l++) {
+		for (int l = 1; l < _hiddenLayers.size(); l++) {
 			_hiddenLayers[l].resize(numNeuronsPerHiddenLayer);
 
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-				_hiddenLayers[l][n]._weights.resize(numNeuronsPerHiddenLayer);
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				_hiddenLayers[l][n]._connections.resize(numNeuronsPerHiddenLayer);
 
-				for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-					_hiddenLayers[l][n]._weights[w] = crossoverChooseWeight(parent1._hiddenLayers[l][n]._weights[w], parent2._hiddenLayers[l][n]._weights[w], averageChance, generator);
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					_hiddenLayers[l][n]._connections[w]._weight = crossoverChooseWeight(parent1._hiddenLayers[l][n]._connections[w]._weight, parent2._hiddenLayers[l][n]._connections[w]._weight, averageChance, generator);
 
-				_hiddenLayers[l][n]._bias = crossoverChooseWeight(parent1._hiddenLayers[l][n]._bias, parent2._hiddenLayers[l][n]._bias, averageChance, generator);
+				_hiddenLayers[l][n]._bias._weight = crossoverChooseWeight(parent1._hiddenLayers[l][n]._bias._weight, parent2._hiddenLayers[l][n]._bias._weight, averageChance, generator);
 			}
 		}
 
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numNeuronsPerHiddenLayer);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numNeuronsPerHiddenLayer);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = crossoverChooseWeight(parent1._outputLayer[n]._weights[w], parent2._outputLayer[n]._weights[w], averageChance, generator);
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = crossoverChooseWeight(parent1._outputLayer[n]._connections[w]._weight, parent2._outputLayer[n]._connections[w]._weight, averageChance, generator);
 
-			_outputLayer[n]._bias = crossoverChooseWeight(parent1._outputLayer[n]._bias, parent2._outputLayer[n]._bias, averageChance, generator);
+			_outputLayer[n]._bias._weight = crossoverChooseWeight(parent1._outputLayer[n]._bias._weight, parent2._outputLayer[n]._bias._weight, averageChance, generator);
 		}
 	}
 	else {
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numInputs);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = crossoverChooseWeight(parent1._outputLayer[n]._weights[w], parent2._outputLayer[n]._weights[w], averageChance, generator);
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = crossoverChooseWeight(parent1._outputLayer[n]._connections[w]._weight, parent2._outputLayer[n]._connections[w]._weight, averageChance, generator);
 
-			_outputLayer[n]._bias = crossoverChooseWeight(parent1._outputLayer[n]._bias, parent2._outputLayer[n]._bias, averageChance, generator);
+			_outputLayer[n]._bias._weight = crossoverChooseWeight(parent1._outputLayer[n]._bias._weight, parent2._outputLayer[n]._bias._weight, averageChance, generator);
 		}
 	}
 }
@@ -153,24 +155,24 @@ void FA::mutate(float perturbationChance, float perturbationStdDev, std::mt19937
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 	std::normal_distribution<float> distPerturbation(0.0f, perturbationStdDev);
 
-	for (size_t l = 0; l < _hiddenLayers.size(); l++)
-	for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-		for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-			_hiddenLayers[l][n]._weights[w] += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			_hiddenLayers[l][n]._connections[w]._weight += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
 
-		_hiddenLayers[l][n]._bias += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+		_hiddenLayers[l][n]._bias._weight += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
 	}
 
-	for (size_t n = 0; n < _outputLayer.size(); n++) {
-		for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-			_outputLayer[n]._weights[w] += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			_outputLayer[n]._connections[w]._weight += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
 
-		_outputLayer[n]._bias += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
+		_outputLayer[n]._bias._weight += dist01(generator) < perturbationChance ? distPerturbation(generator) : 0.0f;
 	}
 }
 
-size_t FA::createFromWeightsVector(size_t numInputs, size_t numOutputs, size_t numHiddenLayers, size_t numNeuronsPerHiddenLayer, const std::vector<float> &weights, size_t startIndex) {
-	size_t weightIndex = startIndex;
+int FA::createFromWeightsVector(int numInputs, int numOutputs, int numHiddenLayers, int numNeuronsPerHiddenLayer, const std::vector<float> &weights, int startIndex) {
+	int weightIndex = startIndex;
 	
 	if (numHiddenLayers > 0) {
 		_hiddenLayers.resize(numHiddenLayers);
@@ -178,50 +180,50 @@ size_t FA::createFromWeightsVector(size_t numInputs, size_t numOutputs, size_t n
 		// First hidden layer
 		_hiddenLayers[0].resize(numNeuronsPerHiddenLayer);
 
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			_hiddenLayers[0][n]._weights.resize(numInputs);
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			_hiddenLayers[0][n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				_hiddenLayers[0][n]._weights[w] = weights[weightIndex++];
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				_hiddenLayers[0][n]._connections[w]._weight = weights[weightIndex++];
 
-			_hiddenLayers[0][n]._bias = weights[weightIndex++];
+			_hiddenLayers[0][n]._bias._weight = weights[weightIndex++];
 		}
 
 		// All other hidden layers
-		for (size_t l = 1; l < _hiddenLayers.size(); l++) {
+		for (int l = 1; l < _hiddenLayers.size(); l++) {
 			_hiddenLayers[l].resize(numNeuronsPerHiddenLayer);
 
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-				_hiddenLayers[l][n]._weights.resize(numNeuronsPerHiddenLayer);
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				_hiddenLayers[l][n]._connections.resize(numNeuronsPerHiddenLayer);
 
-				for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-					_hiddenLayers[l][n]._weights[w] = weights[weightIndex++];
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					_hiddenLayers[l][n]._connections[w]._weight = weights[weightIndex++];
 
-				_hiddenLayers[l][n]._bias = weights[weightIndex++];
+				_hiddenLayers[l][n]._bias._weight = weights[weightIndex++];
 			}
 		}
 
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numNeuronsPerHiddenLayer);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numNeuronsPerHiddenLayer);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = weights[weightIndex++];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = weights[weightIndex++];
 
-			_outputLayer[n]._bias = weights[weightIndex++];
+			_outputLayer[n]._bias._weight = weights[weightIndex++];
 		}
 	}
 	else {
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numInputs);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] = weights[weightIndex++];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._weight = weights[weightIndex++];
 
-			_outputLayer[n]._bias = weights[weightIndex++];
+			_outputLayer[n]._bias._weight = weights[weightIndex++];
 		}
 	}
 
@@ -229,197 +231,247 @@ size_t FA::createFromWeightsVector(size_t numInputs, size_t numOutputs, size_t n
 }
 
 void FA::getWeightsVector(std::vector<float> &weights) {
-	for (size_t l = 0; l < _hiddenLayers.size(); l++)
-	for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-		for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-			weights.push_back(_hiddenLayers[l][n]._weights[w]);
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			weights.push_back(_hiddenLayers[l][n]._connections[w]._weight);
 
-		weights.push_back(_hiddenLayers[l][n]._bias);
+		weights.push_back(_hiddenLayers[l][n]._bias._weight);
 	}
 
-	for (size_t n = 0; n < _outputLayer.size(); n++) {
-		for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-			weights.push_back(_outputLayer[n]._weights[w]);
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			weights.push_back(_outputLayer[n]._connections[w]._weight);
 
-		weights.push_back(_outputLayer[n]._bias);
+		weights.push_back(_outputLayer[n]._bias._weight);
 	}
 }
 
-void FA::process(const std::vector<float> &inputs, std::vector<float> &outputs, float activationMultiplier) {
+void FA::process(const std::vector<float> &inputs, std::vector<float> &outputs) {
 	if (!_hiddenLayers.empty()) {
-		std::vector<float> tempInputs;
-		
-		tempInputs.resize(_hiddenLayers[0].size());
-
 		// First hidden layer
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			float sum = _hiddenLayers[0][n]._bias;
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			float sum = _hiddenLayers[0][n]._bias._weight;
 
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				sum += inputs[w] * _hiddenLayers[0][n]._weights[w];
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				sum += inputs[w] * _hiddenLayers[0][n]._connections[w]._weight;
 
-			tempInputs[n] = sigmoid(sum * activationMultiplier);
+			_hiddenLayers[0][n]._output = sigmoid(sum);
 		}
 
 		if (_hiddenLayers.size() > 1) {
-			std::vector<float> tempOutputs;
-
-			tempOutputs.resize(_hiddenLayers[0].size());
-
 			// All other hidden layers
-			for (size_t l = 1; l < _hiddenLayers.size(); l++) {
-				for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-					float sum = _hiddenLayers[l][n]._bias;
+			for (int l = 1; l < _hiddenLayers.size(); l++) {
+				int prevLayerIndex = l - 1;
 
-					for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-						sum += tempInputs[w] * _hiddenLayers[l][n]._weights[w];
+				for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+					float sum = _hiddenLayers[l][n]._bias._weight;
 
-					tempOutputs[n] = sigmoid(sum * activationMultiplier);
+					for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+						sum += _hiddenLayers[prevLayerIndex][w]._output * _hiddenLayers[l][n]._connections[w]._weight;
+
+					_hiddenLayers[l][n]._output = sigmoid(sum);
 				}
-
-				tempInputs = tempOutputs;
 			}
 		}
 
 		// Output layer
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			float sum = _outputLayer[n]._bias;
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			float sum = _outputLayer[n]._bias._weight;
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				sum += tempInputs[w] * _outputLayer[n]._weights[w];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				sum += _hiddenLayers.back()[w]._output * _outputLayer[n]._connections[w]._weight;
 
-			outputs[n] = sum * activationMultiplier; // Linear activation
+			outputs[n] = _outputLayer[n]._output = sum; // Linear activation
 		}
 	}
 	else {
 		// Output layer
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			float sum = _outputLayer[n]._bias;
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			float sum = _outputLayer[n]._bias._weight;
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				sum += inputs[w] * _outputLayer[n]._weights[w];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				sum += inputs[w] * _outputLayer[n]._connections[w]._weight;
 
-			outputs[n] = sum * activationMultiplier; // Linear activation
+			outputs[n] = _outputLayer[n]._output = sum; // Linear activation
 		}
 	}
 }
 
-void FA::process(const std::vector<float> &inputs, std::vector<std::vector<float>> &layerOutputs, float activationMultiplier) {
-	layerOutputs.resize(_hiddenLayers.size() + 1);
-	
-	if (!_hiddenLayers.empty()) {
-		layerOutputs[0].resize(_hiddenLayers[0].size());
-
-		// First hidden layer
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			float sum = _hiddenLayers[0][n]._bias;
-
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				sum += inputs[w] * _hiddenLayers[0][n]._weights[w];
-
-			layerOutputs[0][n] = sigmoid(sum * activationMultiplier);
-		}
-
-		// All other hidden layers
-		for (size_t l = 1; l < _hiddenLayers.size(); l++) {
-			layerOutputs[l].resize(_hiddenLayers[l].size());
-
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-				float sum = _hiddenLayers[l][n]._bias;
-
-				for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-					sum += layerOutputs[l - 1][w] * _hiddenLayers[l][n]._weights[w];
-
-				layerOutputs[l][n] = sigmoid(sum * activationMultiplier);
-			}
-		}
-
-		// Output layer
-		layerOutputs.back().resize(_outputLayer.size());
-
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			float sum = _outputLayer[n]._bias;
-
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				sum += layerOutputs[_hiddenLayers.size() - 1][w] * _outputLayer[n]._weights[w];
-
-			layerOutputs.back()[n] = sum * activationMultiplier; // Linear activation
-		}
-	}
-	else {
-		layerOutputs[0].resize(_outputLayer.size());
-
-		// Output layer
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			float sum = _outputLayer[n]._bias;
-
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				sum += inputs[w] * _outputLayer[n]._weights[w];
-
-			layerOutputs[0][n] = sum * activationMultiplier; // Linear activation
-		}
-	}
-}
-
-void FA::backpropagate(const std::vector<float> &inputs, const std::vector<std::vector<float>> &layerOutputs, const std::vector<float> &targetOutputs, float alpha) {
+void FA::backpropagate(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float momentum) {
 	// Output layer error
-	std::vector<std::vector<float>> errors = layerOutputs;
+	for (int n = 0; n < _outputLayer.size(); n++)
+		_outputLayer[n]._error = targetOutputs[n] - _outputLayer[n]._output;
 
-	for (size_t n = 0; n < _outputLayer.size(); n++)
-		errors.back()[n] = targetOutputs[n] - layerOutputs.back()[n];
-
-	// Last hidden layer
 	if (!_hiddenLayers.empty())  {
-		for (size_t n = 0; n < _hiddenLayers.back().size(); n++) {
+		// Last hidden layer
+		for (int n = 0; n < _hiddenLayers.back().size(); n++) {
 			float sum = 0.0f;
 
-			for (size_t w = 0; w < _outputLayer.size(); w++)
-				sum += errors.back()[w] * _outputLayer[w]._weights[n];
+			for (int w = 0; w < _outputLayer.size(); w++)
+				sum += _outputLayer[w]._error * _outputLayer[w]._connections[n]._weight;
 
-			errors[errors.size() - 2][n] = sum * layerOutputs[layerOutputs.size() - 2][n] * (1.0f - layerOutputs[layerOutputs.size() - 2][n]);
+			_hiddenLayers.back()[n]._error = sum * _hiddenLayers.back()[n]._output * (1.0f - _hiddenLayers.back()[n]._output);
 		}
 
 		for (int l = static_cast<int>(_hiddenLayers.size()) - 2; l >= 0; l--) {
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
+			int prevLayerIndex = l + 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
 				float sum = 0.0f;
 
-				for (size_t w = 0; w < _hiddenLayers[l + 1].size(); w++)
-					sum += errors[l + 1][w] * _hiddenLayers[l + 1][w]._weights[n];
+				for (int w = 0; w < _hiddenLayers[prevLayerIndex].size(); w++)
+					sum += _hiddenLayers[prevLayerIndex][w]._error * _hiddenLayers[prevLayerIndex][w]._connections[n]._weight;
 
-				errors[l][n] = sum * layerOutputs[l][n] * (1.0f - layerOutputs[l][n]);
+				_hiddenLayers[l][n]._error = sum * _hiddenLayers[l][n]._output * (1.0f - _hiddenLayers[l][n]._output);
 			}
 		}
 
 		// Move along gradient
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] += alpha * errors.back()[n] * layerOutputs[layerOutputs.size() - 2][w];
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++) {
+				float dWeight = alpha * _outputLayer[n]._error * _hiddenLayers.back()[w]._output + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				_outputLayer[n]._connections[w]._weight += dWeight;
+				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
+			}
 
-			_outputLayer[n]._bias += alpha * errors.back()[n];
+			float dBias = alpha * _outputLayer[n]._error + momentum * _outputLayer[n]._bias._prevDWeight;
+			_outputLayer[n]._bias._weight += dBias;
+			_outputLayer[n]._bias._prevDWeight = dBias;
 		}
 
-		for (int l = static_cast<int>(_hiddenLayers.size()) - 1; l >= 1; l--)
-		for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-			for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-				_hiddenLayers[l][n]._weights[w] += alpha * errors[l][n] * layerOutputs[l - 1][w];
-			
-			_hiddenLayers[l][n]._bias += alpha * errors[l][n];
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 1; l >= 1; l--) {
+			int prevLayerIndex = l - 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++) {
+					float dWeight = alpha * _hiddenLayers[l][n]._error * _hiddenLayers[prevLayerIndex][w]._output + momentum * _hiddenLayers[l][n]._connections[w]._prevDWeight;
+					_hiddenLayers[l][n]._connections[w]._weight += dWeight;
+					_hiddenLayers[l][n]._connections[w]._prevDWeight = dWeight;
+				}
+
+				float dBias = alpha * _hiddenLayers[l][n]._error + momentum * _hiddenLayers[l][n]._bias._prevDWeight;
+				_hiddenLayers[l][n]._bias._weight += dBias;
+				_hiddenLayers[l][n]._bias._prevDWeight = dBias;
+			}
 		}
 
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				_hiddenLayers[0][n]._weights[w] += alpha * errors[0][n] * inputs[w];
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++) {
+				float dWeight = alpha * _hiddenLayers[0][n]._error * inputs[w] + momentum * _hiddenLayers[0][n]._connections[w]._prevDWeight;
+				_hiddenLayers[0][n]._connections[w]._weight += dWeight;
+				_hiddenLayers[0][n]._connections[w]._prevDWeight = dWeight;
+			}
 
-			_hiddenLayers[0][n]._bias += alpha * errors[0][n];
+			float dBias = alpha * _hiddenLayers[0][n]._error + momentum * _hiddenLayers[0][n]._bias._prevDWeight;
+			_hiddenLayers[0][n]._bias._weight += dBias;
+			_hiddenLayers[0][n]._bias._prevDWeight = dBias;
 		}
 	}
 	else {
 		// Move along gradient
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				_outputLayer[n]._weights[w] += alpha * errors.back()[n] * inputs[w];
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++) {
+				float dWeight = alpha * _outputLayer[n]._error * inputs[w] + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				_outputLayer[n]._connections[w]._weight += dWeight;
+				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
+			}
 
-			_outputLayer[n]._bias += alpha * errors.back()[n];
+			float dBias = alpha * _outputLayer[n]._error + momentum * _outputLayer[n]._bias._prevDWeight;
+			_outputLayer[n]._bias._weight += dBias;
+			_outputLayer[n]._bias._prevDWeight = dBias;
+		}
+	}
+}
+
+void FA::adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum) {
+	// Move along eligibility traces
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++) {
+			float dWeight = error * _outputLayer[n]._connections[w]._eligibility + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+			_outputLayer[n]._connections[w]._weight += dWeight;
+			_outputLayer[n]._connections[w]._prevDWeight = dWeight;
+		}
+
+		float dBias = error * _outputLayer[n]._bias._eligibility + momentum * _outputLayer[n]._bias._prevDWeight;
+		_outputLayer[n]._bias._weight += dBias;
+		_outputLayer[n]._bias._prevDWeight = dBias;
+	}
+
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++) {
+			float dWeight = error * _hiddenLayers[l][n]._connections[w]._eligibility + momentum * _hiddenLayers[l][n]._connections[w]._prevDWeight;
+			_hiddenLayers[l][n]._connections[w]._weight += dWeight;
+			_hiddenLayers[l][n]._connections[w]._prevDWeight = dWeight;
+		}
+
+		float dBias = error * _hiddenLayers[l][n]._bias._eligibility + momentum * _hiddenLayers[l][n]._bias._prevDWeight;
+		_hiddenLayers[l][n]._bias._weight += dBias;
+		_hiddenLayers[l][n]._bias._prevDWeight = dBias;
+	}
+
+	// Output layer error
+	for (int n = 0; n < _outputLayer.size(); n++)
+		_outputLayer[n]._error = targetOutputs[n] - _outputLayer[n]._output;
+
+	if (!_hiddenLayers.empty())  {
+		// Last hidden layer
+		for (int n = 0; n < _hiddenLayers.back().size(); n++) {
+			float sum = 0.0f;
+
+			for (int w = 0; w < _outputLayer.size(); w++)
+				sum += _outputLayer[w]._error * _outputLayer[w]._connections[n]._weight;
+
+			_hiddenLayers.back()[n]._error = sum * _hiddenLayers.back()[n]._output * (1.0f - _hiddenLayers.back()[n]._output);
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 2; l >= 0; l--) {
+			int prevLayerIndex = l + 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				float sum = 0.0f;
+
+				for (int w = 0; w < _hiddenLayers[prevLayerIndex].size(); w++)
+					sum += _hiddenLayers[prevLayerIndex][w]._error * _hiddenLayers[prevLayerIndex][w]._connections[n]._weight;
+
+				_hiddenLayers[l][n]._error = sum * _hiddenLayers[l][n]._output * (1.0f - _hiddenLayers[l][n]._output);
+			}
+		}
+
+		// Move along gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._eligibility += -eligibilityDecay * _outputLayer[n]._connections[w]._eligibility + alpha * _outputLayer[n]._error * _hiddenLayers.back()[w]._output;
+
+			_outputLayer[n]._bias._eligibility += -eligibilityDecay * _outputLayer[n]._bias._eligibility + alpha * _outputLayer[n]._error;
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 1; l >= 1; l--) {
+			int prevLayerIndex = l - 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					_hiddenLayers[l][n]._connections[w]._eligibility += -eligibilityDecay * _hiddenLayers[l][n]._connections[w]._eligibility + alpha * _hiddenLayers[l][n]._error * _hiddenLayers[prevLayerIndex][w]._output;
+
+				_hiddenLayers[l][n]._bias._eligibility += -eligibilityDecay * _hiddenLayers[l][n]._bias._eligibility + alpha * _hiddenLayers[l][n]._error;
+			}
+		}
+
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				_hiddenLayers[0][n]._connections[w]._eligibility += -eligibilityDecay * _hiddenLayers[0][n]._connections[w]._eligibility + alpha * _hiddenLayers[0][n]._error * inputs[w];
+
+			_hiddenLayers[0][n]._bias._eligibility += -eligibilityDecay * _hiddenLayers[0][n]._bias._eligibility + alpha * _hiddenLayers[0][n]._error;
+		}
+	}
+	else {
+		// Move along gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._eligibility += -eligibilityDecay * _outputLayer[n]._connections[w]._eligibility + alpha * _outputLayer[n]._error * inputs[w];
+
+			_outputLayer[n]._bias._eligibility += -eligibilityDecay * _outputLayer[n]._bias._eligibility + alpha * _outputLayer[n]._error;
 		}
 	}
 }
@@ -427,24 +479,24 @@ void FA::backpropagate(const std::vector<float> &inputs, const std::vector<std::
 void FA::writeToStream(std::ostream &os) const {
 	os << getNumInputs() << " " << getNumOutputs() << " " << getNumHiddenLayers() << " " << getNumNeuronsPerHiddenLayer() << std::endl;
 
-	for (size_t l = 0; l < _hiddenLayers.size(); l++)
-	for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-		for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-			os << _hiddenLayers[l][n]._weights[w] << " ";
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			os << _hiddenLayers[l][n]._connections[w]._weight << " ";
 
-		os << _hiddenLayers[l][n]._bias << std::endl;
+		os << _hiddenLayers[l][n]._bias._weight << std::endl;
 	}
 
-	for (size_t n = 0; n < _outputLayer.size(); n++) {
-		for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-			os << _outputLayer[n]._weights[w] << " ";
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			os << _outputLayer[n]._connections[w]._weight << " ";
 
-		os << _outputLayer[n]._bias << std::endl;
+		os << _outputLayer[n]._bias._weight << std::endl;
 	}
 }
 
 void FA::readFromStream(std::istream &is) {
-	size_t numInputs, numOutputs, numHiddenLayers, numNeuronsPerHiddenLayer;
+	int numInputs, numOutputs, numHiddenLayers, numNeuronsPerHiddenLayer;
 
 	is >> numInputs >> numOutputs >> numHiddenLayers >> numNeuronsPerHiddenLayer;
 
@@ -454,50 +506,50 @@ void FA::readFromStream(std::istream &is) {
 		// First hidden layer
 		_hiddenLayers[0].resize(numNeuronsPerHiddenLayer);
 
-		for (size_t n = 0; n < _hiddenLayers[0].size(); n++) {
-			_hiddenLayers[0][n]._weights.resize(numInputs);
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			_hiddenLayers[0][n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _hiddenLayers[0][n]._weights.size(); w++)
-				is >> _hiddenLayers[0][n]._weights[w];
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				is >> _hiddenLayers[0][n]._connections[w]._weight;
 
-			is >> _hiddenLayers[0][n]._bias;
+			is >> _hiddenLayers[0][n]._bias._weight;
 		}
 
 		// All other hidden layers
-		for (size_t l = 1; l < _hiddenLayers.size(); l++) {
+		for (int l = 1; l < _hiddenLayers.size(); l++) {
 			_hiddenLayers[l].resize(numNeuronsPerHiddenLayer);
 
-			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
-				_hiddenLayers[l][n]._weights.resize(numNeuronsPerHiddenLayer);
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				_hiddenLayers[l][n]._connections.resize(numNeuronsPerHiddenLayer);
 
-				for (size_t w = 0; w < _hiddenLayers[l][n]._weights.size(); w++)
-					is >> _hiddenLayers[l][n]._weights[w];
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					is >> _hiddenLayers[l][n]._connections[w]._weight;
 
-				is >> _hiddenLayers[l][n]._bias;
+				is >> _hiddenLayers[l][n]._bias._weight;
 			}
 		}
 
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numNeuronsPerHiddenLayer);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numNeuronsPerHiddenLayer);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				is >> _outputLayer[n]._weights[w];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				is >> _outputLayer[n]._connections[w]._weight;
 
-			is >> _outputLayer[n]._bias;
+			is >> _outputLayer[n]._bias._weight;
 		}
 	}
 	else {
 		_outputLayer.resize(numOutputs);
 
-		for (size_t n = 0; n < _outputLayer.size(); n++) {
-			_outputLayer[n]._weights.resize(numInputs);
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			_outputLayer[n]._connections.resize(numInputs);
 
-			for (size_t w = 0; w < _outputLayer[n]._weights.size(); w++)
-				is >> _outputLayer[n]._weights[w];
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				is >> _outputLayer[n]._connections[w]._weight;
 
-			is >> _outputLayer[n]._bias;
+			is >> _outputLayer[n]._bias._weight;
 		}
 	}
 }
