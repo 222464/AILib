@@ -31,8 +31,8 @@ float htmrl::defaultBoostFunction(float active, float minimum) {
 
 HTMRL::HTMRL()
 : _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(300),
-_backpropPassesActor(200),
-_backpropPassesCritic(200),
+_backpropPassesActor(100),
+_backpropPassesCritic(100),
 _prevMaxQ(0.0f), _prevValue(0.0f), _actionInputVocalness(10.0f),
 _variance(0.0f)
 {}
@@ -48,8 +48,8 @@ void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, in
 
 	_regionDescs = regionDescs;
 
-	_inputf.resize(_inputWidth * _inputHeight);
-	_inputb.resize(_inputf.size() * _inputMax);
+	_inputf.resize(_inputWidth * _inputHeight * 2);
+	_inputb.resize(_inputWidth * _inputHeight * _inputMax);
 
 	for (int i = 0; i < _inputf.size(); i++)
 		_inputf[i] = 0.0f;
@@ -104,10 +104,11 @@ void HTMRL::decodeInput() {
 		int eX = bX + _inputDotsWidth;
 		int eY = bY + _inputDotsHeight;
 
-		int numDots = static_cast<int>((_inputf[x + y * _inputWidth] * 0.5f + 0.5f) * _inputMax);
+		int numDotsX = static_cast<int>((_inputf[x + y * _inputWidth + 0 * _inputWidth * 2] * 0.5f + 0.5f) * _inputDotsWidth);
+		int numDotsY = static_cast<int>((_inputf[x + y * _inputWidth + 1 * _inputWidth * 2] * 0.5f + 0.5f) * _inputDotsHeight);
 
-		int dotX = bX + numDots % _inputDotsWidth;
-		int dotY = bY + numDots / _inputDotsHeight;
+		int dotX = bX + numDotsX;
+		int dotY = bY + numDotsY;
 
 		for (int dx = -_encodeBlobRadius; dx <= _encodeBlobRadius; dx++)
 		for (int dy = -_encodeBlobRadius; dy <= _encodeBlobRadius; dy++) {
@@ -185,10 +186,10 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 
 	float newAdv = _prevMaxQ + (reward + gamma * nextMaxQ - _prevMaxQ) * tauInv;
 
-	float errorCritic = lambda * (newAdv - _prevMaxQ);
+	float errorCritic = lambda * (newAdv - _prevValue);
 
 	// Update previous samples
-	float prevV = _prevMaxQ + errorCritic;
+	float prevV = std::max(_prevValue + errorCritic, _prevMaxQ);
 
 	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
 		it->_criticOutput = (1.0f - lambda) * it->_criticOutput + lambda * (it->_criticOutput + (it->_reward + gamma * prevV - it->_criticOutput) * tauInv);
@@ -200,21 +201,21 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 	ReplaySample sample;
 	sample._actorInputsb = _prevLayerInputb;
 
-	sample._actorOutputsOptimal.resize(_actor.getNumOutputs());
-
-	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		sample._actorOutputsOptimal[i] = std::min(1.0f, std::max(-1.0f, _prevOutputs[i]));
-
 	sample._actorOutputsExploratory.resize(_actor.getNumOutputs());
 
 	for (int i = 0; i < _actor.getNumOutputs(); i++)
 		sample._actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, _prevExploratoryOutputs[i]));
 
-	sample._criticOutput = _prevMaxQ + errorCritic;
+	sample._actorOutputsOptimal.assign(_actor.getNumOutputs(), 0.0f);
+
+	sample._criticOutput = _prevValue + errorCritic;
 
 	sample._reward = reward;
 
 	sample._prevDAction.assign(_actor.getNumOutputs(), 0.0f);
+
+	sample._optimalQ = std::max(_prevValue + errorCritic, _prevMaxQ);
+	sample._exploratoryQ = sample._criticOutput;
 
 	_replayChain.push_front(sample);
 
@@ -235,7 +236,7 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 	std::vector<float> actorOutputs(_actor.getNumOutputs());
 	std::vector<float> inputf(_actor.getNumInputs());
 	std::vector<float> inputWithActionf(_actor.getNumInputs() + _actor.getNumOutputs());
-	std::vector<float> actorOutputOptimal(_actor.getNumOutputs());
+	//std::vector<float> actorOutputOptimal(_actor.getNumOutputs());
 	std::vector<float> actorOutputsExploratory(_actor.getNumOutputs());
 
 	int numActionsKept = 0;
@@ -271,43 +272,40 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
 
 		// Get action we now think is optimal
-		_actor.process(inputf, actorOutputOptimal);
+		_actor.process(inputf, pSample->_actorOutputsOptimal);
+
+		// Clamp action
+		for (int i = 0; i < _actor.getNumOutputs(); i++)
+			pSample->_actorOutputsOptimal[i] = std::min(1.0f, std::max(-1.0f, pSample->_actorOutputsOptimal[i]));
 
 		// Get Q at action we think is optimal and at exploratory action
-		for (int i = 0; i < _actor.getNumOutputs(); i++) {
-			pSample->_actorOutputsOptimal[i] = std::min(1.0f, std::max(-1.0f, actorOutputOptimal[i]));
-
+		for (int i = 0; i < _actor.getNumOutputs(); i++)
 			inputWithActionf[i + _actor.getNumInputs()] = pSample->_actorOutputsOptimal[i] * _actionInputVocalness;
-		}
-
+		
 		_critic.process(inputWithActionf, criticOutput);
 
-		float optimalQ = criticOutput[0];
+		pSample->_optimalQ = criticOutput[0];
 
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, actorOutputOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
+			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pSample->_actorOutputsOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
 
 		_critic.process(inputWithActionf, criticOutput);
 
 		float exploratoryQ = criticOutput[0];
 
-		if (exploratoryQ > optimalQ) {
-			_actor.process(inputf, actorOutputs);
-
+		if (exploratoryQ > pSample->_optimalQ) {
 			_actor.backpropagate(inputf, actorOutputsExploratory, backpropAlphaActor * sampleImportance, momentumActor);
 
 			for (int i = 0; i < _actor.getNumOutputs(); i++)
 				pSample->_prevDAction[i] = actorOutputsExploratory[i] - pSample->_actorOutputsOptimal[i];
 
 			numActionsKept++;
-
-			pSample->_optimalQ = exploratoryQ;
 		}
 		else {
-			for (int i = 0; i < _actor.getNumOutputs(); i++)
-				pSample->_prevDAction[i] *= actionMomentum;
+			_actor.backpropagate(inputf, pSample->_actorOutputsOptimal, backpropAlphaActor * sampleImportance, momentumActor);
 
-			pSample->_optimalQ = optimalQ;
+			for (int i = 0; i < _actor.getNumOutputs(); i++)
+				pSample->_prevDAction[i] = 0.0f;
 		}
 	}
 

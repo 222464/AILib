@@ -1260,11 +1260,13 @@ int main() {
 	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
 	htmrl::HTMRL htmRL;
-	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
-	regionDescs[0]._regionWidth = 16;
-	regionDescs[0]._regionHeight = 16;
+	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(2);
+	regionDescs[0]._regionWidth = 32;
+	regionDescs[0]._regionHeight = 32;
+	regionDescs[1]._regionWidth = 16;
+	regionDescs[1]._regionHeight = 16;
 
-	htmRL.createRandom(2, 2, 16, 16, 1, 1, 16, 1, 16, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 16, 16, 1, 1, 32, 1, 32, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1282,7 +1284,7 @@ int main() {
 
 	sf::Image image;
 
-	image.create(16, 16);
+	image.create(32, 16);
 
 	do {
 		clock.restart();
@@ -1316,6 +1318,8 @@ int main() {
 			fitness = -cartX;
 		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 			fitness = cartX;
+
+		fitness = -std::abs(cartX);
 
 		// ------------------------------ AI -------------------------------
 
@@ -1354,13 +1358,15 @@ int main() {
 
 		std::vector<float> output;
 
-		for (int i = 0; i < state.size(); i++)
-			htmRL.setInput(i % 2, i / 2, state[i]);
+		htmRL.setInput(0, 0, 0, state[0]);
+		htmRL.setInput(0, 0, 1, state[1]);
+		htmRL.setInput(1, 0, 0, state[2]);
+		htmRL.setInput(1, 0, 1, state[3]);
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			htmRL.step(reward, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f, 0.1f, 0.995f, 0.5f, 1.0f, 0.0f, 0.0f, 0.08f, 0.5f, 0.02f, generator);
+			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.4f, 0.4f, 0.995f, 0.9f, 1.0f, 0.0f, 0.0f, 0.1f, 0.2f, 0.02f, generator);
 		else
-			htmRL.step(reward, 0.01f, 0.01f, 0.1f, 0.1f, 0.1f, 0.1f, 0.995f, 0.5f, 1.0f, 0.15f, 0.05f, 0.08f, 0.5f, 0.02f, generator);
+			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.4f, 0.4f, 0.995f, 0.9f, 1.0f, 0.1f, 0.05f, 0.1f, 0.2f, 0.02f, generator);
 
 		output.resize(1);
 		output[0] = htmRL.getOutput(0);
@@ -1482,13 +1488,15 @@ int main() {
 
 		std::vector<bool> recon;
 
-		/*for (size_t i = 0; i < 256; i++) {
-			int x = i % 16;
-			int y = i / 16;
+		htmRL.getRegion(0).getReconstruction(recon, 3.0f, 0.3f, false);
+
+		for (size_t i = 0; i < 32 * 16; i++) {
+			int x = i % 32;
+			int y = i / 32;
 
 			sf::Color c;
 			
-			if (htmRL.getRegion(1).getOutput(x, y))
+			if (recon[i])
 				c = sf::Color::Red;
 			else
 				c = sf::Color::White;
@@ -1504,12 +1512,12 @@ int main() {
 
 		s.setPosition(window.getSize().x - 256.0f, 0.0f);
 
-		s.setScale(256.0f / 16.0f, 256.0f / 16.0f);
+		s.setScale(256.0f / 32.0f, 256.0f / 32.0f);
 
 		s.setTexture(t);
 
 		window.draw(s);
-		*/
+		
 		// -------------------------------------------------------------------
 
 		window.display();

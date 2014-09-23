@@ -27,6 +27,8 @@ misrepresented as being the original software.
 
 #include <algorithm>
 
+#include <assert.h>
+
 namespace htmrl {
 	float defaultBoostFunction(float active, float minimum);
 
@@ -73,7 +75,7 @@ namespace htmrl {
 				: _regionWidth(32),
 				_regionHeight(32),
 				_columnSize(4),
-				_connectionRadius(4),
+				_connectionRadius(6),
 				_initInhibitionRadius(6.0f),
 				_initNumSegments(0),
 				_permanenceDistanceBias(0.2f),
@@ -82,21 +84,21 @@ namespace htmrl {
 				_connectionPermanenceTarget(0.3f),
 				_connectionPermanenceStdDev(0.1f),
 				_minPermanence(0.3f),
-				_minOverlap(1.0f),
-				_desiredLocalActivity(10),
-				_spatialPermanenceIncrease(0.05f),
-				_spatialPermanenceDecrease(0.04f),
+				_minOverlap(3.0f),
+				_desiredLocalActivity(18),
+				_spatialPermanenceIncrease(0.04f),
+				_spatialPermanenceDecrease(0.03f),
 				_minDutyCycleRatio(0.01f),
 				_activeDutyCycleDecay(0.01f),
 				_overlapDutyCycleDecay(0.01f),
-				_subOverlapPermanenceIncrease(0.05f),
+				_subOverlapPermanenceIncrease(0.02f),
 				_boostFunction(std::bind(defaultBoostFunction, std::placeholders::_1, std::placeholders::_2)),
-				_learningRadius(3),
+				_learningRadius(4),
 				_minLearningThreshold(1),
 				_activationThreshold(8),
 				_newNumConnections(32),
-				_temporalPermanenceIncrease(0.05f),
-				_temporalPermanenceDecrease(0.04f),
+				_temporalPermanenceIncrease(0.03f),
+				_temporalPermanenceDecrease(0.025f),
 				_newConnectionPermanence(0.31f),
 				_maxSteps(3)
 			{}
@@ -164,12 +166,14 @@ namespace htmrl {
 
 		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
-		void setInput(int x, int y, float value) {
-			_inputf[x + y * _inputWidth] = std::min(1.0f, std::max(-1.0f, value));
+		void setInput(int x, int y, int axis, float value) {
+			_inputf[x + y * _inputWidth + axis * _inputWidth * 2] = std::min(1.0f, std::max(-1.0f, value));
 		}
 
-		float getInputf(int x, int y) const {
-			return _inputf[x + y * _inputWidth];
+		float getInputf(int x, int y, int axis) const {
+			assert(axis == 0 || axis == 1);
+
+			return _inputf[x + y * _inputWidth + axis * _inputWidth * 2];
 		}
 
 		bool getInputb(int x, int y) const {
