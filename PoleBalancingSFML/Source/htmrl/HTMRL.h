@@ -106,13 +106,11 @@ namespace htmrl {
 
 		struct ReplaySample {
 			std::vector<bool> _actorInputsb;
-			std::vector<float> _actorOutputsOptimal;
 			std::vector<float> _actorOutputsExploratory;
 			float _criticOutput;
 			float _reward;
 
 			float _optimalQ;
-			float _exploratoryQ;
 
 			std::vector<float> _prevDAction;
 		};
@@ -150,8 +148,6 @@ namespace htmrl {
 
 		std::list<ReplaySample> _replayChain;
 
-		float _variance;
-
 		void decodeInput();
 
 	public:
@@ -160,6 +156,7 @@ namespace htmrl {
 		int _maxReplayChainSize;
 		int _backpropPassesActor;
 		int _backpropPassesCritic;
+		int _approachPasses;
 		float _actionInputVocalness;
 
 		HTMRL();
@@ -167,13 +164,13 @@ namespace htmrl {
 		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
-			_inputf[x + y * _inputWidth + axis * _inputWidth * 2] = std::min(1.0f, std::max(-1.0f, value));
+			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
 		}
 
 		float getInputf(int x, int y, int axis) const {
 			assert(axis == 0 || axis == 1);
 
-			return _inputf[x + y * _inputWidth + axis * _inputWidth * 2];
+			return _inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight];
 		}
 
 		bool getInputb(int x, int y) const {

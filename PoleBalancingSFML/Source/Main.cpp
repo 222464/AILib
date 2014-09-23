@@ -1260,11 +1260,13 @@ int main() {
 	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
 	htmrl::HTMRL htmRL;
-	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(2);
+	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(3);
 	regionDescs[0]._regionWidth = 32;
-	regionDescs[0]._regionHeight = 32;
+	regionDescs[0]._regionHeight = 16;
 	regionDescs[1]._regionWidth = 16;
-	regionDescs[1]._regionHeight = 16;
+	regionDescs[1]._regionHeight = 8;
+	regionDescs[2]._regionWidth = 8;
+	regionDescs[2]._regionHeight = 4;
 
 	htmRL.createRandom(2, 1, 16, 16, 1, 1, 32, 1, 32, 0.1f, regionDescs, generator);
 
@@ -1327,7 +1329,7 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness * 0.1f;
+		reward = fitness * 0.01f;
 
 		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
 
@@ -1364,9 +1366,9 @@ int main() {
 		htmRL.setInput(1, 0, 1, state[3]);
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.4f, 0.4f, 0.995f, 0.9f, 1.0f, 0.0f, 0.0f, 0.1f, 0.2f, 0.02f, generator);
+			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.2f, 0.2f, 0.995f, 0.5f, 8.0f, 0.0f, 0.0f, 0.1f, 0.2f, 0.02f, generator);
 		else
-			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.4f, 0.4f, 0.995f, 0.9f, 1.0f, 0.1f, 0.05f, 0.1f, 0.2f, 0.02f, generator);
+			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.2f, 0.2f, 0.995f, 0.5f, 8.0f, 0.1f, 0.05f, 0.1f, 0.2f, 0.02f, generator);
 
 		output.resize(1);
 		output[0] = htmRL.getOutput(0);

@@ -30,11 +30,11 @@ float htmrl::defaultBoostFunction(float active, float minimum) {
 }
 
 HTMRL::HTMRL()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(300),
+: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(600),
 _backpropPassesActor(100),
 _backpropPassesCritic(100),
-_prevMaxQ(0.0f), _prevValue(0.0f), _actionInputVocalness(10.0f),
-_variance(0.0f)
+_approachPasses(4),
+_prevMaxQ(0.0f), _prevValue(0.0f), _actionInputVocalness(10.0f)
 {}
 
 void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
@@ -104,8 +104,8 @@ void HTMRL::decodeInput() {
 		int eX = bX + _inputDotsWidth;
 		int eY = bY + _inputDotsHeight;
 
-		int numDotsX = static_cast<int>((_inputf[x + y * _inputWidth + 0 * _inputWidth * 2] * 0.5f + 0.5f) * _inputDotsWidth);
-		int numDotsY = static_cast<int>((_inputf[x + y * _inputWidth + 1 * _inputWidth * 2] * 0.5f + 0.5f) * _inputDotsHeight);
+		int numDotsX = static_cast<int>((_inputf[x + y * _inputWidth + 0 * _inputWidth * _inputHeight] * 0.5f + 0.5f) * _inputDotsWidth);
+		int numDotsY = static_cast<int>((_inputf[x + y * _inputWidth + 1 * _inputWidth * _inputHeight] * 0.5f + 0.5f) * _inputDotsHeight);
 
 		int dotX = bX + numDotsX;
 		int dotY = bY + numDotsY;
@@ -188,11 +188,10 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 
 	float errorCritic = lambda * (newAdv - _prevValue);
 
-	// Update previous samples
-	float prevV = std::max(_prevValue + errorCritic, _prevMaxQ);
+	float prevV = _prevMaxQ;
 
 	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
-		it->_criticOutput = (1.0f - lambda) * it->_criticOutput + lambda * (it->_criticOutput + (it->_reward + gamma * prevV - it->_criticOutput) * tauInv);
+		it->_criticOutput = (1.0f - lambda) * it->_criticOutput + lambda * (it->_optimalQ + (it->_reward + gamma * prevV - it->_optimalQ) * tauInv);
 
 		prevV = it->_optimalQ;
 	}
@@ -206,16 +205,11 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 	for (int i = 0; i < _actor.getNumOutputs(); i++)
 		sample._actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, _prevExploratoryOutputs[i]));
 
-	sample._actorOutputsOptimal.assign(_actor.getNumOutputs(), 0.0f);
-
 	sample._criticOutput = _prevValue + errorCritic;
 
 	sample._reward = reward;
 
 	sample._prevDAction.assign(_actor.getNumOutputs(), 0.0f);
-
-	sample._optimalQ = std::max(_prevValue + errorCritic, _prevMaxQ);
-	sample._exploratoryQ = sample._criticOutput;
 
 	_replayChain.push_front(sample);
 
@@ -236,15 +230,14 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 	std::vector<float> actorOutputs(_actor.getNumOutputs());
 	std::vector<float> inputf(_actor.getNumInputs());
 	std::vector<float> inputWithActionf(_actor.getNumInputs() + _actor.getNumOutputs());
-	//std::vector<float> actorOutputOptimal(_actor.getNumOutputs());
+	std::vector<float> actorOutputOptimal(_actor.getNumOutputs());
+	std::vector<float> actorOutputOptimalUnclamped(_actor.getNumOutputs());
 	std::vector<float> actorOutputsExploratory(_actor.getNumOutputs());
 
 	int numActionsKept = 0;
 
 	for (int s = 0; s < _backpropPassesCritic; s++) {
 		int replayIndex = sampleDist(generator);
-
-		float sampleImportance = 1.0f;// std::pow(gamma, replayIndex);
 
 		ReplaySample* pSample = pReplaySamples[replayIndex];
 
@@ -256,7 +249,7 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 
 		_critic.process(inputWithActionf, criticOutput);
 
-		_critic.backpropagate(inputWithActionf, std::vector<float>(1, pSample->_criticOutput), backpropAlphaCritic * sampleImportance, momentumCritic);
+		_critic.backpropagate(inputWithActionf, std::vector<float>(1, pSample->_criticOutput), backpropAlphaCritic, momentumCritic);
 	}
 
 	std::normal_distribution<float> policySearchDist(0.0f, policySearchStdDev);
@@ -264,49 +257,65 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 	for (int s = 0; s < _backpropPassesActor; s++) {
 		int replayIndex = sampleDist(generator);
 
-		float sampleImportance = 1.0f;// std::pow(gamma, replayIndex);
-
 		ReplaySample* pSample = pReplaySamples[replayIndex];
 
 		for (int i = 0; i < _actor.getNumInputs(); i++)
 			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
 
 		// Get action we now think is optimal
-		_actor.process(inputf, pSample->_actorOutputsOptimal);
+		_actor.process(inputf, actorOutputOptimalUnclamped);
 
 		// Clamp action
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			pSample->_actorOutputsOptimal[i] = std::min(1.0f, std::max(-1.0f, pSample->_actorOutputsOptimal[i]));
+			actorOutputOptimal[i] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
 
-		// Get Q at action we think is optimal and at exploratory action
+		// Get Q at action at exploratory action
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = pSample->_actorOutputsOptimal[i] * _actionInputVocalness;
-		
-		_critic.process(inputWithActionf, criticOutput);
-
-		pSample->_optimalQ = criticOutput[0];
-
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pSample->_actorOutputsOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
+			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, actorOutputOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
 
 		_critic.process(inputWithActionf, criticOutput);
 
 		float exploratoryQ = criticOutput[0];
 
 		if (exploratoryQ > pSample->_optimalQ) {
-			_actor.backpropagate(inputf, actorOutputsExploratory, backpropAlphaActor * sampleImportance, momentumActor);
+			for (int p = 0; p < _approachPasses; p++) {
+				_actor.backpropagate(inputf, actorOutputsExploratory, backpropAlphaActor, momentumActor);
 
-			for (int i = 0; i < _actor.getNumOutputs(); i++)
-				pSample->_prevDAction[i] = actorOutputsExploratory[i] - pSample->_actorOutputsOptimal[i];
+				for (int i = 0; i < _actor.getNumOutputs(); i++)
+					pSample->_prevDAction[i] = actorOutputsExploratory[i] - actorOutputOptimalUnclamped[i];
+
+				_actor.process(inputf, actorOutputOptimalUnclamped);
+			}
 
 			numActionsKept++;
 		}
-		else {
-			_actor.backpropagate(inputf, pSample->_actorOutputsOptimal, backpropAlphaActor * sampleImportance, momentumActor);
 
-			for (int i = 0; i < _actor.getNumOutputs(); i++)
-				pSample->_prevDAction[i] = 0.0f;
-		}
+		// Clamp action
+		for (int i = 0; i < _actor.getNumOutputs(); i++)
+			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
+
+		_critic.process(inputWithActionf, criticOutput);
+
+		pSample->_optimalQ = criticOutput[0];
+	}
+
+	// Compute optimal Q values
+	for (int s = 0; s < pReplaySamples.size(); s++) {
+		ReplaySample* pSample = pReplaySamples[s];
+
+		for (int i = 0; i < _actor.getNumInputs(); i++)
+			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
+
+		// Get action we now think is optimal
+		_actor.process(inputf, actorOutputOptimalUnclamped);
+
+		// Clamp action
+		for (int i = 0; i < _actor.getNumOutputs(); i++)
+			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
+	
+		_critic.process(inputWithActionf, criticOutput);
+
+		pSample->_optimalQ = criticOutput[0];
 	}
 
 	_prevLayerInputb = layerInput;
@@ -315,8 +324,6 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 
 	_prevMaxQ = nextMaxQ;
 	_prevValue = nextValue;
-
-	_variance = (1.0f - varianceDecay) * _variance + varianceDecay * std::abs(errorCritic);
 
 	std::cout << errorCritic << " " << newAdv << " " << " " << _prevValue << " " << _outputs[0] << " " << numActionsKept << std::endl;
 }
