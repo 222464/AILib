@@ -61,6 +61,7 @@ misrepresented as being the original software.
 
 #include <htm/Region.h>
 #include <htmrl/HTMRL.h>
+#include <htmrl/HTMRLDiscreteAction.h>
 
 #include <deep/RBM.h>
 #include <deep/DBN.h>
@@ -1259,16 +1260,14 @@ int main() {
 
 	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
-	htmrl::HTMRL htmRL;
-	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(3);
-	regionDescs[0]._regionWidth = 32;
-	regionDescs[0]._regionHeight = 16;
-	regionDescs[1]._regionWidth = 16;
-	regionDescs[1]._regionHeight = 8;
-	regionDescs[2]._regionWidth = 8;
-	regionDescs[2]._regionHeight = 4;
+	htmrl::HTMRLDiscreteAction htmRL;
+	std::vector<htmrl::HTMRLDiscreteAction::RegionDesc> regionDescs(0);
+	//regionDescs[0]._regionWidth = 32;
+	//regionDescs[0]._regionHeight = 16;
+	//regionDescs[1]._regionWidth = 16;
+	//regionDescs[1]._regionHeight = 8;
 
-	htmRL.createRandom(2, 1, 16, 16, 1, 1, 32, 1, 32, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 32, 32, 3, 1, 16, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1286,7 +1285,7 @@ int main() {
 
 	sf::Image image;
 
-	image.create(32, 16);
+	image.create(16, 8);
 
 	do {
 		clock.restart();
@@ -1316,12 +1315,12 @@ int main() {
 
 		//fitness = fitness - std::fabsf(poleAngleVel * 1.0f);
 
+		//fitness = -std::abs(cartX);
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			fitness = -cartX;
 		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 			fitness = cartX;
-
-		fitness = -std::abs(cartX);
 
 		// ------------------------------ AI -------------------------------
 
@@ -1329,7 +1328,7 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness * 0.01f;
+		reward = fitness;
 
 		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
 
@@ -1354,7 +1353,7 @@ int main() {
 		std::vector<float> state(4);
 
 		state[0] = cartX * 0.25f;
-		state[1] = cartVelX;
+		state[1] = cartVelX * 0.25f;
 		state[2] = std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)) / (2.0f * static_cast<float>(std::_Pi)) * 2.0f - 1.0f;
 		state[3] = poleAngleVel * 0.5f;
 
@@ -1365,13 +1364,12 @@ int main() {
 		htmRL.setInput(1, 0, 0, state[2]);
 		htmRL.setInput(1, 0, 1, state[3]);
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.2f, 0.2f, 0.995f, 0.5f, 8.0f, 0.0f, 0.0f, 0.1f, 0.2f, 0.02f, generator);
-		else
-			htmRL.step(reward, 0.1f, 0.01f, 0.1f, 0.1f, 0.2f, 0.2f, 0.995f, 0.5f, 8.0f, 0.1f, 0.05f, 0.1f, 0.2f, 0.02f, generator);
+		int action;
+
+		action = htmRL.step(reward, 0.1f, 0.1f, 0.999f, 0.5f, 1.0f, 0.15f, 0.995f, generator);
 
 		output.resize(1);
-		output[0] = htmRL.getOutput(0);
+		output[0] = action - 1;
 
 		//ferl.step(state, output, reward, 0.0001f, 0.97f, 0.8f, 6.0f, 8, 8, 0.05f, 0.05f, 0.1f, generator);
 
@@ -1488,17 +1486,13 @@ int main() {
 			window.draw(text);
 		}
 
-		std::vector<bool> recon;
-
-		htmRL.getRegion(0).getReconstruction(recon, 3.0f, 0.3f, false);
-
-		for (size_t i = 0; i < 32 * 16; i++) {
-			int x = i % 32;
-			int y = i / 32;
+		/*for (size_t i = 0; i < 16 * 8; i++) {
+			int x = i % 16;
+			int y = i / 16;
 
 			sf::Color c;
 			
-			if (recon[i])
+			if (htmRL.getRegion(1).getOutput(x, y))
 				c = sf::Color::Red;
 			else
 				c = sf::Color::White;
@@ -1514,12 +1508,12 @@ int main() {
 
 		s.setPosition(window.getSize().x - 256.0f, 0.0f);
 
-		s.setScale(256.0f / 32.0f, 256.0f / 32.0f);
+		s.setScale(256.0f / 16.0f, 256.0f / 16.0f);
 
 		s.setTexture(t);
 
 		window.draw(s);
-		
+		*/
 		// -------------------------------------------------------------------
 
 		window.display();

@@ -476,6 +476,23 @@ void FA::adapt(const std::vector<float> &inputs, const std::vector<float> &targe
 	}
 }
 
+void FA::decayWeights(float decayMultiplier) {
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			_hiddenLayers[l][n]._connections[w]._weight *= decayMultiplier;
+
+		_hiddenLayers[l][n]._bias._weight *= decayMultiplier;
+	}
+
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			_outputLayer[n]._connections[w]._weight *= decayMultiplier;
+
+		_outputLayer[n]._bias._weight *= decayMultiplier;
+	}
+}
+
 void FA::writeToStream(std::ostream &os) const {
 	os << getNumInputs() << " " << getNumOutputs() << " " << getNumHiddenLayers() << " " << getNumNeuronsPerHiddenLayer() << std::endl;
 

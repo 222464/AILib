@@ -161,6 +161,7 @@
     <ClCompile Include="Source\experiments\ExperimentXOR.cpp" />
     <ClCompile Include="Source\falcon\Falcon.cpp" />
     <ClCompile Include="Source\htmrl\HTMRL.cpp" />
+    <ClCompile Include="Source\htmrl\HTMRLDiscreteAction.cpp" />
     <ClCompile Include="Source\htm\Cell.cpp" />
     <ClCompile Include="Source\htm\Column.cpp" />
     <ClCompile Include="Source\htm\Connection.cpp" />
@@ -220,6 +221,7 @@
     <ClInclude Include="Source\deep\RBM.h" />
     <ClInclude Include="Source\deep\DSOM.h" />
     <ClInclude Include="Source\htmrl\HTMRL.h" />
+    <ClInclude Include="Source\htmrl\HTMRLDiscreteAction.h" />
     <ClInclude Include="Source\htm\Segment.h" />
     <ClInclude Include="Source\dnf\Field.h" />
     <ClInclude Include="Source\elman\ElmanNetwork.h" />

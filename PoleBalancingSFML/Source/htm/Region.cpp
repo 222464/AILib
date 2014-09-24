@@ -59,8 +59,8 @@ void Region::createRandom(int inputWidth, int inputHeight, int connectionRadius,
 		float columnXf = static_cast<float>(i % _regionWidth) * regionWidthInv;
 		float columnYf = static_cast<float>(i / _regionWidth) * regionHeightInv;
 
-		int inputX = static_cast<int>(columnXf * _regionWidth);
-		int inputY = static_cast<int>(columnYf * _regionHeight);
+		int inputX = static_cast<int>(columnXf * _inputWidth);
+		int inputY = static_cast<int>(columnYf * _inputHeight);
 
 		for (int dx = -_connectionRadius; dx <= _connectionRadius; dx++)
 		for (int dy = -_connectionRadius; dy <= _connectionRadius; dy++) {
@@ -180,8 +180,8 @@ void Region::getReconstruction(std::vector<bool> &output, float minOverlap, floa
 		float columnXf = static_cast<float>(columnX) * regionWidthInv;
 		float columnYf = static_cast<float>(columnY) * regionHeightInv;
 
-		int inputX = static_cast<int>(columnXf * _regionWidth);
-		int inputY = static_cast<int>(columnYf * _regionHeight);
+		int inputX = static_cast<int>(columnXf * _inputWidth);
+		int inputY = static_cast<int>(columnYf * _inputHeight);
 
 		int connectionIndex = 0;
 
@@ -245,8 +245,8 @@ void Region::getReconstructionAtTime(std::vector<bool> &output, float minOverlap
 		float columnXf = static_cast<float>(columnX)* regionWidthInv;
 		float columnYf = static_cast<float>(columnY)* regionHeightInv;
 
-		int inputX = static_cast<int>(columnXf * _regionWidth);
-		int inputY = static_cast<int>(columnYf * _regionHeight);
+		int inputX = static_cast<int>(columnXf * _inputWidth);
+		int inputY = static_cast<int>(columnYf * _inputHeight);
 
 		int connectionIndex = 0;
 
@@ -314,8 +314,8 @@ void Region::spatialPooling(const std::vector<bool> &inputs, float minPermanence
 		float columnXf = static_cast<float>(columnX)* regionWidthInv;
 		float columnYf = static_cast<float>(columnY)* regionHeightInv;
 
-		int inputX = static_cast<int>(columnXf * _regionWidth);
-		int inputY = static_cast<int>(columnYf * _regionHeight);
+		int inputX = static_cast<int>(columnXf * _inputWidth);
+		int inputY = static_cast<int>(columnYf * _inputHeight);
 
 		int connectionIndex = 0;
 

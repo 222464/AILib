@@ -70,6 +70,8 @@ namespace deep {
 
 		void adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum);
 
+		void decayWeights(float decayMultiplier);
+
 		void writeToStream(std::ostream &os) const;
 		void readFromStream(std::istream &is);
 

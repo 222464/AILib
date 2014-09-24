@@ -207,6 +207,9 @@
     <ClCompile Include="Source\deep\EQNAC.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\htmrl\HTMRLDiscreteAction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\nn\ActorCriticAgent.h">
@@ -399,6 +402,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\deep\EQNAC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\htmrl\HTMRLDiscreteAction.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
