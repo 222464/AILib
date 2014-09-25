@@ -87,7 +87,7 @@ void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, in
 	_prevExploratoryOutputs.assign(numOutputs, 0.0f);
 
 	_prevLayerInputb.clear();
-	_prevLayerInputb.assign(_regions.back().getRegionWidth() * _regions.back().getRegionHeight(), false);
+	_prevLayerInputb.assign(stateSize, false);
 }
 
 void HTMRL::decodeInput() {

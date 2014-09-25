@@ -30,8 +30,8 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 }
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(400),
-_backpropPassesCritic(200),
+: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(300),
+_backpropPassesCritic(300),
 _prevMaxQAction(0), _prevChooseAction(0)
 {}
 
@@ -110,8 +110,6 @@ void HTMRLDiscreteAction::decodeInput() {
 }
 
 int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator) {
-	_critic.decayWeights(weightDecayMultiplier);
-	
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
@@ -168,7 +166,7 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 	float nextValue = criticOutput[choosenAction];
 
-	float newAdv = reward + gamma * nextMaxQ;
+	float newAdv = _prevQValues[_prevMaxQAction] + (reward + gamma * nextMaxQ - _prevQValues[_prevMaxQAction]) * tauInv;
 
 	float errorCritic = lambda * (newAdv - _prevQValues[_prevChooseAction]);
 
@@ -185,15 +183,28 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 	sample._actionQValues[_prevChooseAction] += errorCritic;
 
-	float prevV = sample._actionQValues[_prevMaxQAction];
+	float prevV = sample._actionQValues[0];
+
+	for (int i = 1; i < sample._actionQValues.size(); i++)
+		prevV = std::max(prevV, sample._actionQValues[i]);
+
+	float g = gamma;
 
 	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
-		float value = it->_reward + gamma * prevV;
-		float error = lambda * (value - it->_actionQValues[it->_actionExploratory]);
+		float value = it->_actionQValues[it->_actionOptimal] + (it->_reward + gamma * prevV - it->_actionQValues[it->_actionOptimal]) * tauInv;
+		float error = g * lambda * (value - it->_actionQValues[it->_actionExploratory]);
 
 		it->_actionQValues[it->_actionExploratory] += error;
 
+		it->_actionOptimal = 0;
+
+		for (int i = 1; i < it->_actionQValues.size(); i++)
+		if (it->_actionQValues[i] > it->_actionQValues[it->_actionOptimal])
+			it->_actionOptimal = i;
+
 		prevV = it->_actionQValues[it->_actionOptimal];
+
+		g *= gamma;
 	}
 
 	_replayChain.push_front(sample);
@@ -215,6 +226,10 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 	std::vector<float> inputf(_critic.getNumInputs());
 	std::vector<float> criticTempOutput(_critic.getNumOutputs());
 
+	std::vector<float> criticTarget(_critic.getNumOutputs());
+
+	_critic.decayWeights(weightDecayMultiplier);
+
 	for (int s = 0; s < _backpropPassesCritic; s++) {
 		int replayIndex = sampleDist(generator);
 
@@ -225,13 +240,15 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 		_critic.process(inputf, criticTempOutput);
 
-		_critic.backpropagate(inputf, pSample->_actionQValues, backpropAlphaCritic, momentumCritic);
+		criticTarget = criticTempOutput;
+
+		criticTarget[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+
+		_critic.backpropagate(inputf, criticTarget, backpropAlphaCritic, momentumCritic);
 	}
 
 	_prevMaxQAction = maxQActionIndex;
 	_prevChooseAction = choosenAction;
-
-	_critic.process(layerInputf, criticOutput);
 
 	_prevQValues = criticOutput;
 

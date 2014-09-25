@@ -26,7 +26,6 @@ misrepresented as being the original software.
 #include <deep/FA.h>
 
 #include <algorithm>
-#include <list>
 
 #include <assert.h>
 
