@@ -62,14 +62,12 @@ set(SRC_DIR Source)
 
 # Add the source files
 set(AILIB_SRC
-	${SRC_DIR}/apssc/APSSC.cpp
 	${SRC_DIR}/ctrnn/CTRNN.cpp
 	${SRC_DIR}/ctrnn/GeneticAlgorithm.cpp
 	${SRC_DIR}/deep/ConvNet2D.cpp
 	${SRC_DIR}/deep/DAutoEncoder.cpp
 	${SRC_DIR}/deep/AutoLSTM.cpp
 	${SRC_DIR}/deep/DBN.cpp
-	${SRC_DIR}/deep/EQNAC.cpp
 	${SRC_DIR}/deep/FA.cpp
 	${SRC_DIR}/deep/FERL.cpp
 	${SRC_DIR}/deep/RBM.cpp
@@ -127,14 +125,12 @@ set(AILIB_SRC
 	${SRC_DIR}/raahn/AutoEncoder.cpp
 	${SRC_DIR}/raahn/HebbianLearner.cpp
 	${SRC_DIR}/raahn/RAAHN.cpp
-	${SRC_DIR}/apssc/APSSC.h
 	${SRC_DIR}/ctrnn/CTRNN.h
 	${SRC_DIR}/ctrnn/GeneticAlgorithm.h
 	${SRC_DIR}/deep/ConvNet2D.h
 	${SRC_DIR}/deep/DAutoEncoder.h
 	${SRC_DIR}/deep/AutoLSTM.h
 	${SRC_DIR}/deep/DBN.h
-	${SRC_DIR}/deep/EQNAC.h
 	${SRC_DIR}/deep/FA.h
 	${SRC_DIR}/deep/FERL.h
 	${SRC_DIR}/deep/RBM.h

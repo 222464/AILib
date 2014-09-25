@@ -69,8 +69,6 @@ misrepresented as being the original software.
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
 
-#include <apssc/APSSC.h>
-
 #include <time.h>
 #include <iostream>
 #include <random>
