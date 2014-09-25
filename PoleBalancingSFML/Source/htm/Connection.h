@@ -21,6 +21,8 @@ misrepresented as being the original software.
 
 #pragma once
 
+#include <cstddef>
+
 namespace htm {
 	struct ColumnAndCellIndices {
 		int _columnIndex;
@@ -33,8 +35,8 @@ namespace htm {
 			: _columnIndex(columnIndex), _cellIndex(cellIndex)
 		{}
 
-		size_t operator()(const ColumnAndCellIndices &value) const {
-			return static_cast<size_t>(_columnIndex ^ _cellIndex);
+		std::size_t operator()(const ColumnAndCellIndices &value) const {
+			return static_cast<std::size_t>(_columnIndex ^ _cellIndex);
 		}
 
 		bool operator==(const ColumnAndCellIndices &other) const {

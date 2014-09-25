@@ -278,7 +278,7 @@ void LSTMRL::step(float reward, const LSTMRLSettings &settings, std::mt19937 &ge
 		float sum = 0.0f;
 
 		for (size_t i = 0; i < _outputNodes.size(); i++) {
-			relativeProbabilites[i] = std::expf(_outputNodes[i]._output);
+			relativeProbabilites[i] = std::exp(_outputNodes[i]._output);
 
 			sum += relativeProbabilites[i];
 		}

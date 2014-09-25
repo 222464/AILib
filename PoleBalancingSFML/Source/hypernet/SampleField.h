@@ -24,6 +24,7 @@ misrepresented as being the original software.
 #include <vector>
 #include <memory>
 #include <functional>
+#include <cmath>
 
 namespace hn {
 	class SampleField {

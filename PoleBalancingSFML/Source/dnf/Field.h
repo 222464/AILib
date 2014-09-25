@@ -4,6 +4,8 @@
 #include <random>
 #include <iostream>
 
+#include <Consts.h>
+
 namespace dnf {
 	class Field {
 	public:

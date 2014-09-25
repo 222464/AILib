@@ -24,6 +24,8 @@ misrepresented as being the original software.
 #include <nn/Neuron.h>
 #include <nn/BrownianPerturbation.h>
 
+#include <iostream>
+
 namespace nn {
 	class FeedForwardNeuralNetwork {
 	public:

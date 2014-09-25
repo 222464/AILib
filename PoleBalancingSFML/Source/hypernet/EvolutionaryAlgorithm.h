@@ -22,6 +22,7 @@ misrepresented as being the original software.
 #pragma once
 
 #include <hypernet/HyperNet.h>
+#include <list>
 
 namespace hn {
 	class EvolutionaryAlgorithm {

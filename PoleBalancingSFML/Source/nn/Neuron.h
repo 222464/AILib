@@ -40,7 +40,7 @@ namespace nn {
 		};
 
 		static float sigmoid(float x) {
-			return 1.0f / (1.0f + std::expf(-x));
+			return 1.0f / (1.0f + std::exp(-x));
 		}
 
 		static float plasticityFunc(float x) {
@@ -48,7 +48,7 @@ namespace nn {
 		}
 
 		static float scaledSigmoid(float x) {
-			return 2.0f / (1.0f + std::expf(-x)) - 1.0f;
+			return 2.0f / (1.0f + std::exp(-x)) - 1.0f;
 		}
 
 		static float logit(float x) {

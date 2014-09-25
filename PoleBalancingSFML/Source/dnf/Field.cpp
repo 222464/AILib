@@ -68,7 +68,7 @@ void Field::createRandom(int numInputs, int size, int weightRadius, float weight
 	// Precompute g
 	_gLookup.resize(weightDimSize * weightDimSize);
 
-	float gCoeff = 1.0f / (_weightDeviation * std::sqrt(2.0f * std::_Pi));
+	float gCoeff = 1.0f / (_weightDeviation * std::sqrt(2.0f * PI));
 	float dCoeff = -1.0f / (2.0f * _weightDeviation);
 
 	for (int i = 0; i < _gLookup.size(); i++) {

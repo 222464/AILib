@@ -23,6 +23,7 @@ misrepresented as being the original software.
 
 #include <vector>
 #include <random>
+#include <iostream>
 
 namespace hn {
 	class FunctionApproximator {

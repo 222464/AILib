@@ -47,7 +47,7 @@ float ExperimentPoleBalancing::evaluate(hn::HyperNet &hypernet, const hn::Config
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
-	float poleAngle = static_cast<float>(std::_Pi) * 0.0f;
+	float poleAngle = static_cast<float>(PI) * 0.0f;
 	float poleAngleVel = 0.0f;
 	float poleAngleAccel = 0.0f;
 	float cartX = 0.0f;
@@ -71,12 +71,12 @@ float ExperimentPoleBalancing::evaluate(hn::HyperNet &hypernet, const hn::Config
 		// Update fitness
 		prevFitness = fitness;
 
-		if (poleAngle < static_cast<float>(std::_Pi))
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - poleAngle);
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI) * 0.5f - poleAngle);
 		else
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
+			fitness = -(static_cast<float>(PI) * 0.5f - (static_cast<float>(PI) * 2.0f - poleAngle));
 
-		//fitness = fitness - std::fabsf(poleAngleVel * 40.0f);
+		//fitness = fitness - std::abs(poleAngleVel * 40.0f);
 
 		totalFitness += fitness * 0.1f;
 
@@ -90,7 +90,7 @@ float ExperimentPoleBalancing::evaluate(hn::HyperNet &hypernet, const hn::Config
 
 		hypernet.setInput(0, cartX * 0.25f);
 		hypernet.setInput(1, cartVelX);
-		hypernet.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
+		hypernet.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
 		hypernet.setInput(3, poleAngleVel);
 
 		hypernet.step(subConfig, dFitness * 10.0f, generator, 6, 6.0f);
@@ -111,15 +111,15 @@ float ExperimentPoleBalancing::evaluate(hn::HyperNet &hypernet, const hn::Config
 		else if (cartX > cartMoveRadius)
 			pendulumCartAccelX = 0.0f;
 
-		poleAngleAccel = pendulumCartAccelX * std::cosf(poleAngle) + g * std::sinf(poleAngle);
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
 		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
 		poleAngle += poleAngleVel * dt;
 
-		massPos = sf::Vector2f(cartX + std::cosf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength, std::sinf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength);
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength);
 
 		float force = 0.0f;
 
-		if (std::fabsf(cartVelX) < maxSpeed)
+		if (std::abs(cartVelX) < maxSpeed)
 			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
 
 		if (cartX < -cartMoveRadius) {
@@ -135,14 +135,14 @@ float ExperimentPoleBalancing::evaluate(hn::HyperNet &hypernet, const hn::Config
 			cartVelX = -0.5f * cartVelX;
 		}
 
-		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cosf(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sinf(poleAngle)) / (massMass + cartMass);
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
 		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
 		cartX += cartVelX * dt;
 
-		poleAngle = std::fmodf(poleAngle, (2.0f * static_cast<float>(std::_Pi)));
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
 
 		if (poleAngle < 0.0f)
-			poleAngle += static_cast<float>(std::_Pi) * 2.0f;
+			poleAngle += static_cast<float>(PI) * 2.0f;
 	}
 
 	std::cout << "Pole balancing experiment finished with total fitness of " << totalFitness << "." << std::endl;

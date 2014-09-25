@@ -253,7 +253,7 @@ void PSOAgent::step(float reward, float dt) {
 
 		// Rescale so that highest reward is at 1
 		for (size_t i = 0; i < _particles.size(); i++)
-			normalizedrewards[i] = std::powf((_particles[i]._reward - minreward) * offsetMaxrewardInv, _greedExponent);
+			normalizedrewards[i] = std::pow((_particles[i]._reward - minreward) * offsetMaxrewardInv, _greedExponent);
 	}
 
 	// Move all particles

@@ -119,7 +119,7 @@ void SOM::updateNeighborhood(const SOMCoords &centerCoords, const std::vector<fl
 			distSquared += delta * delta;
 		}
 
-		float influence = std::expf(-_gaussianScalar * distSquared / (2.0f * radiusSquaredf));
+		float influence = std::exp(-_gaussianScalar * distSquared / (2.0f * radiusSquaredf));
 
 		for (size_t i = 0; i < node._weights.size(); i++)
 			node._weights[i] += influence * _alpha * (target[i] - node._weights[i]);

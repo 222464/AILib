@@ -21,6 +21,7 @@ misrepresented as being the original software.
 
 #pragma once
 
+#include <Consts.h>
 #include <hypernet/Experiment.h>
 
 class ExperimentPoleBalancing : public hn::Experiment {

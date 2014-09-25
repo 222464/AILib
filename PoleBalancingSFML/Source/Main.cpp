@@ -23,6 +23,8 @@ misrepresented as being the original software.
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 
+#include <Consts.h>
+
 #include <nn/QAgent.h>
 #include <nn/ActorCriticAgent.h>
 #include <nn/Cacla.h>
@@ -423,7 +425,7 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
-	float poleAngle = static_cast<float>(std::_Pi) * 0.0f;
+	float poleAngle = static_cast<float>(PI) * 0.0f;
 	float poleAngleVel = 0.0f;
 	float poleAngleAccel = 0.0f;
 	float cartX = 0.0f;
@@ -447,12 +449,12 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		// Update fitness
 		prevFitness = fitness;
 
-		if (poleAngle < static_cast<float>(std::_Pi))
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - poleAngle);
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI) * 0.5f - poleAngle);
 		else
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
+			fitness = -(static_cast<float>(PI) * 0.5f - (static_cast<float>(PI) * 2.0f - poleAngle));
 
-		//fitness = fitness - std::fabsf(poleAngleVel * 40.0f);
+		//fitness = fitness - std::abs(poleAngleVel * 40.0f);
 
 		totalFitness += fitness * 0.01f;
 
@@ -466,7 +468,7 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		net.setInput(0, cartX * 0.25f);
 		net.setInput(1, cartVelX);
-		net.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
+		net.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
 		net.setInput(3, poleAngleVel);
 
 		net.setInput(4, dFitness * 0.1f);
@@ -490,15 +492,15 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		else if (cartX > cartMoveRadius)
 			pendulumCartAccelX = 0.0f;
 
-		poleAngleAccel = pendulumCartAccelX * std::cosf(poleAngle) + g * std::sinf(poleAngle);
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
 		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
 		poleAngle += poleAngleVel * dt;
 
-		massPos = sf::Vector2f(cartX + std::cosf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength, std::sinf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength);
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength);
 
 		float force = 0.0f;
 
-		if (std::fabsf(cartVelX) < maxSpeed)
+		if (std::abs(cartVelX) < maxSpeed)
 			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
 
 		if (cartX < -cartMoveRadius) {
@@ -514,14 +516,14 @@ float evaluatePoleBalancing(ctrnn::CTRNN &net, std::mt19937 &generator) {
 			cartVelX = -0.5f * cartVelX;
 		}
 
-		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cosf(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sinf(poleAngle)) / (massMass + cartMass);
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
 		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
 		cartX += cartVelX * dt;
 
-		poleAngle = std::fmodf(poleAngle, (2.0f * static_cast<float>(std::_Pi)));
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
 
 		if (poleAngle < 0.0f)
-			poleAngle += static_cast<float>(std::_Pi) * 2.0f;
+			poleAngle += static_cast<float>(PI) * 2.0f;
 	}
 
 	//std::cout << "Pole balancing experiment finished with total fitness of " << totalFitness << "." << std::endl;
@@ -878,7 +880,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
-	float poleAngle = static_cast<float>(std::_Pi) * 0.0f;
+	float poleAngle = static_cast<float>(PI) * 0.0f;
 	float poleAngleVel = 0.0f;
 	float poleAngleAccel = 0.0f;
 	float cartX = 0.0f;
@@ -926,12 +928,12 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 			quit = true;
 
 		// Update fitness
-		if (poleAngle < static_cast<float>(std::_Pi))
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - poleAngle);
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI) * 0.5f - poleAngle);
 		else
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
+			fitness = -(static_cast<float>(PI) * 0.5f - (static_cast<float>(PI) * 2.0f - poleAngle));
 
-		//fitness = fitness - std::fabsf(poleAngleVel * 40.0f);
+		//fitness = fitness - std::abs(poleAngleVel * 40.0f);
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			fitness = -cartX;
@@ -948,7 +950,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		best.setInput(0, cartX * 0.25f);
 		best.setInput(1, cartVelX);
-		best.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
+		best.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
 		best.setInput(3, poleAngleVel);
 
 		best.setInput(4, dFitness * 10.0f);
@@ -976,15 +978,15 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		else if (cartX > cartMoveRadius)
 			pendulumCartAccelX = 0.0f;
 
-		poleAngleAccel = pendulumCartAccelX * std::cosf(poleAngle) + g * std::sinf(poleAngle);
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
 		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
 		poleAngle += poleAngleVel * dt;
 
-		massPos = sf::Vector2f(cartX + std::cosf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength, std::sinf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength);
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength);
 
 		float force = 0.0f;
 
-		if (std::fabsf(cartVelX) < maxSpeed) {
+		if (std::abs(cartVelX) < maxSpeed) {
 			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
 
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
@@ -1007,14 +1009,14 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 			cartVelX = -0.5f * cartVelX;
 		}
 
-		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cosf(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sinf(poleAngle)) / (massMass + cartMass);
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
 		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
 		cartX += cartVelX * dt;
 
-		poleAngle = std::fmodf(poleAngle, (2.0f * static_cast<float>(std::_Pi)));
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
 
 		if (poleAngle < 0.0f)
-			poleAngle += static_cast<float>(std::_Pi) * 2.0f;
+			poleAngle += static_cast<float>(PI) * 2.0f;
 
 		// ---------------------------- Rendering ----------------------------
 
@@ -1027,7 +1029,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		window.draw(cartSprite);
 
 		poleSprite.setPosition(cartSprite.getPosition() + sf::Vector2f(0.0f, -45.0f));
-		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(std::_Pi) + 180.0f);
+		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI) + 180.0f);
 
 		window.draw(poleSprite);
 
@@ -1218,7 +1220,7 @@ int main() {
 	float cartMass = 2.0f;
 	sf::Vector2f massPos(0.0f, poleLength);
 	sf::Vector2f massVel(0.0f, 0.0f);
-	float poleAngle = static_cast<float>(std::_Pi) * 0.0f;
+	float poleAngle = static_cast<float>(PI) * 0.0f;
 	float poleAngleVel = 0.0f;
 	float poleAngleAccel = 0.0f;
 	float cartX = 0.0f;
@@ -1308,12 +1310,12 @@ int main() {
 			quit = true;
 
 		// Update fitness
-		if (poleAngle < static_cast<float>(std::_Pi))
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - poleAngle);
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI) * 0.5f - poleAngle);
 		else
-			fitness = -(static_cast<float>(std::_Pi) * 0.5f - (static_cast<float>(std::_Pi) * 2.0f - poleAngle));
+			fitness = -(static_cast<float>(PI) * 0.5f - (static_cast<float>(PI) * 2.0f - poleAngle));
 
-		//fitness = fitness - std::fabsf(poleAngleVel * 1.0f);
+		//fitness = fitness - std::abs(poleAngleVel * 1.0f);
 
 		//fitness = -std::abs(cartX);
 
@@ -1334,14 +1336,14 @@ int main() {
 
 		//agent.setInput(0, 0, cartX * 0.5f);
 		//agent.setInput(0, 1, cartVelX);
-		//agent.setInput(1, 0, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi) / std::_Pi * 2.0f - 1.0f));
+		//agent.setInput(1, 0, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI) / PI * 2.0f - 1.0f));
 		//agent.setInput(1, 1, poleAngleVel * 0.1f);
 
 		//agent.step(dFitness * 6.0f, 0.97f, 0.5f, 0.1f, 0.001f, regionDesc, 0.2f, 0.3f, 0.05f, generator);
 
 		//lstmAC.setInput(0, cartX * 0.25f);
 		//lstmAC.setInput(1, cartVelX);
-		//lstmAC.setInput(2, std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)));
+		//lstmAC.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
 		//lstmAC.setInput(3, poleAngleVel);
 
 		//lstmAC.step(dFitness * 10.0f, 0.2f, 0.01f, 0.02f, 0.4f, 0.0001f, 0.97f, 0.5f, 0.5f, 0.05f, 0.2f, 0.2f, 0.99f, generator);
@@ -1354,7 +1356,7 @@ int main() {
 
 		state[0] = cartX * 0.25f;
 		state[1] = cartVelX * 0.25f;
-		state[2] = std::fmodf(poleAngle + static_cast<float>(std::_Pi), 2.0f * static_cast<float>(std::_Pi)) / (2.0f * static_cast<float>(std::_Pi)) * 2.0f - 1.0f;
+		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) / (2.0f * static_cast<float>(PI)) * 2.0f - 1.0f;
 		state[3] = poleAngleVel * 0.5f;
 
 		std::vector<float> output;
@@ -1399,15 +1401,15 @@ int main() {
 		else if (cartX > cartMoveRadius)
 			pendulumCartAccelX = 0.0f;
 
-		poleAngleAccel = pendulumCartAccelX * std::cosf(poleAngle) + g * std::sinf(poleAngle);
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
 		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
 		poleAngle += poleAngleVel * dt;
 
-		massPos = sf::Vector2f(cartX + std::cosf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength, std::sinf(poleAngle + static_cast<float>(std::_Pi) * 0.5f) * poleLength);
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI) * 0.5f) * poleLength);
 
 		float force = 0.0f;
 
-		if (std::fabsf(cartVelX) < maxSpeed) {
+		if (std::abs(cartVelX) < maxSpeed) {
 			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
 
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
@@ -1438,14 +1440,14 @@ int main() {
 			cartVelX = -0.5f * cartVelX;
 		}
 
-		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cosf(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sinf(poleAngle)) / (massMass + cartMass);
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
 		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
 		cartX += cartVelX * dt;
 
-		poleAngle = std::fmodf(poleAngle, (2.0f * static_cast<float>(std::_Pi)));
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
 
 		if (poleAngle < 0.0f)
-			poleAngle += static_cast<float>(std::_Pi) * 2.0f;
+			poleAngle += static_cast<float>(PI) * 2.0f;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
 			if (!tDownLastFrame) {
@@ -1468,7 +1470,7 @@ int main() {
 		window.draw(cartSprite);
 
 		poleSprite.setPosition(cartSprite.getPosition() + sf::Vector2f(0.0f, -45.0f));
-		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(std::_Pi) + 180.0f);
+		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI) + 180.0f);
 
 		window.draw(poleSprite);
 
@@ -2040,7 +2042,7 @@ int main() {
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
 	float timer = 0.0f;
-	float time = std::_Pi * 2.0f;
+	float time = PI * 2.0f;
 
 	do {
 		clock.restart();

@@ -70,7 +70,7 @@ void GeneticAlgorithm::rescaleFitnesses() {
 
 	for (float &fitness : _fitnesses) {
 		fitness -= minFitness;
-		fitness = std::powf(fitness, _greedExponent);
+		fitness = std::pow(fitness, _greedExponent);
 	}
 }
 
