@@ -28,12 +28,14 @@ namespace deep {
 	class FA {
 	private:
 		struct Connection {
+			float _grad;
 			float _weight;
 			float _prevDWeight;
+			float _learningRate;
 			float _eligibility;
 
 			Connection()
-				: _eligibility(0.0f), _prevDWeight(0.0f)
+				: _grad(0.0f), _eligibility(0.0f), _prevDWeight(0.0f), _learningRate(1.0f)
 			{}
 		};
 
@@ -67,6 +69,11 @@ namespace deep {
 		void process(const std::vector<float> &inputs, std::vector<float> &outputs);
 
 		void backpropagate(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float momentum);
+
+		void clearGradient();
+		void accumulateGradient(const std::vector<float> &inputs, const std::vector<float> &targetOutputs);
+		void scaleGradient(float scalar);
+		void moveAlongGradientRMS(float rmsDecay, float alpha, float momentum);
 
 		void adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum);
 

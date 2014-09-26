@@ -1261,13 +1261,13 @@ int main() {
 	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
 
 	htmrl::HTMRLDiscreteAction htmRL;
-	std::vector<htmrl::HTMRLDiscreteAction::RegionDesc> regionDescs(0);
-	//regionDescs[0]._regionWidth = 32;
-	//regionDescs[0]._regionHeight = 16;
-	//regionDescs[1]._regionWidth = 16;
-	//regionDescs[1]._regionHeight = 8;
+	std::vector<htmrl::HTMRLDiscreteAction::RegionDesc> regionDescs(1);
+	regionDescs[0]._regionWidth = 32;
+	regionDescs[0]._regionHeight = 16;
 
-	htmRL.createRandom(2, 1, 32, 32, 3, 1, 16, 0.1f, regionDescs, generator);
+	std::vector<float> condensed;
+
+	htmRL.createRandom(2, 1, 32, 32, 3, 3, 3, 1, 32, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1285,7 +1285,7 @@ int main() {
 
 	sf::Image image;
 
-	image.create(16, 8);
+	image.create(htmRL.getCondenseBufferWidth(), htmRL.getCondenseBufferHeight());
 
 	do {
 		clock.restart();
@@ -1312,6 +1312,8 @@ int main() {
 			fitness = -(static_cast<float>(PI) * 0.5f - poleAngle);
 		else
 			fitness = -(static_cast<float>(PI) * 0.5f - (static_cast<float>(PI) * 2.0f - poleAngle));
+
+		fitness += static_cast<float>(PI) * 0.5f;
 
 		//fitness = fitness - std::abs(poleAngleVel * 1.0f);
 
@@ -1366,7 +1368,10 @@ int main() {
 
 		int action;
 
-		action = htmRL.step(reward, 0.1f, 0.1f, 0.999f, 0.5f, 1.0f, 0.15f, 0.995f, generator);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
+			action = htmRL.step(reward, 0.4f, 0.05f, 0.1f, 0.0f, 0.995f, 0.99f, 1.0f, 0.0f, 1.0f, generator, condensed);
+		else
+			action = htmRL.step(reward, 0.1f, 0.05f, 0.1f, 0.0f, 0.995f, 0.995f, 1.0f, 0.1f, 1.0f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;
@@ -1486,16 +1491,15 @@ int main() {
 			window.draw(text);
 		}
 
-		/*for (size_t i = 0; i < 16 * 8; i++) {
-			int x = i % 16;
-			int y = i / 16;
+		for (size_t i = 0; i < htmRL.getCondenseBufferWidth() * htmRL.getCondenseBufferHeight(); i++) {
+			int x = i % htmRL.getCondenseBufferWidth();
+			int y = i / htmRL.getCondenseBufferWidth();
 
 			sf::Color c;
 			
-			if (htmRL.getRegion(1).getOutput(x, y))
-				c = sf::Color::Red;
-			else
-				c = sf::Color::White;
+			c.r = condensed[i] * 255.0f;
+			c.g = 0;
+			c.b = 0;
 
 			image.setPixel(x, y, c);
 		}
@@ -1508,12 +1512,12 @@ int main() {
 
 		s.setPosition(window.getSize().x - 256.0f, 0.0f);
 
-		s.setScale(256.0f / 16.0f, 256.0f / 16.0f);
+		s.setScale(256.0f / htmRL.getCondenseBufferWidth(), 256.0f / htmRL.getCondenseBufferWidth());
 
 		s.setTexture(t);
 
 		window.draw(s);
-		*/
+		
 		// -------------------------------------------------------------------
 
 		window.display();

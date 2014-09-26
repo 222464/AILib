@@ -384,6 +384,175 @@ void FA::backpropagate(const std::vector<float> &inputs, const std::vector<float
 	}
 }
 
+void FA::clearGradient() {
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			_hiddenLayers[l][n]._connections[w]._grad = 0.0f;
+
+		_hiddenLayers[l][n]._bias._grad = 0.0f;
+	}
+
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			_outputLayer[n]._connections[w]._grad = 0.0f;
+
+		_outputLayer[n]._bias._grad = 0.0f;
+	}
+}
+
+void FA::scaleGradient(float scalar) {
+	for (int l = 0; l < _hiddenLayers.size(); l++)
+	for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+		for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+			_hiddenLayers[l][n]._connections[w]._grad *= scalar;
+
+		_hiddenLayers[l][n]._bias._grad *= scalar;
+	}
+
+	for (int n = 0; n < _outputLayer.size(); n++) {
+		for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+			_outputLayer[n]._connections[w]._grad *= scalar;
+
+		_outputLayer[n]._bias._grad *= scalar;
+	}
+}
+
+void FA::accumulateGradient(const std::vector<float> &inputs, const std::vector<float> &targetOutputs) {
+	// Output layer error
+	for (int n = 0; n < _outputLayer.size(); n++)
+		_outputLayer[n]._error = targetOutputs[n] - _outputLayer[n]._output;
+
+	if (!_hiddenLayers.empty())  {
+		// Last hidden layer
+		for (int n = 0; n < _hiddenLayers.back().size(); n++) {
+			float sum = 0.0f;
+
+			for (int w = 0; w < _outputLayer.size(); w++)
+				sum += _outputLayer[w]._error * _outputLayer[w]._connections[n]._weight;
+
+			_hiddenLayers.back()[n]._error = sum * _hiddenLayers.back()[n]._output * (1.0f - _hiddenLayers.back()[n]._output);
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 2; l >= 0; l--) {
+			int prevLayerIndex = l + 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				float sum = 0.0f;
+
+				for (int w = 0; w < _hiddenLayers[prevLayerIndex].size(); w++)
+					sum += _hiddenLayers[prevLayerIndex][w]._error * _hiddenLayers[prevLayerIndex][w]._connections[n]._weight;
+
+				_hiddenLayers[l][n]._error = sum * _hiddenLayers[l][n]._output * (1.0f - _hiddenLayers[l][n]._output);
+			}
+		}
+
+		// Get gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._grad += _outputLayer[n]._error * _hiddenLayers.back()[w]._output;
+			
+			_outputLayer[n]._bias._grad += _outputLayer[n]._error;
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 1; l >= 1; l--) {
+			int prevLayerIndex = l - 1;
+
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++)
+					_hiddenLayers[l][n]._connections[w]._grad += _hiddenLayers[l][n]._error * _hiddenLayers[prevLayerIndex][w]._output;
+
+				_hiddenLayers[l][n]._bias._grad += _hiddenLayers[l][n]._error;
+			}
+		}
+
+		for (int n = 0; n < _hiddenLayers[0].size(); n++) {
+			for (int w = 0; w < _hiddenLayers[0][n]._connections.size(); w++)
+				_hiddenLayers[0][n]._connections[w]._grad += _hiddenLayers[0][n]._error * inputs[w];
+
+			_hiddenLayers[0][n]._bias._grad += _hiddenLayers[0][n]._error;
+		}
+	}
+	else {
+		// Get gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++)
+				_outputLayer[n]._connections[w]._grad += _outputLayer[n]._error * inputs[w];
+
+			_outputLayer[n]._bias._grad += _outputLayer[n]._error;
+		}
+	}
+}
+
+void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
+	if (!_hiddenLayers.empty())  {
+		// Move along gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++) {
+				float grad = _outputLayer[n]._connections[w]._grad;
+
+				_outputLayer[n]._connections[w]._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._connections[w]._learningRate + rmsDecay * grad * grad;
+
+				float dWeight = alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				_outputLayer[n]._connections[w]._weight += dWeight;
+				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
+			}
+
+			float grad = _outputLayer[n]._bias._grad;
+
+			_outputLayer[n]._bias._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._bias._learningRate + rmsDecay * grad * grad;
+
+			float dBias = alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
+			_outputLayer[n]._bias._weight += dBias;
+			_outputLayer[n]._bias._prevDWeight = dBias;
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 1; l >= 0; l--) {
+			for (int n = 0; n < _hiddenLayers[l].size(); n++) {
+				for (int w = 0; w < _hiddenLayers[l][n]._connections.size(); w++) {
+					float grad = _hiddenLayers[l][n]._connections[w]._grad;
+
+					_hiddenLayers[l][n]._connections[w]._learningRate = (1.0f - rmsDecay) * _hiddenLayers[l][n]._connections[w]._learningRate + rmsDecay * grad * grad;
+
+					float dWeight = alpha * grad / std::sqrt(_hiddenLayers[l][n]._connections[w]._learningRate) + momentum * _hiddenLayers[l][n]._connections[w]._prevDWeight;
+					_hiddenLayers[l][n]._connections[w]._weight += dWeight;
+					_hiddenLayers[l][n]._connections[w]._prevDWeight = dWeight;
+				}
+
+				float grad = _hiddenLayers[l][n]._bias._grad;
+
+				_hiddenLayers[l][n]._bias._learningRate = (1.0f - rmsDecay) * _hiddenLayers[l][n]._bias._learningRate + rmsDecay * grad * grad;
+
+				float dBias = alpha * grad / std::sqrt(_hiddenLayers[l][n]._bias._learningRate) + momentum * _hiddenLayers[l][n]._bias._prevDWeight;
+				_hiddenLayers[l][n]._bias._weight += dBias;
+				_hiddenLayers[l][n]._bias._prevDWeight = dBias;
+			}
+		}
+	}
+	else {
+		// Move along gradient
+		for (int n = 0; n < _outputLayer.size(); n++) {
+			for (int w = 0; w < _outputLayer[n]._connections.size(); w++) {
+				float grad = _outputLayer[n]._connections[w]._grad;
+
+				_outputLayer[n]._connections[w]._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._connections[w]._learningRate + rmsDecay * grad * grad;
+
+				float dWeight = alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				_outputLayer[n]._connections[w]._weight += dWeight;
+				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
+			}
+
+			float grad = _outputLayer[n]._bias._grad;
+
+			_outputLayer[n]._bias._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._bias._learningRate + rmsDecay * grad * grad;
+
+			float dBias = alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
+			_outputLayer[n]._bias._weight += dBias;
+			_outputLayer[n]._bias._prevDWeight = dBias;
+		}
+	}
+}
+
 void FA::adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum) {
 	// Move along eligibility traces
 	for (int n = 0; n < _outputLayer.size(); n++) {

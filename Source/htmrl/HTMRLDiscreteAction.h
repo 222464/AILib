@@ -75,7 +75,7 @@ namespace htmrl {
 				: _regionWidth(32),
 				_regionHeight(32),
 				_columnSize(4),
-				_connectionRadius(6),
+				_connectionRadius(8),
 				_initInhibitionRadius(6.0f),
 				_initNumSegments(0),
 				_permanenceDistanceBias(0.2f),
@@ -84,28 +84,28 @@ namespace htmrl {
 				_connectionPermanenceTarget(0.3f),
 				_connectionPermanenceStdDev(0.1f),
 				_minPermanence(0.3f),
-				_minOverlap(3.0f),
-				_desiredLocalActivity(18),
-				_spatialPermanenceIncrease(0.04f),
-				_spatialPermanenceDecrease(0.03f),
+				_minOverlap(1.0f),
+				_desiredLocalActivity(20),
+				_spatialPermanenceIncrease(0.005f),
+				_spatialPermanenceDecrease(0.004f),
 				_minDutyCycleRatio(0.01f),
 				_activeDutyCycleDecay(0.01f),
 				_overlapDutyCycleDecay(0.01f),
-				_subOverlapPermanenceIncrease(0.03f),
+				_subOverlapPermanenceIncrease(0.004f),
 				_boostFunction(std::bind(defaultBoostFunctionDiscreteAction, std::placeholders::_1, std::placeholders::_2)),
-				_learningRadius(4),
+				_learningRadius(6),
 				_minLearningThreshold(1),
-				_activationThreshold(6),
-				_newNumConnections(32),
-				_temporalPermanenceIncrease(0.03f),
-				_temporalPermanenceDecrease(0.025f),
+				_activationThreshold(8),
+				_newNumConnections(64),
+				_temporalPermanenceIncrease(0.004f),
+				_temporalPermanenceDecrease(0.003f),
 				_newConnectionPermanence(0.31f),
-				_maxSteps(6)
+				_maxSteps(4)
 			{}
 		};
 
 		struct ReplaySample {
-			std::vector<bool> _actorInputsb;
+			std::vector<float> _actorInputsf;
 			int _actionExploratory;
 			int _actionOptimal;
 			float _reward;
@@ -124,10 +124,17 @@ namespace htmrl {
 		int _inputDotsHeight;
 		int _inputMax;
 
+		int _condenseWidth;
+		int _condenseHeight;
+
+		int _condenseBufferWidth;
+		int _condenseBufferHeight;
+
 		std::vector<float> _inputf;
 		std::vector<bool> _inputb;
+		std::vector<float> _inputCond;
 
-		std::vector<bool> _prevLayerInputb;
+		std::vector<float> _prevLayerInputf;
 
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
@@ -148,10 +155,11 @@ namespace htmrl {
 		int _replaySampleFrames;
 		int _maxReplayChainSize;
 		int _backpropPassesCritic;
+		int _minibatchSize;
 
 		HTMRLDiscreteAction();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
 			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
@@ -171,7 +179,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		int step(float reward, float backpropAlphaCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator);
+		int step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator, std::vector<float> &condensed);
 
 		int getInputWidth() const {
 			return _inputWidth;
@@ -191,6 +199,22 @@ namespace htmrl {
 
 		int getInputMax() const {
 			return _inputMax;
+		}
+
+		int getCondenseWidth() const {
+			return _condenseWidth;
+		}
+
+		int getCondenseHeight() const {
+			return _condenseHeight;
+		}
+
+		int getCondenseBufferWidth() const {
+			return _condenseBufferWidth;
+		}
+
+		int getCondenseBufferHeight() const {
+			return _condenseBufferHeight;
 		}
 	};
 }

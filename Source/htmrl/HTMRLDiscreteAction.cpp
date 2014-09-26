@@ -30,17 +30,20 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 }
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(300),
-_backpropPassesCritic(300),
+: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(600),
+_backpropPassesCritic(50), _minibatchSize(16),
 _prevMaxQAction(0), _prevChooseAction(0)
 {}
 
-void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
+void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
 
 	_inputDotsWidth = inputDotsWidth;
 	_inputDotsHeight = inputDotsHeight;
+
+	_condenseWidth = condenseWidth;
+	_condenseHeight = condenseHeight;
 
 	_inputMax = _inputDotsWidth * _inputDotsHeight;
 
@@ -67,12 +70,18 @@ void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inpu
 		dotsHeight = _regionDescs[i]._regionHeight;
 	}
 
-	int stateSize = dotsWidth * dotsHeight;
+	_condenseBufferWidth = std::ceil(static_cast<float>(dotsWidth) / _condenseWidth);
+	_condenseBufferHeight = std::ceil(static_cast<float>(dotsHeight) / _condenseHeight);
+
+	int stateSize = _condenseBufferWidth * _condenseBufferHeight;
+
+	_inputCond.clear();
+	_inputCond.assign(stateSize, 0.0f);
 
 	_critic.createRandom(stateSize, numOutputs, criticNumHiddenLayers, criticNumNodesPerHiddenLayer, criticInitWeightStdDev, generator);
 
-	_prevLayerInputb.clear();
-	_prevLayerInputb.assign(stateSize, false);
+	_prevLayerInputf.clear();
+	_prevLayerInputf.assign(stateSize, false);
 
 	_prevQValues.clear();
 	_prevQValues.assign(_critic.getNumOutputs(), 0.0f);
@@ -109,10 +118,13 @@ void HTMRLDiscreteAction::decodeInput() {
 	}
 }
 
-int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator) {
+int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator, std::vector<float> &condensed) {
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
+
+	int dotsWidth = _inputWidth * _inputDotsWidth;
+	int dotsHeight = _inputHeight * _inputDotsHeight;
 
 	for (int i = 0; i < _regions.size(); i++) {
 		_regions[i].stepBegin();
@@ -130,17 +142,41 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 		for (int x = 0; x < _regions[i].getRegionWidth(); x++)
 		for (int y = 0; y < _regions[i].getRegionHeight(); y++)
 			layerInput[x + y * _regions[i].getRegionWidth()] = _regions[i].getOutput(x, y);
+
+		dotsWidth = _regionDescs[i]._regionWidth;
+		dotsHeight = _regionDescs[i]._regionHeight;
 	}
 
-	std::vector<float> layerInputf(layerInput.size());
+	// Condense
+	std::vector<float> condensedInputf(_condenseBufferWidth * _condenseBufferHeight);
+
+	float maxInv = 1.0f / (_condenseWidth * _condenseHeight);
+	
+	for (int x = 0; x < _condenseBufferWidth; x++)
+	for (int y = 0; y < _condenseBufferHeight; y++) {
+
+		float sum = 0.0f;
+
+		for (int dx = 0; dx < _condenseWidth; dx++)
+		for (int dy = 0; dy < _condenseHeight; dy++) {
+			int bX = x * _condenseWidth + dx;
+			int bY = y * _condenseHeight + dy;
+
+			if (bX >= 0 && bX < dotsWidth && bY >= 0 && bY < dotsHeight)
+				sum += (layerInput[bX + bY * dotsWidth] ? 1.0f : 0.0f);
+		}
+
+		sum *= maxInv;
+
+		condensedInputf[x + y * _condenseBufferWidth] = sum;
+	}
+
+	condensed = condensedInputf;
 
 	// Get maximum Q prediction from critic
-	for (int i = 0; i < layerInputf.size(); i++)
-		layerInputf[i] = layerInput[i] ? 1.0f : 0.0f;
-
 	std::vector<float> criticOutput(_critic.getNumOutputs());
 
-	_critic.process(layerInputf, criticOutput);
+	_critic.process(condensedInputf, criticOutput);
 
 	int maxQActionIndex = 0;
 
@@ -153,26 +189,14 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 	// Generate exploratory action
 	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
-	
-	int choosenAction;
-
-	if (uniformDist(generator) < epsilon) {
-		std::uniform_int_distribution<int> actionDist(0, _critic.getNumOutputs() - 1);
-
-		choosenAction = actionDist(generator);
-	}
-	else
-		choosenAction = maxQActionIndex;
-
-	float nextValue = criticOutput[choosenAction];
 
 	float newAdv = _prevQValues[_prevMaxQAction] + (reward + gamma * nextMaxQ - _prevQValues[_prevMaxQAction]) * tauInv;
 
-	float errorCritic = lambda * (newAdv - _prevQValues[_prevChooseAction]);
+	float errorCritic = qAlpha * (newAdv - _prevQValues[_prevChooseAction]);
 
 	// Add sample to chain
 	ReplaySample sample;
-	sample._actorInputsb = _prevLayerInputb;
+	sample._actorInputsf = _prevLayerInputf;
 
 	sample._actionExploratory = _prevChooseAction;
 	sample._actionOptimal = _prevMaxQAction;
@@ -188,11 +212,11 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 	for (int i = 1; i < sample._actionQValues.size(); i++)
 		prevV = std::max(prevV, sample._actionQValues[i]);
 
-	float g = gamma;
+	float g = gamma * lambda;
 
 	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
-		float value = it->_actionQValues[it->_actionOptimal] + (it->_reward + gamma * prevV - it->_actionQValues[it->_actionOptimal]) * tauInv;
-		float error = g * lambda * (value - it->_actionQValues[it->_actionExploratory]);
+		//float value = it->_actionQValues[it->_actionOptimal] + (it->_reward + gamma * prevV - it->_actionQValues[it->_actionOptimal]) * tauInv;
+		float error = g * errorCritic; // (value - it->_actionQValues[it->_actionExploratory])
 
 		it->_actionQValues[it->_actionExploratory] += error;
 
@@ -204,7 +228,7 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 		prevV = it->_actionQValues[it->_actionOptimal];
 
-		g *= gamma;
+		g *= gamma * lambda;
 	}
 
 	_replayChain.push_front(sample);
@@ -228,33 +252,62 @@ int HTMRLDiscreteAction::step(float reward, float backpropAlphaCritic, float mom
 
 	std::vector<float> criticTarget(_critic.getNumOutputs());
 
-	_critic.decayWeights(weightDecayMultiplier);
+	//_critic.decayWeights(weightDecayMultiplier);
+
+	float minibatchInv = 1.0f / _minibatchSize;
 
 	for (int s = 0; s < _backpropPassesCritic; s++) {
-		int replayIndex = sampleDist(generator);
+		_critic.clearGradient();
 
-		ReplaySample* pSample = pReplaySamples[replayIndex];
+		for (int b = 0; b < _minibatchSize; b++) {
+			int replayIndex = sampleDist(generator);
 
-		for (int i = 0; i < _critic.getNumInputs(); i++)
-			inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
+			ReplaySample* pSample = pReplaySamples[replayIndex];
 
-		_critic.process(inputf, criticTempOutput);
+			for (int i = 0; i < _critic.getNumInputs(); i++)
+				inputf[i] = pSample->_actorInputsf[i];
 
-		criticTarget = criticTempOutput;
+			_critic.process(inputf, criticTempOutput);
 
-		criticTarget[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+			criticTarget = criticTempOutput;
 
-		_critic.backpropagate(inputf, criticTarget, backpropAlphaCritic, momentumCritic);
+			criticTarget[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+
+			_critic.accumulateGradient(inputf, criticTarget);
+		}
+
+		_critic.scaleGradient(minibatchInv);
+
+		_critic.moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic);
 	}
+
+	_critic.process(condensedInputf, criticOutput);
+
+	maxQActionIndex = 0;
+
+	for (int i = 1; i < _critic.getNumOutputs(); i++) {
+		if (criticOutput[i] > criticOutput[maxQActionIndex])
+			maxQActionIndex = i;
+	}
+
+	int choosenAction;
+
+	if (uniformDist(generator) < epsilon) {
+		std::uniform_int_distribution<int> actionDist(0, _critic.getNumOutputs() - 1);
+
+		choosenAction = actionDist(generator);
+	}
+	else
+		choosenAction = maxQActionIndex;
 
 	_prevMaxQAction = maxQActionIndex;
 	_prevChooseAction = choosenAction;
 
 	_prevQValues = criticOutput;
 
-	_prevLayerInputb = layerInput;
+	_prevLayerInputf = condensedInputf;
 
-	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << " " << _prevQValues[_prevChooseAction] << std::endl;
+	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << _prevQValues[_prevChooseAction] << std::endl;
 
 	return choosenAction;
 }

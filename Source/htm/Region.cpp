@@ -84,8 +84,11 @@ void Region::createRandom(int inputWidth, int inputHeight, int connectionRadius,
 bool Region::getOutput(int i) const {
 	const Column &column = _columns[i];
 
+	if (column._active)
+		return true;
+
 	for (int j = 0; j < column._cells.size(); j++)
-	if (column._cells[j]._activeState || column._cells[j]._predictiveState)
+	if (column._cells[j]._activeState)
 		return true;
 
 	return false;
