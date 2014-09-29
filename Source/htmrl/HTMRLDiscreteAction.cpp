@@ -30,9 +30,10 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 }
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(600),
-_backpropPassesCritic(50), _minibatchSize(16),
-_prevMaxQAction(0), _prevChooseAction(0)
+: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(800),
+_backpropPassesCritic(1), _minibatchSize(8),
+_prevMaxQAction(0), _prevChooseAction(0),
+_earlyStopError(0.0625f), _averageAbsError(0.0f)
 {}
 
 void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
@@ -78,13 +79,16 @@ void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inpu
 	_inputCond.clear();
 	_inputCond.assign(stateSize, 0.0f);
 
-	_critic.createRandom(stateSize, numOutputs, criticNumHiddenLayers, criticNumNodesPerHiddenLayer, criticInitWeightStdDev, generator);
+	_critics.resize(numOutputs);
+
+	for (int i = 0; i < numOutputs; i++)
+		_critics[i].createRandom(stateSize, 1, criticNumHiddenLayers, criticNumNodesPerHiddenLayer, criticInitWeightStdDev, generator);
 
 	_prevLayerInputf.clear();
 	_prevLayerInputf.assign(stateSize, false);
 
 	_prevQValues.clear();
-	_prevQValues.assign(_critic.getNumOutputs(), 0.0f);
+	_prevQValues.assign(numOutputs, 0.0f);
 }
 
 void HTMRLDiscreteAction::decodeInput() {
@@ -118,7 +122,7 @@ void HTMRLDiscreteAction::decodeInput() {
 	}
 }
 
-int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator, std::vector<float> &condensed) {
+int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed) {
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
@@ -173,26 +177,32 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 	condensed = condensedInputf;
 
-	// Get maximum Q prediction from critic
-	std::vector<float> criticOutput(_critic.getNumOutputs());
+	// Get maximum Q prediction from critics
+	std::vector<float> criticOutputs(_critics.size());
 
-	_critic.process(condensedInputf, criticOutput);
+	for (int i = 0; i < _critics.size(); i++) {
+		std::vector<float> criticOutput(1);
+
+		_critics[i].process(condensedInputf, criticOutput);
+
+		criticOutputs[i] = criticOutput[0];
+	}
 
 	int maxQActionIndex = 0;
 
-	for (int i = 1; i < _critic.getNumOutputs(); i++) {
-		if (criticOutput[i] > criticOutput[maxQActionIndex])
+	for (int i = 1; i < _critics.size(); i++) {
+		if (criticOutputs[i] > criticOutputs[maxQActionIndex])
 			maxQActionIndex = i;
 	}
-
-	float nextMaxQ = criticOutput[maxQActionIndex];
 
 	// Generate exploratory action
 	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
 
-	float newAdv = _prevQValues[_prevMaxQAction] + (reward + gamma * nextMaxQ - _prevQValues[_prevMaxQAction]) * tauInv;
+	float newAdv = _prevQValues[_prevMaxQAction] + (reward + gamma * criticOutputs[maxQActionIndex] - _prevQValues[_prevMaxQAction]) * tauInv;
 
-	float errorCritic = qAlpha * (newAdv - _prevQValues[_prevChooseAction]);
+	float errorCritic = newAdv - _prevQValues[_prevChooseAction];
+
+	_averageAbsError = (1.0f - averageAbsErrorDecay) * _averageAbsError + averageAbsErrorDecay * std::abs(errorCritic);
 
 	// Add sample to chain
 	ReplaySample sample;
@@ -205,20 +215,23 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 	sample._actionQValues = _prevQValues;
 
-	sample._actionQValues[_prevChooseAction] += errorCritic;
+	sample._actionQValues[_prevChooseAction] += qAlpha * errorCritic;
 
-	float prevV = sample._actionQValues[0];
+	sample._actionOptimal = 0;
 
 	for (int i = 1; i < sample._actionQValues.size(); i++)
-		prevV = std::max(prevV, sample._actionQValues[i]);
+	if (sample._actionQValues[i] > sample._actionQValues[sample._actionOptimal])
+		sample._actionOptimal = i;
+
+	float prevV = sample._actionQValues[sample._actionOptimal];
 
 	float g = gamma * lambda;
 
 	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
-		//float value = it->_actionQValues[it->_actionOptimal] + (it->_reward + gamma * prevV - it->_actionQValues[it->_actionOptimal]) * tauInv;
-		float error = g * errorCritic; // (value - it->_actionQValues[it->_actionExploratory])
+		float value = it->_actionQValues[it->_actionOptimal] + (it->_reward + gamma * prevV - it->_actionQValues[it->_actionOptimal]) * tauInv;
+		float error = (value - it->_actionQValues[it->_actionExploratory]);
 
-		it->_actionQValues[it->_actionExploratory] += error;
+		it->_actionQValues[it->_actionExploratory] += qAlpha * g * error;
 
 		it->_actionOptimal = 0;
 
@@ -247,55 +260,117 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	// Rehearse
 	std::uniform_int_distribution<int> sampleDist(0, pReplaySamples.size() - 1);
 
-	std::vector<float> inputf(_critic.getNumInputs());
-	std::vector<float> criticTempOutput(_critic.getNumOutputs());
-
-	std::vector<float> criticTarget(_critic.getNumOutputs());
-
-	//_critic.decayWeights(weightDecayMultiplier);
-
 	float minibatchInv = 1.0f / _minibatchSize;
 
+	std::vector<int> currentBatchSizes(_critics.size(), 0);
+
+	for (int i = 0; i < _critics.size(); i++)
+		_critics[i].clearGradient();
+
+	int numGradientUpdates = 0;
+
 	for (int s = 0; s < _backpropPassesCritic; s++) {
-		_critic.clearGradient();
+		std::shuffle(pReplaySamples.begin(), pReplaySamples.end(), generator);
 
-		for (int b = 0; b < _minibatchSize; b++) {
-			int replayIndex = sampleDist(generator);
+		for (int r = 0; r < pReplaySamples.size(); r++) {
+			ReplaySample* pSample = pReplaySamples[r];
 
-			ReplaySample* pSample = pReplaySamples[replayIndex];
+			std::vector<float> criticOutput(1);
 
-			for (int i = 0; i < _critic.getNumInputs(); i++)
-				inputf[i] = pSample->_actorInputsf[i];
+			_critics[pSample->_actionExploratory].process(pSample->_actorInputsf, criticOutput);
 
-			_critic.process(inputf, criticTempOutput);
+			float error = pSample->_actionQValues[pSample->_actionExploratory] - criticOutput[0];
 
-			criticTarget = criticTempOutput;
+			if (std::abs(error) > _earlyStopError * _averageAbsError) {
+				_critics[pSample->_actionExploratory].accumulateGradient(pSample->_actorInputsf, std::vector<float>(1, pSample->_actionQValues[pSample->_actionExploratory]));
+			
+				currentBatchSizes[pSample->_actionExploratory]++;
 
-			criticTarget[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+				if (currentBatchSizes[pSample->_actionExploratory] == _minibatchSize) {
+					_critics[pSample->_actionExploratory].scaleGradient(minibatchInv);
 
-			_critic.accumulateGradient(inputf, criticTarget);
+					_critics[pSample->_actionExploratory].moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic, kOut, kHidden);
+
+					currentBatchSizes[pSample->_actionExploratory] = 0;
+
+					numGradientUpdates++;
+				}
+			}
 		}
-
-		_critic.scaleGradient(minibatchInv);
-
-		_critic.moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic);
 	}
 
-	_critic.process(condensedInputf, criticOutput);
+	// Finish off batches left over
+	for (int i = 0; i < _critics.size(); i++)
+	if (currentBatchSizes[i] != 0) {
+		_critics[i].scaleGradient(1.0f / currentBatchSizes[i]);
 
+		_critics[i].moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic, kOut, kHidden);
+
+		numGradientUpdates++;
+	}
+
+	// Recompute samples
+	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
+		std::vector<float> criticOutput(1);
+
+		for (int i = 0; i < _critics.size(); i++) {
+			_critics[i].process(it->_actorInputsf, criticOutput);
+
+			criticOutputs[i] = criticOutput[0];
+		}
+
+		for (int i = 0; i < _critics.size(); i++)
+		if (i != it->_actionExploratory)
+			it->_actionQValues[i] = criticOutputs[i];
+
+		it->_actionOptimal = 0;
+
+		for (int i = 1; i < it->_actionQValues.size(); i++)
+		if (it->_actionQValues[i] > it->_actionQValues[it->_actionOptimal])
+			it->_actionOptimal = i;
+	}
+
+	for (int i = 0; i < _critics.size(); i++) {
+		std::vector<float> criticOutput(1);
+
+		_critics[i].process(condensedInputf, criticOutput);
+
+		criticOutputs[i] = criticOutput[0];
+	}
+	
 	maxQActionIndex = 0;
 
-	for (int i = 1; i < _critic.getNumOutputs(); i++) {
-		if (criticOutput[i] > criticOutput[maxQActionIndex])
+	for (int i = 1; i < _critics.size(); i++) {
+		if (criticOutputs[i] > criticOutputs[maxQActionIndex])
 			maxQActionIndex = i;
 	}
 
 	int choosenAction;
 
 	if (uniformDist(generator) < epsilon) {
-		std::uniform_int_distribution<int> actionDist(0, _critic.getNumOutputs() - 1);
+		// Use softmax
+		std::vector<float> softmaxValues(_critics.size());
 
-		choosenAction = actionDist(generator);
+		float sum = 0.0f;
+
+		for (int i = 0; i < softmaxValues.size(); i++) {
+			softmaxValues[i] = std::exp(criticOutputs[i] * softmaxT);
+
+			sum += softmaxValues[i];
+		}
+
+		float sumSoFar = 0.0f;
+
+		float cusp = uniformDist(generator) * sum;
+
+		choosenAction = 0;
+
+		for (; choosenAction < _critics.size(); choosenAction++) {
+			sumSoFar += softmaxValues[choosenAction];
+
+			if (sumSoFar >= cusp)
+				break;
+		}
 	}
 	else
 		choosenAction = maxQActionIndex;
@@ -303,11 +378,11 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	_prevMaxQAction = maxQActionIndex;
 	_prevChooseAction = choosenAction;
 
-	_prevQValues = criticOutput;
+	_prevQValues = criticOutputs;
 
 	_prevLayerInputf = condensedInputf;
 
-	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << _prevQValues[_prevChooseAction] << std::endl;
+	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << _prevQValues[_prevChooseAction] << " " << numGradientUpdates << std::endl;
 
 	return choosenAction;
 }

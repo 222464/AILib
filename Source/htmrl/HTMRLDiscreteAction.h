@@ -25,6 +25,8 @@ misrepresented as being the original software.
 
 #include <deep/FA.h>
 
+#include <rbf/RBFNetwork.h>
+
 #include <algorithm>
 
 #include <assert.h>
@@ -76,7 +78,7 @@ namespace htmrl {
 				_regionHeight(32),
 				_columnSize(4),
 				_connectionRadius(8),
-				_initInhibitionRadius(6.0f),
+				_initInhibitionRadius(8.0f),
 				_initNumSegments(0),
 				_permanenceDistanceBias(0.2f),
 				_permanenceDistanceFalloff(2.0f),
@@ -84,22 +86,22 @@ namespace htmrl {
 				_connectionPermanenceTarget(0.3f),
 				_connectionPermanenceStdDev(0.1f),
 				_minPermanence(0.3f),
-				_minOverlap(1.0f),
+				_minOverlap(0.5f),
 				_desiredLocalActivity(20),
-				_spatialPermanenceIncrease(0.005f),
-				_spatialPermanenceDecrease(0.004f),
+				_spatialPermanenceIncrease(0.002f),
+				_spatialPermanenceDecrease(0.0015f),
 				_minDutyCycleRatio(0.01f),
 				_activeDutyCycleDecay(0.01f),
 				_overlapDutyCycleDecay(0.01f),
-				_subOverlapPermanenceIncrease(0.004f),
+				_subOverlapPermanenceIncrease(0.0013f),
 				_boostFunction(std::bind(defaultBoostFunctionDiscreteAction, std::placeholders::_1, std::placeholders::_2)),
 				_learningRadius(6),
 				_minLearningThreshold(1),
 				_activationThreshold(8),
 				_newNumConnections(64),
-				_temporalPermanenceIncrease(0.004f),
-				_temporalPermanenceDecrease(0.003f),
-				_newConnectionPermanence(0.31f),
+				_temporalPermanenceIncrease(0.0017f),
+				_temporalPermanenceDecrease(0.0013f),
+				_newConnectionPermanence(0.301f),
 				_maxSteps(4)
 			{}
 		};
@@ -139,10 +141,12 @@ namespace htmrl {
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
-		deep::FA _critic;
+		std::vector<deep::FA> _critics;
 
 		int _prevMaxQAction;
 		int _prevChooseAction;
+
+		float _averageAbsError;
 
 		std::vector<float> _prevQValues;
 
@@ -156,6 +160,7 @@ namespace htmrl {
 		int _maxReplayChainSize;
 		int _backpropPassesCritic;
 		int _minibatchSize;
+		float _earlyStopError;
 
 		HTMRLDiscreteAction();
 
@@ -179,7 +184,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		int step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float weightDecayMultiplier, std::mt19937 &generator, std::vector<float> &condensed);
+		int step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
 
 		int getInputWidth() const {
 			return _inputWidth;

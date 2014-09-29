@@ -73,7 +73,7 @@ namespace deep {
 		void clearGradient();
 		void accumulateGradient(const std::vector<float> &inputs, const std::vector<float> &targetOutputs);
 		void scaleGradient(float scalar);
-		void moveAlongGradientRMS(float rmsDecay, float alpha, float momentum);
+		void moveAlongGradientRMS(float rmsDecay, float alpha, float momentum, float kOut, float kHidden);
 
 		void adapt(const std::vector<float> &inputs, const std::vector<float> &targetOutputs, float alpha, float error, float eligibilityDecay, float momentum);
 

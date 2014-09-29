@@ -484,7 +484,7 @@ void FA::accumulateGradient(const std::vector<float> &inputs, const std::vector<
 	}
 }
 
-void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
+void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum, float kOut, float kHidden) {
 	if (!_hiddenLayers.empty())  {
 		// Move along gradient
 		for (int n = 0; n < _outputLayer.size(); n++) {
@@ -493,8 +493,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 				_outputLayer[n]._connections[w]._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._connections[w]._learningRate + rmsDecay * grad * grad;
 
-				float dWeight = alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
-				_outputLayer[n]._connections[w]._weight += dWeight;
+				float newWeight = (1.0f - alpha * kOut) * _outputLayer[n]._connections[w]._weight + alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				float dWeight = newWeight - _outputLayer[n]._connections[w]._weight;
+				_outputLayer[n]._connections[w]._weight = newWeight;
 				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
 			}
 
@@ -502,8 +503,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 			_outputLayer[n]._bias._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._bias._learningRate + rmsDecay * grad * grad;
 
-			float dBias = alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
-			_outputLayer[n]._bias._weight += dBias;
+			float newBias = (1.0f - alpha * kOut) * _outputLayer[n]._bias._weight + alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
+			float dBias = newBias - _outputLayer[n]._bias._weight;
+			_outputLayer[n]._bias._weight = newBias;
 			_outputLayer[n]._bias._prevDWeight = dBias;
 		}
 
@@ -514,8 +516,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 					_hiddenLayers[l][n]._connections[w]._learningRate = (1.0f - rmsDecay) * _hiddenLayers[l][n]._connections[w]._learningRate + rmsDecay * grad * grad;
 
-					float dWeight = alpha * grad / std::sqrt(_hiddenLayers[l][n]._connections[w]._learningRate) + momentum * _hiddenLayers[l][n]._connections[w]._prevDWeight;
-					_hiddenLayers[l][n]._connections[w]._weight += dWeight;
+					float newWeight = (1.0f - alpha * kHidden) * _hiddenLayers[l][n]._connections[w]._weight + alpha * grad / std::sqrt(_hiddenLayers[l][n]._connections[w]._learningRate) + momentum * _hiddenLayers[l][n]._connections[w]._prevDWeight;
+					float dWeight = newWeight - _hiddenLayers[l][n]._connections[w]._weight;
+					_hiddenLayers[l][n]._connections[w]._weight = newWeight;
 					_hiddenLayers[l][n]._connections[w]._prevDWeight = dWeight;
 				}
 
@@ -523,8 +526,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 				_hiddenLayers[l][n]._bias._learningRate = (1.0f - rmsDecay) * _hiddenLayers[l][n]._bias._learningRate + rmsDecay * grad * grad;
 
-				float dBias = alpha * grad / std::sqrt(_hiddenLayers[l][n]._bias._learningRate) + momentum * _hiddenLayers[l][n]._bias._prevDWeight;
-				_hiddenLayers[l][n]._bias._weight += dBias;
+				float newBias = (1.0f - alpha * kHidden) * _hiddenLayers[l][n]._bias._weight + alpha * grad / std::sqrt(_hiddenLayers[l][n]._bias._learningRate) + momentum * _hiddenLayers[l][n]._bias._prevDWeight;
+				float dBias = newBias - _hiddenLayers[l][n]._bias._weight;
+				_hiddenLayers[l][n]._bias._weight = newBias;
 				_hiddenLayers[l][n]._bias._prevDWeight = dBias;
 			}
 		}
@@ -537,8 +541,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 				_outputLayer[n]._connections[w]._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._connections[w]._learningRate + rmsDecay * grad * grad;
 
-				float dWeight = alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
-				_outputLayer[n]._connections[w]._weight += dWeight;
+				float newWeight = (1.0f - alpha * kOut) * _outputLayer[n]._connections[w]._weight + alpha * grad / std::sqrt(_outputLayer[n]._connections[w]._learningRate) + momentum * _outputLayer[n]._connections[w]._prevDWeight;
+				float dWeight = newWeight - _outputLayer[n]._connections[w]._weight;
+				_outputLayer[n]._connections[w]._weight = newWeight;
 				_outputLayer[n]._connections[w]._prevDWeight = dWeight;
 			}
 
@@ -546,8 +551,9 @@ void FA::moveAlongGradientRMS(float rmsDecay, float alpha, float momentum) {
 
 			_outputLayer[n]._bias._learningRate = (1.0f - rmsDecay) * _outputLayer[n]._bias._learningRate + rmsDecay * grad * grad;
 
-			float dBias = alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
-			_outputLayer[n]._bias._weight += dBias;
+			float newBias = (1.0f - alpha * kOut) * _outputLayer[n]._bias._weight + alpha * grad / std::sqrt(_outputLayer[n]._bias._learningRate) + momentum * _outputLayer[n]._bias._prevDWeight;
+			float dBias = newBias - _outputLayer[n]._bias._weight;
+			_outputLayer[n]._bias._weight = newBias;
 			_outputLayer[n]._bias._prevDWeight = dBias;
 		}
 	}

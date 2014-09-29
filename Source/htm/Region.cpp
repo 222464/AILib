@@ -314,8 +314,8 @@ void Region::spatialPooling(const std::vector<bool> &inputs, float minPermanence
 		int columnX = i % _regionWidth;
 		int columnY = i / _regionWidth;
 
-		float columnXf = static_cast<float>(columnX)* regionWidthInv;
-		float columnYf = static_cast<float>(columnY)* regionHeightInv;
+		float columnXf = static_cast<float>(columnX) * regionWidthInv;
+		float columnYf = static_cast<float>(columnY) * regionHeightInv;
 
 		int inputX = static_cast<int>(columnXf * _inputWidth);
 		int inputY = static_cast<int>(columnYf * _inputHeight);

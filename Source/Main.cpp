@@ -65,6 +65,10 @@ misrepresented as being the original software.
 #include <htmrl/HTMRL.h>
 #include <htmrl/HTMRLDiscreteAction.h>
 
+#include <rbf/RBFNetwork.h>
+
+#include <plot/plot.h>
+
 #include <deep/RBM.h>
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
@@ -1169,6 +1173,59 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 int main() {
 	std::mt19937 generator(time(nullptr));
 
+	float inputs[4][2] {
+		{ 0.0f, 0.0f },
+		{ 0.0f, 1.0f },
+		{ 1.0f, 0.0f },
+		{ 1.0f, 1.0f }
+	};
+
+	float outputs[4] {
+		0.0f,
+		1.0f,
+		1.0f,
+		0.0f
+	};
+
+	rbf::RBFNetwork fa;
+
+	fa.createRandom(2, 10, 1, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, generator);
+
+	std::vector<float> in(2);
+	std::vector<float> out(1);
+
+	for (int i = 0; i < 600; i++) {
+		//fa.clearGradient();
+
+		for (int k = 0; k < 4; k++) {
+			in[0] = inputs[k][0];
+			in[1] = inputs[k][1];
+
+			//fa.process(in, out);
+
+			//fa.accumulateGradient(in, std::vector<float>(1, outputs[k]));
+
+			fa.update(in, std::vector<float>(1, outputs[k]), 0.1f, 0.1f, 0.1f);
+		}
+
+		//fa.scaleGradient(0.25f);
+
+		//fa.moveAlongGradientRMS(0.1f, 0.1f, 0.8f, 0.0f, 0.01f);
+	}
+
+	for (int k = 0; k < 4; k++) {
+		in[0] = inputs[k][0];
+		in[1] = inputs[k][1];
+
+		//fa.process(in, out);
+
+		fa.getOutput(in, out);
+
+		std::cout << out[0] << std::endl;
+	}
+
+	system("pause");
+
 	float reward = 0.0f;
 	float prevReward = 0.0f;
 
@@ -1178,7 +1235,7 @@ int main() {
 
 	sf::RenderWindow window;
 
-	window.create(sf::VideoMode(800, 600), "Pole Balancing");
+	window.create(sf::VideoMode(1600, 600), "Pole Balancing");
 
 	window.setVerticalSyncEnabled(true);
 
@@ -1267,7 +1324,7 @@ int main() {
 
 	std::vector<float> condensed;
 
-	htmRL.createRandom(2, 1, 32, 32, 3, 3, 3, 1, 32, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 32, 32, 2, 2, 3, 2, 12, 0.01f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1286,6 +1343,40 @@ int main() {
 	sf::Image image;
 
 	image.create(htmRL.getCondenseBufferWidth(), htmRL.getCondenseBufferHeight());
+
+	sf::RenderTexture rt;
+
+	rt.create(800, 600);
+
+	sf::plot::Plot plot;
+
+	plot.setSize(sf::Vector2f(rt.getSize().x, rt.getSize().y));
+	plot.setTitle("Avg. Reward");
+	plot.setFont("Resources/arial.ttf");
+	plot.setXLabel("Time (seconds)");
+	plot.setYLabel("Avg. Reward");
+	plot.setBackgroundColor(sf::Color::White);
+	plot.setTitleColor(sf::Color::Black);
+	plot.setPosition(sf::Vector2f(0.0f, 0.0f));
+
+	sf::plot::Curve &cAverage = plot.createCurve("Avg. Reward", sf::Color::Red);
+
+	cAverage.setFill(false);
+
+	plot.prepare();
+
+	float plotMin = 99999.0f;
+	float plotMax = -99999.0f;
+
+	rt.draw(plot);
+	rt.display();
+
+	float avgReward = 0.0f;
+	float avgRewardDecay = 0.003f;
+
+	float totalTime = 0.0f;
+
+	float plotUpdateTimer = 0.0f;
 
 	do {
 		clock.restart();
@@ -1330,7 +1421,12 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness;
+		reward = fitness * 0.1f;
+
+		if (totalTime == 0.0f)
+			avgReward = reward;
+		else
+			avgReward = (1.0f - avgRewardDecay) * avgReward + avgRewardDecay * reward;
 
 		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
 
@@ -1354,10 +1450,10 @@ int main() {
 
 		std::vector<float> state(4);
 
-		state[0] = cartX * 0.25f;
-		state[1] = cartVelX * 0.25f;
+		state[0] = std::min(1.0f, std::max(-1.0f, cartX * 0.333f));
+		state[1] = std::min(1.0f, std::max(-1.0f, cartVelX * 0.25f));
 		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) / (2.0f * static_cast<float>(PI)) * 2.0f - 1.0f;
-		state[3] = poleAngleVel * 0.5f;
+		state[3] = std::min(1.0f, std::max(-1.0f, poleAngleVel * 0.25f));
 
 		std::vector<float> output;
 
@@ -1369,9 +1465,9 @@ int main() {
 		int action;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			action = htmRL.step(reward, 0.4f, 0.05f, 0.1f, 0.0f, 0.995f, 0.99f, 1.0f, 0.0f, 1.0f, generator, condensed);
+			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.8f, 0.994f, 0.994f, 64.0f, 0.0f, 0.0f, 0.0f, 0.05f, 0.05f, generator, condensed);
 		else
-			action = htmRL.step(reward, 0.1f, 0.05f, 0.1f, 0.0f, 0.995f, 0.995f, 1.0f, 0.1f, 1.0f, generator, condensed);
+			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.8f, 0.994f, 0.994f, 64.0f, 0.1f, 0.0f, 0.0f, 0.05f, 0.05f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;
@@ -1468,7 +1564,7 @@ int main() {
 
 		window.draw(backgroundSprite);
 
-		cartSprite.setPosition(sf::Vector2f(static_cast<float>(window.getSize().x) * 0.5f + pixelsPerMeter * cartX, static_cast<float>(window.getSize().y) * 0.5f + 3.0f));
+		cartSprite.setPosition(sf::Vector2f(800.0f * 0.5f + pixelsPerMeter * cartX, 600.0f * 0.5f + 3.0f));
 
 		window.draw(cartSprite);
 
@@ -1476,6 +1572,31 @@ int main() {
 		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI) + 180.0f);
 
 		window.draw(poleSprite);
+
+		if (plotUpdateTimer >= 1.0f) {
+			plotUpdateTimer -= 1.0f;
+
+			plotMin = std::min<float>(avgReward, plotMin);
+			plotMax = std::max<float>(avgReward, plotMax);
+
+			cAverage.addValue(avgReward);
+
+			plot.prepare();
+
+			cAverage.prepare(sf::Vector2f(0.0f, totalTime), sf::Vector2f(plotMin, plotMax));
+
+			rt.draw(plot);
+
+			rt.display();
+		}
+
+		sf::Sprite plotSprite;
+
+		plotSprite.setPosition(800.0f, 0.0f);
+
+		plotSprite.setTexture(rt.getTexture());
+
+		window.draw(plotSprite);
 
 		if (trainMode) {
 			sf::Text text;
@@ -1510,7 +1631,7 @@ int main() {
 
 		sf::Sprite s;
 
-		s.setPosition(window.getSize().x - 256.0f, 0.0f);
+		s.setPosition(800.0f - 256.0f, 0.0f);
 
 		s.setScale(256.0f / htmRL.getCondenseBufferWidth(), 256.0f / htmRL.getCondenseBufferWidth());
 
@@ -1523,6 +1644,9 @@ int main() {
 		window.display();
 
 		//dt = clock.getElapsedTime().asSeconds();
+
+		totalTime += dt;
+		plotUpdateTimer += dt;
 	} while (!quit);
 }
 
