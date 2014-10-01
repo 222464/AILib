@@ -107,7 +107,7 @@ namespace htmrl {
 		};
 
 		struct ReplaySample {
-			std::vector<float> _actorInputsf;
+			std::vector<float> _inputs;
 			int _actionExploratory;
 			int _actionOptimal;
 			float _reward;
@@ -141,7 +141,7 @@ namespace htmrl {
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
-		std::vector<deep::FA> _critics;
+		std::vector<rbf::RBFNetwork> _critics;
 
 		int _prevMaxQAction;
 		int _prevChooseAction;
@@ -164,7 +164,7 @@ namespace htmrl {
 
 		HTMRLDiscreteAction();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, float criticMinCenter, float criticMaxCenter, float criticMinWidth, float criticMaxWidth, float criticMinWeight, float criticMaxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
 			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
@@ -184,7 +184,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		int step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
+		int step(float reward, float qAlpha, float criticCenterAlpha, float criticWidthAlpha, float criticWeightAlpha, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
 
 		int getInputWidth() const {
 			return _inputWidth;

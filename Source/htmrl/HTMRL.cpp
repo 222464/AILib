@@ -37,12 +37,15 @@ _approachPasses(4),
 _prevMaxQ(0.0f), _prevValue(0.0f), _actionInputVocalness(10.0f)
 {}
 
-void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
+void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, int actorNumRBFNodes, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
 
 	_inputDotsWidth = inputDotsWidth;
 	_inputDotsHeight = inputDotsHeight;
+
+	_condenseWidth = condenseWidth;
+	_condenseHeight = condenseHeight;
 
 	_inputMax = _inputDotsWidth * _inputDotsHeight;
 
@@ -69,10 +72,16 @@ void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, in
 		dotsHeight = _regionDescs[i]._regionHeight;
 	}
 
-	int stateSize = dotsWidth * dotsHeight;
+	_condenseBufferWidth = std::ceil(static_cast<float>(dotsWidth) / _condenseWidth);
+	_condenseBufferHeight = std::ceil(static_cast<float>(dotsHeight) / _condenseHeight);
 
-	_actor.createRandom(stateSize, numOutputs, actorNumHiddenLayers, actorNumNodesPerHiddenLayer, actorCriticInitWeightStdDev, generator);
-	_critic.createRandom(stateSize + numOutputs, 1, criticNumHiddenLayers, criticNumNodesPerHiddenLayer, actorCriticInitWeightStdDev, generator);
+	int stateSize = _condenseBufferWidth * _condenseBufferHeight;
+
+	_actor.createRandom(stateSize, actorNumRBFNodes, numOutputs, minCenter, maxCenter, minWidth, maxWidth, minWeight, maxWeight, generator);
+	_critic.createRandom(stateSize + numOutputs, criticNumRBFNodes, 1, minCenter, maxCenter, minWidth, maxWidth, minWeight, maxWeight, generator);
+
+	_inputCond.clear();
+	_inputCond.assign(stateSize, 0.0f);
 
 	_outputs.clear();
 	_outputs.assign(numOutputs, 0.0f);
@@ -121,10 +130,13 @@ void HTMRL::decodeInput() {
 	}
 }
 
-void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCritic, float alphaActor, float alphaCritic, float momentumActor, float momentumCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator) {
+void HTMRL::step(float reward, float centerAlphaCritic, float centerAlphaActor, float widthAlphaCritic, float widthAlphaActor, float weightAlphaActor, float weightAlphaCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator, std::vector<float> &condensed) {
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
+
+	int dotsWidth = _inputWidth * _inputDotsWidth;
+	int dotsHeight = _inputHeight * _inputDotsHeight;
 
 	for (int i = 0; i < _regions.size(); i++) {
 		_regions[i].stepBegin();
@@ -142,27 +154,51 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 		for (int x = 0; x < _regions[i].getRegionWidth(); x++)
 		for (int y = 0; y < _regions[i].getRegionHeight(); y++)
 			layerInput[x + y * _regions[i].getRegionWidth()] = _regions[i].getOutput(x, y);
+
+		dotsWidth = _regionDescs[i]._regionWidth;
+		dotsHeight = _regionDescs[i]._regionHeight;
 	}
 
-	std::vector<float> layerInputf(layerInput.size());
+	// Condense
+	std::vector<float> condensedInputf(_condenseBufferWidth * _condenseBufferHeight);
 
-	for (int i = 0; i < layerInputf.size(); i++)
-		layerInputf[i] = layerInput[i] ? 1.0f : 0.0f;
+	float maxInv = 1.0f / (_condenseWidth * _condenseHeight);
+
+	for (int x = 0; x < _condenseBufferWidth; x++)
+	for (int y = 0; y < _condenseBufferHeight; y++) {
+
+		float sum = 0.0f;
+
+		for (int dx = 0; dx < _condenseWidth; dx++)
+		for (int dy = 0; dy < _condenseHeight; dy++) {
+			int bX = x * _condenseWidth + dx;
+			int bY = y * _condenseHeight + dy;
+
+			if (bX >= 0 && bX < dotsWidth && bY >= 0 && bY < dotsHeight)
+				sum += (layerInput[bX + bY * dotsWidth] ? 1.0f : 0.0f);
+		}
+
+		sum *= maxInv;
+
+		condensedInputf[x + y * _condenseBufferWidth] = sum;
+	}
+
+	condensed = condensedInputf;
 
 	// Find maxmimum action
-	_actor.process(layerInputf, _outputs);
+	_actor.getOutput(condensedInputf, _outputs);
 
 	// Get maximum Q prediction from critic
 	std::vector<float> criticInput(_critic.getNumInputs());
 	std::vector<float> criticOutput(1);
 
-	for (int i = 0; i < layerInputf.size(); i++)
-		criticInput[i] = layerInputf[i];
+	for (int i = 0; i < condensedInputf.size(); i++)
+		criticInput[i] = condensedInputf[i];
 
 	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		criticInput[i + layerInputf.size()] = std::min(1.0f, std::max(-1.0f, _outputs[i])) * _actionInputVocalness;
+		criticInput[i + condensedInputf.size()] = std::min(1.0f, std::max(-1.0f, _outputs[i])) * _actionInputVocalness;
 
-	_critic.process(criticInput, criticOutput);
+	_critic.getOutput(criticInput, criticOutput);
 
 	float nextMaxQ = criticOutput[0];
 
@@ -178,9 +214,9 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 
 	// Q at exploratory action
 	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		criticInput[i + layerInputf.size()] = _exploratoryOutputs[i] * _actionInputVocalness;
+		criticInput[i + condensedInputf.size()] = _exploratoryOutputs[i] * _actionInputVocalness;
 
-	_critic.process(criticInput, criticOutput);
+	_critic.getOutput(criticInput, criticOutput);
 
 	float nextValue = criticOutput[0];
 
@@ -247,9 +283,9 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
 			inputWithActionf[i + _actor.getNumInputs()] = pSample->_actorOutputsExploratory[i] * _actionInputVocalness;
 
-		_critic.process(inputWithActionf, criticOutput);
+		_critic.getOutput(inputWithActionf, criticOutput);
 
-		_critic.backpropagate(inputWithActionf, std::vector<float>(1, pSample->_criticOutput), backpropAlphaCritic, momentumCritic);
+		_critic.update(inputWithActionf, criticOutput, std::vector<float>(1, pSample->_criticOutput), centerAlphaCritic, widthAlphaCritic, weightAlphaCritic);
 	}
 
 	std::normal_distribution<float> policySearchDist(0.0f, policySearchStdDev);
@@ -263,7 +299,7 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
 
 		// Get action we now think is optimal
-		_actor.process(inputf, actorOutputOptimalUnclamped);
+		_actor.getOutput(inputf, actorOutputOptimalUnclamped);
 
 		// Clamp action
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
@@ -273,18 +309,18 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
 			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, actorOutputOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
 
-		_critic.process(inputWithActionf, criticOutput);
+		_critic.getOutput(inputWithActionf, criticOutput);
 
 		float exploratoryQ = criticOutput[0];
 
 		if (exploratoryQ > pSample->_optimalQ) {
 			for (int p = 0; p < _approachPasses; p++) {
-				_actor.backpropagate(inputf, actorOutputsExploratory, backpropAlphaActor, momentumActor);
+				_actor.update(inputf, criticOutput, actorOutputsExploratory, centerAlphaActor, widthAlphaActor, weightAlphaActor);
 
 				for (int i = 0; i < _actor.getNumOutputs(); i++)
 					pSample->_prevDAction[i] = actorOutputsExploratory[i] - actorOutputOptimalUnclamped[i];
 
-				_actor.process(inputf, actorOutputOptimalUnclamped);
+				_actor.getOutput(inputf, actorOutputOptimalUnclamped);
 			}
 
 			numActionsKept++;
@@ -294,7 +330,7 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
 			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
 
-		_critic.process(inputWithActionf, criticOutput);
+		_critic.getOutput(inputWithActionf, criticOutput);
 
 		pSample->_optimalQ = criticOutput[0];
 	}
@@ -307,13 +343,13 @@ void HTMRL::step(float reward, float backpropAlphaActor, float backpropAlphaCrit
 			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
 
 		// Get action we now think is optimal
-		_actor.process(inputf, actorOutputOptimalUnclamped);
+		_actor.getOutput(inputf, actorOutputOptimalUnclamped);
 
 		// Clamp action
 		for (int i = 0; i < _actor.getNumOutputs(); i++)
 			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
 	
-		_critic.process(inputWithActionf, criticOutput);
+		_critic.getOutput(inputWithActionf, criticOutput);
 
 		pSample->_optimalQ = criticOutput[0];
 	}

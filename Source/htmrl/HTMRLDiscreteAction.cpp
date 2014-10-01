@@ -30,13 +30,13 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 }
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(800),
+: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(600),
 _backpropPassesCritic(1), _minibatchSize(8),
 _prevMaxQAction(0), _prevChooseAction(0),
-_earlyStopError(0.0625f), _averageAbsError(0.0f)
+_earlyStopError(0.0f), _averageAbsError(0.0f)
 {}
 
-void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
+void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, float criticMinCenter, float criticMaxCenter, float criticMinWidth, float criticMaxWidth, float criticMinWeight, float criticMaxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
 
@@ -82,7 +82,7 @@ void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inpu
 	_critics.resize(numOutputs);
 
 	for (int i = 0; i < numOutputs; i++)
-		_critics[i].createRandom(stateSize, 1, criticNumHiddenLayers, criticNumNodesPerHiddenLayer, criticInitWeightStdDev, generator);
+		_critics[i].createRandom(stateSize, criticNumRBFNodes, 1, criticMinCenter, criticMaxCenter, criticMinWidth, criticMaxWidth, criticMinWeight, criticMaxWeight, generator);
 
 	_prevLayerInputf.clear();
 	_prevLayerInputf.assign(stateSize, false);
@@ -122,7 +122,7 @@ void HTMRLDiscreteAction::decodeInput() {
 	}
 }
 
-int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCritic, float rmsDecayCritic, float momentumCritic, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed) {
+int HTMRLDiscreteAction::step(float reward, float qAlpha, float criticCenterAlpha, float criticWidthAlpha, float criticWeightAlpha, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed) {
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
@@ -183,7 +183,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	for (int i = 0; i < _critics.size(); i++) {
 		std::vector<float> criticOutput(1);
 
-		_critics[i].process(condensedInputf, criticOutput);
+		_critics[i].getOutput(condensedInputf, criticOutput);
 
 		criticOutputs[i] = criticOutput[0];
 	}
@@ -206,7 +206,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 	// Add sample to chain
 	ReplaySample sample;
-	sample._actorInputsf = _prevLayerInputf;
+	sample._inputs = _prevLayerInputf;
 
 	sample._actionExploratory = _prevChooseAction;
 	sample._actionOptimal = _prevMaxQAction;
@@ -249,7 +249,6 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	while (_replayChain.size() > _maxReplayChainSize)
 		_replayChain.pop_back();
 
-	// Get random access to samples
 	std::vector<ReplaySample*> pReplaySamples(_replayChain.size());
 
 	int index = 0;
@@ -260,14 +259,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	// Rehearse
 	std::uniform_int_distribution<int> sampleDist(0, pReplaySamples.size() - 1);
 
-	float minibatchInv = 1.0f / _minibatchSize;
-
-	std::vector<int> currentBatchSizes(_critics.size(), 0);
-
-	for (int i = 0; i < _critics.size(); i++)
-		_critics[i].clearGradient();
-
-	int numGradientUpdates = 0;
+	//float minibatchInv = 1.0f / _minibatchSize;
 
 	for (int s = 0; s < _backpropPassesCritic; s++) {
 		std::shuffle(pReplaySamples.begin(), pReplaySamples.end(), generator);
@@ -277,36 +269,13 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 			std::vector<float> criticOutput(1);
 
-			_critics[pSample->_actionExploratory].process(pSample->_actorInputsf, criticOutput);
+			_critics[pSample->_actionExploratory].getOutput(pSample->_inputs, criticOutput);
 
 			float error = pSample->_actionQValues[pSample->_actionExploratory] - criticOutput[0];
 
-			if (std::abs(error) > _earlyStopError * _averageAbsError) {
-				_critics[pSample->_actionExploratory].accumulateGradient(pSample->_actorInputsf, std::vector<float>(1, pSample->_actionQValues[pSample->_actionExploratory]));
-			
-				currentBatchSizes[pSample->_actionExploratory]++;
-
-				if (currentBatchSizes[pSample->_actionExploratory] == _minibatchSize) {
-					_critics[pSample->_actionExploratory].scaleGradient(minibatchInv);
-
-					_critics[pSample->_actionExploratory].moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic, kOut, kHidden);
-
-					currentBatchSizes[pSample->_actionExploratory] = 0;
-
-					numGradientUpdates++;
-				}
-			}
+			if (std::abs(error) > _earlyStopError * _averageAbsError)
+				_critics[pSample->_actionExploratory].update(pSample->_inputs, criticOutput, std::vector<float>(1, pSample->_actionQValues[pSample->_actionExploratory]), criticCenterAlpha, criticWidthAlpha, criticWeightAlpha);
 		}
-	}
-
-	// Finish off batches left over
-	for (int i = 0; i < _critics.size(); i++)
-	if (currentBatchSizes[i] != 0) {
-		_critics[i].scaleGradient(1.0f / currentBatchSizes[i]);
-
-		_critics[i].moveAlongGradientRMS(rmsDecayCritic, backpropAlphaCritic, momentumCritic, kOut, kHidden);
-
-		numGradientUpdates++;
 	}
 
 	// Recompute samples
@@ -314,7 +283,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 		std::vector<float> criticOutput(1);
 
 		for (int i = 0; i < _critics.size(); i++) {
-			_critics[i].process(it->_actorInputsf, criticOutput);
+			_critics[i].getOutput(it->_inputs, criticOutput);
 
 			criticOutputs[i] = criticOutput[0];
 		}
@@ -333,7 +302,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 	for (int i = 0; i < _critics.size(); i++) {
 		std::vector<float> criticOutput(1);
 
-		_critics[i].process(condensedInputf, criticOutput);
+		_critics[i].getOutput(condensedInputf, criticOutput);
 
 		criticOutputs[i] = criticOutput[0];
 	}
@@ -365,7 +334,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 		choosenAction = 0;
 
-		for (; choosenAction < _critics.size(); choosenAction++) {
+		for (; choosenAction < _critics.size() - 1; choosenAction++) {
 			sumSoFar += softmaxValues[choosenAction];
 
 			if (sumSoFar >= cusp)
@@ -382,7 +351,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float backpropAlphaCri
 
 	_prevLayerInputf = condensedInputf;
 
-	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << _prevQValues[_prevChooseAction] << " " << numGradientUpdates << std::endl;
+	std::cout << errorCritic << " " << _prevQValues[_prevMaxQAction] << " " << _prevQValues[_prevChooseAction] << std::endl;
 
 	return choosenAction;
 }

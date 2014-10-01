@@ -1189,12 +1189,12 @@ int main() {
 
 	rbf::RBFNetwork fa;
 
-	fa.createRandom(2, 10, 1, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, generator);
+	fa.createRandom(2, 16, 1, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, generator);
 
 	std::vector<float> in(2);
 	std::vector<float> out(1);
 
-	for (int i = 0; i < 600; i++) {
+	for (int i = 0; i < 500; i++) {
 		//fa.clearGradient();
 
 		for (int k = 0; k < 4; k++) {
@@ -1205,7 +1205,9 @@ int main() {
 
 			//fa.accumulateGradient(in, std::vector<float>(1, outputs[k]));
 
-			fa.update(in, std::vector<float>(1, outputs[k]), 0.1f, 0.1f, 0.1f);
+			fa.getOutput(in, out);
+
+			fa.update(in, out, std::vector<float>(1, outputs[k]), 0.05f, 0.05f, 0.01f);
 		}
 
 		//fa.scaleGradient(0.25f);
@@ -1324,7 +1326,7 @@ int main() {
 
 	std::vector<float> condensed;
 
-	htmRL.createRandom(2, 1, 32, 32, 2, 2, 3, 2, 12, 0.01f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 32, 32, 3, 3, 3, 64, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1465,9 +1467,9 @@ int main() {
 		int action;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.8f, 0.994f, 0.994f, 64.0f, 0.0f, 0.0f, 0.0f, 0.05f, 0.05f, generator, condensed);
+			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.01f, 0.999f, 0.999f, 10.0f, 0.0f, 0.1f, 0.0f, 0.05f, 0.05f, generator, condensed);
 		else
-			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.8f, 0.994f, 0.994f, 64.0f, 0.1f, 0.0f, 0.0f, 0.05f, 0.05f, generator, condensed);
+			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.01f, 0.999f, 0.999f, 10.0f, 0.1f, 0.1f, 0.0f, 0.05f, 0.05f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;

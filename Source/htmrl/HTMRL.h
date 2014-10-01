@@ -25,6 +25,8 @@ misrepresented as being the original software.
 
 #include <deep/FA.h>
 
+#include <rbf/RBFNetwork.h>
+
 #include <algorithm>
 
 #include <assert.h>
@@ -126,8 +128,15 @@ namespace htmrl {
 		int _inputDotsHeight;
 		int _inputMax;
 
+		int _condenseWidth;
+		int _condenseHeight;
+
+		int _condenseBufferWidth;
+		int _condenseBufferHeight;
+
 		std::vector<float> _inputf;
 		std::vector<bool> _inputb;
+		std::vector<float> _inputCond;
 
 		std::vector<bool> _prevLayerInputb;
 
@@ -140,8 +149,8 @@ namespace htmrl {
 		std::vector<float> _prevOutputs;
 		std::vector<float> _prevExploratoryOutputs;
 
-		deep::FA _actor;
-		deep::FA _critic;
+		rbf::RBFNetwork _actor;
+		rbf::RBFNetwork _critic;
 
 		float _prevMaxQ;
 		float _prevValue;
@@ -161,7 +170,7 @@ namespace htmrl {
 
 		HTMRL();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int numOutputs, int actorNumHiddenLayers, int actorNumNodesPerHiddenLayer, int criticNumHiddenLayers, int criticNumNodesPerHiddenLayer, float actorCriticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, int actorNumRBFNodes, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
 			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
@@ -185,7 +194,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		void step(float reward, float backpropAlphaActor, float backpropAlphaCritic, float alphaActor, float alphaCritic, float momentumActor, float momentumCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator);
+		void step(float reward, float centerAlphaCritic, float centerAlphaActor, float widthAlphaCritic, float widthAlphaActor, float weightAlphaActor, float weightAlphaCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator, std::vector<float> &condensed);
 	
 		int getInputWidth() const {
 			return _inputWidth;
@@ -205,6 +214,22 @@ namespace htmrl {
 
 		int getInputMax() const {
 			return _inputMax;
+		}
+
+		int getCondenseWidth() const {
+			return _condenseWidth;
+		}
+
+		int getCondenseHeight() const {
+			return _condenseHeight;
+		}
+
+		int getCondenseBufferWidth() const {
+			return _condenseBufferWidth;
+		}
+
+		int getCondenseBufferHeight() const {
+			return _condenseBufferHeight;
 		}
 	};
 }

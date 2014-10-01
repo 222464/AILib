@@ -54,6 +54,18 @@ namespace rbf {
 
 		void getOutput(const std::vector<float> &input, std::vector<float> &rbfOutputs, std::vector<float> &output);
 
-		void update(const std::vector<float> &input, const std::vector<float> &target, float centerAlpha, float widthAlpha, float weightAlpha);
+		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float centerAlpha, float widthAlpha, float weightAlpha);
+	
+		int getNumInputs() const {
+			return _rbfNodes[0]._center.size();
+		}
+
+		int getNumOutputs() const {
+			return _outputNodes.size();
+		}
+
+		int getNumRBFNodes() const {
+			return _rbfNodes.size();
+		}
 	};
 }
