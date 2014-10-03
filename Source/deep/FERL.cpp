@@ -54,6 +54,12 @@ void FERL::createRandom(int numState, int numAction, int numHidden, float weight
 	}
 
 	_zInv = 1.0f / std::sqrt(static_cast<float>(numState));
+
+	_prevState.clear();
+	_prevState.assign(_numState, 0.0f);
+
+	_prevAction.clear();
+	_prevAction.assign(_numAction, 0.0f);
 }
 
 void FERL::createFromParents(const FERL &parent1, const FERL &parent2, float averageChance, std::mt19937 &generator) {
@@ -79,6 +85,12 @@ void FERL::createFromParents(const FERL &parent1, const FERL &parent2, float ave
 	}
 
 	_zInv = 1.0f / std::sqrt(static_cast<float>(_numState));
+
+	_prevState.clear();
+	_prevState.assign(_numState, 0.0f);
+
+	_prevAction.clear();
+	_prevAction.assign(_numAction, 0.0f);
 }
 
 void FERL::mutate(float perturbationStdDev, std::mt19937 &generator) {
@@ -115,7 +127,13 @@ float FERL::freeEnergy() const {
 	return sum;
 }
 
-void FERL::step(const std::vector<float> &state, std::vector<float> &action, float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv, int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha, float breakChance, float perturbationStdDev, std::mt19937 &generator) {
+void FERL::step(const std::vector<float> &state, std::vector<float> &action,
+	float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv,
+	int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha,
+	float breakChance, float perturbationStdDev,
+	int maxNumReplaySamples, int replayIterations, float gradientAlpha, float gradientMomentum,
+	std::mt19937 &generator)
+{
 	for (int i = 0; i < _numState; i++)
 		_visible[i]._state = state[i];
 
@@ -182,14 +200,75 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action, flo
 	// Update Q
 	float newAdv = _prevMax + (reward + gamma * nextQ - _prevMax) * tauInv;
 
-	float error = qAlpha * (newAdv - _prevValue);
+	float error = newAdv - _prevValue;
 
-	std::cout << predictedQ << std::endl;
+	ReplaySample sample;
+
+	sample._action = _prevAction;
+	sample._state = _prevState;
+	sample._q = _prevValue + qAlpha * error;
+
+	// Update previous samples
+	float g = lambdaGamma;
+
+	for (std::list<ReplaySample>::iterator it = _replaySamples.begin(); it != _replaySamples.end(); it++) {
+		it->_q += qAlpha * g * error;
+
+		g *= lambdaGamma;
+	}
+
+	_replaySamples.push_front(sample);
+
+	while (_replaySamples.size() > maxNumReplaySamples)
+		_replaySamples.pop_back();
+
+	// Create buffer for random sample access
+	std::vector<ReplaySample*> pReplaySamples(_replaySamples.size());
+
+	int replayIndex = 0;
+
+	for (std::list<ReplaySample>::iterator it = _replaySamples.begin(); it != _replaySamples.end(); it++) {
+		pReplaySamples[replayIndex] = &(*it);
+
+		replayIndex++;
+	}
+
+	// Update on the chain
+	std::uniform_int_distribution<int> replayDist(0, pReplaySamples.size() - 1);
+
+	for (int r = 0; r < replayIterations; r++) {
+		replayIndex = replayDist(generator);
+
+		ReplaySample* pSample = pReplaySamples[replayIndex];
+
+		for (int i = 0; i < _numState; i++)
+			_visible[i]._state = pSample->_state[i];
+
+		for (int j = 0; j < _numAction; j++)
+			_visible[_numState + j]._state = pSample->_action[j];
+
+		activate();
+
+		float currentQ = value();
+
+		updateOnError(gradientAlpha * (pSample->_q - currentQ), gradientMomentum);
+	}
 
 	_prevMax = nextQ;
 	_prevValue = predictedQ;
 
-	updateOnError(error, lambdaGamma);
+	_prevState = state;
+	_prevAction = action;
+
+	for (int i = 0; i < _numState; i++)
+		_visible[i]._state = state[i];
+
+	for (int j = 0; j < _numAction; j++)
+		_visible[_numState + j]._state = action[j];
+
+	activate();
+
+	std::cout << value() << " " << newAdv << " " << action[0] << std::endl;
 }
 
 void FERL::activate() {
@@ -203,26 +282,23 @@ void FERL::activate() {
 	}
 }
 
-void FERL::updateOnError(float error, float lambdaGamma) {
+void FERL::updateOnError(float error, float momentum) {
 	// Update weights
 	for (int k = 0; k < _hidden.size(); k++) {
-		_hidden[k]._bias._weight += error * _hidden[k]._bias._eligibility;
+		float dBias = error * _hidden[k]._state + momentum * _hidden[k]._bias._prevDWeight;
+		_hidden[k]._bias._weight += dBias;
+		_hidden[k]._bias._prevDWeight = dBias;
 
-		for (int vi = 0; vi < _visible.size(); vi++)
-			_hidden[k]._connections[vi]._weight += error * _hidden[k]._connections[vi]._eligibility;
+		for (int vi = 0; vi < _visible.size(); vi++) {
+			float dWeight = error * _hidden[k]._state * _visible[vi]._state + momentum * _hidden[k]._connections[vi]._prevDWeight;
+			_hidden[k]._connections[vi]._weight += dWeight;
+			_hidden[k]._connections[vi]._prevDWeight = dWeight;
+		}
 	}
 
-	for (int vi = 0; vi < _visible.size(); vi++)
-		_visible[vi]._bias._weight += error * _visible[vi]._bias._eligibility;
-
-	// Update eligibilities
-	for (int k = 0; k < _hidden.size(); k++) {
-		_hidden[k]._bias._eligibility = lambdaGamma * _hidden[k]._bias._eligibility + _zInv * _hidden[k]._state;
-
-		for (int vi = 0; vi < _visible.size(); vi++)
-			_hidden[k]._connections[vi]._eligibility = lambdaGamma * _hidden[k]._connections[vi]._eligibility + _zInv * _hidden[k]._state * _visible[vi]._state;
+	for (int vi = 0; vi < _visible.size(); vi++) {
+		float dBias = error * _visible[vi]._state + momentum * _visible[vi]._bias._prevDWeight;
+		_visible[vi]._bias._weight += dBias;
+		_visible[vi]._bias._prevDWeight = dBias;
 	}
-
-	for (int vi = 0; vi < _visible.size(); vi++)
-		_visible[vi]._bias._eligibility = lambdaGamma * _visible[vi]._bias._eligibility + _zInv * _visible[vi]._state;
 }

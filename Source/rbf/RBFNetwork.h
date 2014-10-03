@@ -31,12 +31,23 @@ namespace rbf {
 			std::vector<float> _center;
 
 			float _width;
+
+			float _output;
+		};
+
+		struct Connection {
+			float _weight;
+			float _eligibility;
+
+			Connection()
+				: _eligibility(0.0f)
+			{}
 		};
 
 		struct OutputNode {
-			std::vector<float> _weights;
+			std::vector<Connection> _connections;
 
-			float _bias;
+			Connection _bias;
 		};
 
 	private:
@@ -46,16 +57,14 @@ namespace rbf {
 	public:
 		void createRandom(int numInputs, int numRBF, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void getOutput(const std::vector<float> &input, std::vector<float> &output) {
-			std::vector<float> rbfOutputs(_rbfNodes.size());
-
-			getOutput(input, rbfOutputs, output);
-		}
-
-		void getOutput(const std::vector<float> &input, std::vector<float> &rbfOutputs, std::vector<float> &output);
+		void getOutput(const std::vector<float> &input, std::vector<float> &output);
+		bool getPrediction(const std::vector<float> &input, std::vector<float> &output, float threshold); // Returns whether or not it is certain
 
 		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float centerAlpha, float widthAlpha, float weightAlpha);
 	
+		void learnFeatures(const std::vector<float> &input, float centerAlpha, float widthAlpha);
+		int step(const std::vector<float> &input, float reward, float alpha, float gamma, float lambda, float tauInv, float epsilon, int prevAction, std::mt19937 &generator);
+
 		int getNumInputs() const {
 			return _rbfNodes[0]._center.size();
 		}

@@ -141,26 +141,14 @@ namespace htmrl {
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
-		std::vector<rbf::RBFNetwork> _critics;
+		rbf::RBFNetwork _rbfNetwork;
 
-		int _prevMaxQAction;
-		int _prevChooseAction;
-
-		float _averageAbsError;
-
-		std::vector<float> _prevQValues;
-
-		std::list<ReplaySample> _replayChain;
+		int _prevAction;
 
 		void decodeInput();
 
 	public:
 		int _encodeBlobRadius;
-		int _replaySampleFrames;
-		int _maxReplayChainSize;
-		int _backpropPassesCritic;
-		int _minibatchSize;
-		float _earlyStopError;
 
 		HTMRLDiscreteAction();
 
@@ -184,7 +172,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		int step(float reward, float qAlpha, float criticCenterAlpha, float criticWidthAlpha, float criticWeightAlpha, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
+		int step(float reward, float alpha, float criticCenterAlpha, float criticWidthAlpha, float gamma, float lambda, float tauInv, float epsilon, std::mt19937 &generator, std::vector<float> &condensed);
 
 		int getInputWidth() const {
 			return _inputWidth;

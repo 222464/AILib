@@ -37,7 +37,7 @@ _approachPasses(4),
 _prevMaxQ(0.0f), _prevValue(0.0f), _actionInputVocalness(10.0f)
 {}
 
-void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, int actorNumRBFNodes, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
+void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int numHidden, float weightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
 
@@ -77,26 +77,13 @@ void HTMRL::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, in
 
 	int stateSize = _condenseBufferWidth * _condenseBufferHeight;
 
-	_actor.createRandom(stateSize, actorNumRBFNodes, numOutputs, minCenter, maxCenter, minWidth, maxWidth, minWeight, maxWeight, generator);
-	_critic.createRandom(stateSize + numOutputs, criticNumRBFNodes, 1, minCenter, maxCenter, minWidth, maxWidth, minWeight, maxWeight, generator);
-
 	_inputCond.clear();
 	_inputCond.assign(stateSize, 0.0f);
 
-	_outputs.clear();
-	_outputs.assign(numOutputs, 0.0f);
+	_ferl.createRandom(stateSize, numOutputs, numHidden, weightStdDev, generator);
 
-	_exploratoryOutputs.clear();
-	_exploratoryOutputs.assign(numOutputs, 0.0f);
-
-	_prevOutputs.clear();
-	_prevOutputs.assign(numOutputs, 0.0f);
-
-	_prevExploratoryOutputs.clear();
-	_prevExploratoryOutputs.assign(numOutputs, 0.0f);
-
-	_prevLayerInputb.clear();
-	_prevLayerInputb.assign(stateSize, false);
+	_output.clear();
+	_output.assign(numOutputs, 0.0f);
 }
 
 void HTMRL::decodeInput() {
@@ -130,7 +117,12 @@ void HTMRL::decodeInput() {
 	}
 }
 
-void HTMRL::step(float reward, float centerAlphaCritic, float centerAlphaActor, float widthAlphaCritic, float widthAlphaActor, float weightAlphaActor, float weightAlphaCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator, std::vector<float> &condensed) {
+void HTMRL::step(float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv,
+	int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha,
+	float breakChance, float perturbationStdDev,
+	int maxNumReplaySamples, int replayIterations, float gradientAlpha, float gradientMomentum,
+	std::mt19937 &generator, std::vector<float> &condensed)
+{
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
@@ -185,181 +177,10 @@ void HTMRL::step(float reward, float centerAlphaCritic, float centerAlphaActor, 
 
 	condensed = condensedInputf;
 
-	// Find maxmimum action
-	_actor.getOutput(condensedInputf, _outputs);
-
-	// Get maximum Q prediction from critic
-	std::vector<float> criticInput(_critic.getNumInputs());
-	std::vector<float> criticOutput(1);
-
-	for (int i = 0; i < condensedInputf.size(); i++)
-		criticInput[i] = condensedInputf[i];
-
-	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		criticInput[i + condensedInputf.size()] = std::min(1.0f, std::max(-1.0f, _outputs[i])) * _actionInputVocalness;
-
-	_critic.getOutput(criticInput, criticOutput);
-
-	float nextMaxQ = criticOutput[0];
-
-	// Generate exploratory action
-	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
-	std::normal_distribution<float> perturbationDist(0.0f, perturbationStdDev);
-
-	for (int i = 0; i < _exploratoryOutputs.size(); i++)
-	if (uniformDist(generator) < breakRate)
-		_exploratoryOutputs[i] = uniformDist(generator) * 2.0f - 1.0f;
-	else
-		_exploratoryOutputs[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _outputs[i])) + perturbationDist(generator)));
-
-	// Q at exploratory action
-	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		criticInput[i + condensedInputf.size()] = _exploratoryOutputs[i] * _actionInputVocalness;
-
-	_critic.getOutput(criticInput, criticOutput);
-
-	float nextValue = criticOutput[0];
-
-	float newAdv = _prevMaxQ + (reward + gamma * nextMaxQ - _prevMaxQ) * tauInv;
-
-	float errorCritic = lambda * (newAdv - _prevValue);
-
-	float prevV = _prevMaxQ;
-
-	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++) {
-		it->_criticOutput = (1.0f - lambda) * it->_criticOutput + lambda * (it->_optimalQ + (it->_reward + gamma * prevV - it->_optimalQ) * tauInv);
-
-		prevV = it->_optimalQ;
-	}
-
-	// Add sample to chain
-	ReplaySample sample;
-	sample._actorInputsb = _prevLayerInputb;
-
-	sample._actorOutputsExploratory.resize(_actor.getNumOutputs());
-
-	for (int i = 0; i < _actor.getNumOutputs(); i++)
-		sample._actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, _prevExploratoryOutputs[i]));
-
-	sample._criticOutput = _prevValue + errorCritic;
-
-	sample._reward = reward;
-
-	sample._prevDAction.assign(_actor.getNumOutputs(), 0.0f);
-
-	_replayChain.push_front(sample);
-
-	while (_replayChain.size() > _maxReplayChainSize)
-		_replayChain.pop_back();
-
-	// Get random access to samples
-	std::vector<ReplaySample*> pReplaySamples(_replayChain.size());
-
-	int index = 0;
-
-	for (std::list<ReplaySample>::iterator it = _replayChain.begin(); it != _replayChain.end(); it++, index++)
-		pReplaySamples[index] = &(*it);
-
-	// Rehearse
-	std::uniform_int_distribution<int> sampleDist(0, pReplaySamples.size() - 1);
-
-	std::vector<float> actorOutputs(_actor.getNumOutputs());
-	std::vector<float> inputf(_actor.getNumInputs());
-	std::vector<float> inputWithActionf(_actor.getNumInputs() + _actor.getNumOutputs());
-	std::vector<float> actorOutputOptimal(_actor.getNumOutputs());
-	std::vector<float> actorOutputOptimalUnclamped(_actor.getNumOutputs());
-	std::vector<float> actorOutputsExploratory(_actor.getNumOutputs());
-
-	int numActionsKept = 0;
-
-	for (int s = 0; s < _backpropPassesCritic; s++) {
-		int replayIndex = sampleDist(generator);
-
-		ReplaySample* pSample = pReplaySamples[replayIndex];
-
-		for (int i = 0; i < _actor.getNumInputs(); i++)
-			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
-
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = pSample->_actorOutputsExploratory[i] * _actionInputVocalness;
-
-		_critic.getOutput(inputWithActionf, criticOutput);
-
-		_critic.update(inputWithActionf, criticOutput, std::vector<float>(1, pSample->_criticOutput), centerAlphaCritic, widthAlphaCritic, weightAlphaCritic);
-	}
-
-	std::normal_distribution<float> policySearchDist(0.0f, policySearchStdDev);
-
-	for (int s = 0; s < _backpropPassesActor; s++) {
-		int replayIndex = sampleDist(generator);
-
-		ReplaySample* pSample = pReplaySamples[replayIndex];
-
-		for (int i = 0; i < _actor.getNumInputs(); i++)
-			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
-
-		// Get action we now think is optimal
-		_actor.getOutput(inputf, actorOutputOptimalUnclamped);
-
-		// Clamp action
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			actorOutputOptimal[i] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
-
-		// Get Q at action at exploratory action
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = (actorOutputsExploratory[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, actorOutputOptimal[i])) + policySearchDist(generator) + pSample->_prevDAction[i] * actionMomentum))) * _actionInputVocalness;
-
-		_critic.getOutput(inputWithActionf, criticOutput);
-
-		float exploratoryQ = criticOutput[0];
-
-		if (exploratoryQ > pSample->_optimalQ) {
-			for (int p = 0; p < _approachPasses; p++) {
-				_actor.update(inputf, criticOutput, actorOutputsExploratory, centerAlphaActor, widthAlphaActor, weightAlphaActor);
-
-				for (int i = 0; i < _actor.getNumOutputs(); i++)
-					pSample->_prevDAction[i] = actorOutputsExploratory[i] - actorOutputOptimalUnclamped[i];
-
-				_actor.getOutput(inputf, actorOutputOptimalUnclamped);
-			}
-
-			numActionsKept++;
-		}
-
-		// Clamp action
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
-
-		_critic.getOutput(inputWithActionf, criticOutput);
-
-		pSample->_optimalQ = criticOutput[0];
-	}
-
-	// Compute optimal Q values
-	for (int s = 0; s < pReplaySamples.size(); s++) {
-		ReplaySample* pSample = pReplaySamples[s];
-
-		for (int i = 0; i < _actor.getNumInputs(); i++)
-			inputWithActionf[i] = inputf[i] = pSample->_actorInputsb[i] ? 1.0f : 0.0f;
-
-		// Get action we now think is optimal
-		_actor.getOutput(inputf, actorOutputOptimalUnclamped);
-
-		// Clamp action
-		for (int i = 0; i < _actor.getNumOutputs(); i++)
-			inputWithActionf[i + _actor.getNumInputs()] = std::min(1.0f, std::max(-1.0f, actorOutputOptimalUnclamped[i]));
-	
-		_critic.getOutput(inputWithActionf, criticOutput);
-
-		pSample->_optimalQ = criticOutput[0];
-	}
-
-	_prevLayerInputb = layerInput;
-	_prevOutputs = _outputs;
-	_prevExploratoryOutputs = _exploratoryOutputs;
-
-	_prevMaxQ = nextMaxQ;
-	_prevValue = nextValue;
-
-	std::cout << errorCritic << " " << newAdv << " " << " " << _prevValue << " " << _outputs[0] << " " << numActionsKept << std::endl;
+	_ferl.step(condensedInputf, _output,
+		reward, qAlpha, gamma, lambdaGamma, tauInv,
+		actionSearchIterations, actionSearchSamples, actionSearchAlpha,
+		breakChance, perturbationStdDev,
+		maxNumReplaySamples, replayIterations, gradientAlpha, gradientMomentum,
+		generator);
 }

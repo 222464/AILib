@@ -27,6 +27,8 @@ misrepresented as being the original software.
 
 #include <rbf/RBFNetwork.h>
 
+#include <deep/FERL.h>
+
 #include <algorithm>
 
 #include <assert.h>
@@ -138,19 +140,12 @@ namespace htmrl {
 		std::vector<bool> _inputb;
 		std::vector<float> _inputCond;
 
-		std::vector<bool> _prevLayerInputb;
+		std::vector<float> _output;
 
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
-		std::vector<float> _outputs;
-		std::vector<float> _exploratoryOutputs;
-
-		std::vector<float> _prevOutputs;
-		std::vector<float> _prevExploratoryOutputs;
-
-		rbf::RBFNetwork _actor;
-		rbf::RBFNetwork _critic;
+		deep::FERL _ferl;
 
 		float _prevMaxQ;
 		float _prevValue;
@@ -167,10 +162,11 @@ namespace htmrl {
 		int _backpropPassesCritic;
 		int _approachPasses;
 		float _actionInputVocalness;
+		float _errorOffset;
 
 		HTMRL();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, int actorNumRBFNodes, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int numHidden, float weightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
 			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
@@ -187,14 +183,18 @@ namespace htmrl {
 		}
 
 		float getOutput(int index) const {
-			return _exploratoryOutputs[index];
+			return _output[index];
 		}
 
 		const htm::Region &getRegion(int index) const {
 			return _regions[index];
 		}
 
-		void step(float reward, float centerAlphaCritic, float centerAlphaActor, float widthAlphaCritic, float widthAlphaActor, float weightAlphaActor, float weightAlphaCritic, float gamma, float lambda, float tauInv, float perturbationStdDev, float breakRate, float policySearchStdDev, float actionMomentum, float varianceDecay, std::mt19937 &generator, std::vector<float> &condensed);
+		void step(float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv,
+			int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha,
+			float breakChance, float perturbationStdDev,
+			int maxNumReplaySamples, int replayIterations, float gradientAlpha, float gradientMomentum,
+			std::mt19937 &generator, std::vector<float> &condensed);
 	
 		int getInputWidth() const {
 			return _inputWidth;

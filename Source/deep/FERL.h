@@ -22,6 +22,7 @@ misrepresented as being the original software.
 #pragma once
 
 #include <vector>
+#include <list>
 #include <random>
 
 namespace deep {
@@ -34,10 +35,11 @@ namespace deep {
 	private:
 		struct Connection {
 			float _weight;
-			float _eligibility;
+
+			float _prevDWeight;
 
 			Connection()
-				: _eligibility(0.0f)
+				: _prevDWeight(0.0f)
 			{}
 		};
 
@@ -60,6 +62,12 @@ namespace deep {
 			{}
 		};
 
+		struct ReplaySample {
+			std::vector<float> _state;
+			std::vector<float> _action;
+			float _q;
+		};
+
 		std::vector<Hidden> _hidden;
 		std::vector<Visible> _visible;
 		int _numState;
@@ -69,6 +77,11 @@ namespace deep {
 
 		float _prevMax;
 		float _prevValue;
+
+		std::vector<float> _prevState;
+		std::vector<float> _prevAction;
+
+		std::list<ReplaySample> _replaySamples;
 
 	public:
 		FERL();
@@ -80,10 +93,15 @@ namespace deep {
 		void mutate(float perturbationStdDev, std::mt19937 &generator);
 
 		// Returns action index
-		void step(const std::vector<float> &state, std::vector<float> &action, float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv, int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha, float breakChance, float perturbationStdDev, std::mt19937 &generator);
+		void step(const std::vector<float> &state, std::vector<float> &action,
+			float reward, float qAlpha, float gamma, float lambdaGamma, float tauInv,
+			int actionSearchIterations, int actionSearchSamples, float actionSearchAlpha,
+			float breakChance, float perturbationStdDev,
+			int maxNumReplaySamples, int replayIterations, float gradientAlpha, float gradientMomentum,
+			std::mt19937 &generator);
 
 		void activate();
-		void updateOnError(float error, float lambdaGamma);
+		void updateOnError(float error, float momentum);
 
 		float freeEnergy() const;
 

@@ -1189,12 +1189,12 @@ int main() {
 
 	rbf::RBFNetwork fa;
 
-	fa.createRandom(2, 16, 1, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, generator);
+	fa.createRandom(2, 32, 1, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, generator);
 
 	std::vector<float> in(2);
 	std::vector<float> out(1);
 
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 50; i++) {
 		//fa.clearGradient();
 
 		for (int k = 0; k < 4; k++) {
@@ -1207,7 +1207,7 @@ int main() {
 
 			fa.getOutput(in, out);
 
-			fa.update(in, out, std::vector<float>(1, outputs[k]), 0.05f, 0.05f, 0.01f);
+			fa.update(in, out, std::vector<float>(1, outputs[k]), 0.2f, 0.2f, 0.1f);
 		}
 
 		//fa.scaleGradient(0.25f);
@@ -1326,7 +1326,7 @@ int main() {
 
 	std::vector<float> condensed;
 
-	htmRL.createRandom(2, 1, 32, 32, 3, 3, 3, 64, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 32, 32, 2, 2, 3, 128, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1466,10 +1466,7 @@ int main() {
 
 		int action;
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.01f, 0.999f, 0.999f, 10.0f, 0.0f, 0.1f, 0.0f, 0.05f, 0.05f, generator, condensed);
-		else
-			action = htmRL.step(reward, 0.01f, 0.1f, 0.1f, 0.01f, 0.999f, 0.999f, 10.0f, 0.1f, 0.1f, 0.0f, 0.05f, 0.05f, generator, condensed);
+		action = htmRL.step(reward, 0.001f, 0.05f, 0.05f, 0.999f, 0.99f, 1.0f, 0.1f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;
@@ -2135,7 +2132,7 @@ int main() {
 
 	htm::Region region;
 
-	region.createRandom(40, 40, 6, 3, 0, 80, 80, 4, 0.02f, 2.0f, -0.02f, 0.3f, 0.1f, generator);
+	region.createRandom(40, 40, 8, 6, 0, 40, 40, 5, 0.02f, 2.0f, -0.02f, 0.301f, 0.1f, generator);
 
 	sf::RenderWindow window;
 
@@ -2192,6 +2189,11 @@ int main() {
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			quit = true;
 
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
+			window.setFramerateLimit(600);
+		else
+			window.setFramerateLimit(40);
+
 		// Clear input
 		for (int i = 0; i < input.size(); i++)
 			input[i] = false;
@@ -2211,14 +2213,26 @@ int main() {
 
 		region.stepBegin();
 		
-		region.spatialPooling(input, 0.3f, 3.0f, 18, 0.05f, 0.05f, 0.01f, 0.05f, 0.05f, 0.2f, boostFunc);
+		region.spatialPooling(input, 0.3f, 3.0f, 18, 0.02f, 0.015f, 0.01f, 0.05f, 0.05f, 0.015f, boostFunc);
 
-		region.temporalPoolingLearn(0.3f, 5, 2, 12, 64, 0.04f, 0.02f, 0.31f, 5, generator);
+		region.temporalPoolingLearn(0.3f, 5, 2, 10, 64, 0.02f, 0.015f, 0.301f, 6, generator);
 
 		std::vector<bool> reconstructionData;
 
-		region.getReconstructionAtTime(reconstructionData, 3.0f, 0.3f, 3);
+		int steps = 2;
 
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3))
+			steps = 3;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num4))
+			steps = 4;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num5))
+			steps = 5;
+
+		region.getReconstructionAtTime(reconstructionData, 3.0f, 0.3f, steps);
+
+		
 		// ---------------------------- Rendering ----------------------------
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
