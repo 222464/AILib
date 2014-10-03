@@ -1207,7 +1207,9 @@ int main() {
 
 			fa.getOutput(in, out);
 
-			fa.update(in, out, std::vector<float>(1, outputs[k]), 0.2f, 0.2f, 0.1f);
+			fa.learnFeatures(in, 0.2f, 0.2f, 0.5f);
+
+			fa.update(in, out, std::vector<float>(1, outputs[k]), 0.1f);
 		}
 
 		//fa.scaleGradient(0.25f);
@@ -1423,7 +1425,7 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness * 0.1f;
+		reward = fitness * 0.2f;
 
 		if (totalTime == 0.0f)
 			avgReward = reward;
@@ -1466,7 +1468,7 @@ int main() {
 
 		int action;
 
-		action = htmRL.step(reward, 0.001f, 0.05f, 0.05f, 0.999f, 0.99f, 1.0f, 0.1f, generator, condensed);
+		action = htmRL.step(reward, 0.5f, 0.1f, 0.1f, 0.01f, 0.25f, 0.997f, 0.99f, 1.0f, 0.15f, 0.0f, 0.0f, 0.0f, 0.05f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;

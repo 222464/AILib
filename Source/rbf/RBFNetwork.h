@@ -60,9 +60,9 @@ namespace rbf {
 		void getOutput(const std::vector<float> &input, std::vector<float> &output);
 		bool getPrediction(const std::vector<float> &input, std::vector<float> &output, float threshold); // Returns whether or not it is certain
 
-		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float centerAlpha, float widthAlpha, float weightAlpha);
+		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha);
 	
-		void learnFeatures(const std::vector<float> &input, float centerAlpha, float widthAlpha);
+		void learnFeatures(const std::vector<float> &input, float centerAlpha, float widthAlpha, float widthScalar);
 		int step(const std::vector<float> &input, float reward, float alpha, float gamma, float lambda, float tauInv, float epsilon, int prevAction, std::mt19937 &generator);
 
 		int getNumInputs() const {

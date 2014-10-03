@@ -130,52 +130,7 @@ bool RBFNetwork::getPrediction(const std::vector<float> &input, std::vector<floa
 	return certain;
 }
 
-void RBFNetwork::update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float centerAlpha, float widthAlpha, float weightAlpha) {
-	// Find closest node
-	float minDist2 = 999999.0f;
-	int minDist2Index = 0;
-
-	for (int i = 0; i < _rbfNodes.size(); i++) {
-		float dist2 = 0.0f;
-
-		for (int j = 0; j < _rbfNodes[i]._center.size(); j++) {
-			float delta = input[j] - _rbfNodes[i]._center[j];
-			dist2 += delta * delta;
-		}
-
-		if (dist2 < minDist2) {
-			minDist2 = dist2;
-
-			minDist2Index = i;
-		}
-	}
-
-	// Find error of this node
-	float minDist2NodeError = 0.0f;
-
-	for (int i = 0; i < _outputNodes.size(); i++)
-		minDist2NodeError += (target[i] - output[i]) * _outputNodes[i]._connections[minDist2Index]._weight;
-
-	float errorScaledCenterAlpha = std::abs(minDist2NodeError) * centerAlpha;
-
-	// Move minimum distance node towards this input
-	float dist2 = 0.0f;
-
-	for (int i = 0; i < _rbfNodes[minDist2Index]._center.size(); i++) {
-		float delta = input[i] - _rbfNodes[minDist2Index]._center[i];
-
-		_rbfNodes[minDist2Index]._center[i] += errorScaledCenterAlpha * delta;
-
-		dist2 += delta * delta;
-	}
-
-	_rbfNodes[minDist2Index]._width = std::max(0.0f, _rbfNodes[minDist2Index]._width + std::abs(minDist2NodeError) * widthAlpha * (std::sqrt(dist2) - _rbfNodes[minDist2Index]._width));
-
-	// Get new output
-	std::vector<float> output;
-
-	getOutput(input, output);
-
+void RBFNetwork::update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha) {
 	// Update output node weights
 	for (int i = 0; i < _outputNodes.size(); i++) {
 		float alphaError = weightAlpha * (target[i] - output[i]);
@@ -187,7 +142,7 @@ void RBFNetwork::update(const std::vector<float> &input, std::vector<float> &out
 	}
 }
 
-void RBFNetwork::learnFeatures(const std::vector<float> &input, float centerAlpha, float widthAlpha) {
+void RBFNetwork::learnFeatures(const std::vector<float> &input, float centerAlpha, float widthAlpha, float widthScalar) {
 	// Find closest node
 	float minDist2 = 999999.0f;
 	int minDist2Index = 0;
@@ -218,7 +173,7 @@ void RBFNetwork::learnFeatures(const std::vector<float> &input, float centerAlph
 		dist2 += delta * delta;
 	}
 
-	_rbfNodes[minDist2Index]._width = std::max(0.0f, _rbfNodes[minDist2Index]._width + widthAlpha * (std::sqrt(dist2) - _rbfNodes[minDist2Index]._width));
+	_rbfNodes[minDist2Index]._width = std::max(0.0f, _rbfNodes[minDist2Index]._width + widthAlpha * (std::sqrt(dist2) * widthScalar - _rbfNodes[minDist2Index]._width));
 }
 
 int RBFNetwork::step(const std::vector<float> &input, float reward, float alpha, float gamma, float lambda, float tauInv, float epsilon, int prevAction, std::mt19937 &generator) {
