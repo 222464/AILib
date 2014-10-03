@@ -1328,7 +1328,7 @@ int main() {
 
 	std::vector<float> condensed;
 
-	htmRL.createRandom(2, 1, 32, 32, 2, 2, 3, 128, -0.5f, 0.5f, 0.01f, 2.0f, -0.1f, 0.1f, regionDescs, generator);
+	htmRL.createRandom(2, 1, 32, 32, 2, 2, 3, 1, 32, 0.1f, regionDescs, generator);
 
 	//falcon::Falcon fal;
 	//fal.create(4, 1);
@@ -1468,7 +1468,7 @@ int main() {
 
 		int action;
 
-		action = htmRL.step(reward, 0.5f, 0.1f, 0.1f, 0.01f, 0.25f, 0.997f, 0.99f, 1.0f, 0.15f, 0.0f, 0.0f, 0.0f, 0.05f, generator, condensed);
+		action = htmRL.step(reward, 0.5f, 0.05f, 0.005f, 0.2f, 0.997f, 0.99f, 1.0f, 0.15f, 0.0f, 0.0f, 0.0f, 0.05f, generator, condensed);
 
 		output.resize(1);
 		output[0] = action - 1;

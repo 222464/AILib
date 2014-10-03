@@ -141,7 +141,7 @@ namespace htmrl {
 		std::vector<RegionDesc> _regionDescs;
 		std::vector<htm::Region> _regions;
 
-		rbf::RBFNetwork _critic;
+		deep::FA _critic;
 
 		int _prevMaxQAction;
 		int _prevChooseAction;
@@ -164,7 +164,7 @@ namespace htmrl {
 
 		HTMRLDiscreteAction();
 
-		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, float criticMinCenter, float criticMaxCenter, float criticMinWidth, float criticMaxWidth, float criticMinWeight, float criticMaxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHidden, int criticNumPerHidden, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator);
 
 		void setInput(int x, int y, int axis, float value) {
 			_inputf[x + y * _inputWidth + axis * _inputWidth * _inputHeight] = std::min(1.0f, std::max(-1.0f, value));
@@ -184,7 +184,7 @@ namespace htmrl {
 			return _regions[index];
 		}
 
-		int step(float reward, float qAlpha, float criticCenterAlpha, float criticWidthAlpha, float criticWeightAlpha, float criticWidthScalar, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
+		int step(float reward, float qAlpha, float criticRMSDecay, float criticGradientAlpha, float criticGradientMomentum, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed);
 
 		int getInputWidth() const {
 			return _inputWidth;

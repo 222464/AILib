@@ -31,12 +31,12 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
 : _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(800),
-_backpropPassesCritic(400), _minibatchSize(8),
+_backpropPassesCritic(50), _minibatchSize(8),
 _prevMaxQAction(0), _prevChooseAction(0),
 _earlyStopError(0.0f), _averageAbsError(0.0f)
 {}
 
-void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumRBFNodes, float criticMinCenter, float criticMaxCenter, float criticMinWidth, float criticMaxWidth, float criticMinWeight, float criticMaxWeight, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
+void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inputDotsWidth, int inputDotsHeight, int condenseWidth, int condenseHeight, int numOutputs, int criticNumHidden, int criticNumPerHidden, float criticInitWeightStdDev, const std::vector<RegionDesc> &regionDescs, std::mt19937 &generator) {
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
 
@@ -79,7 +79,7 @@ void HTMRLDiscreteAction::createRandom(int inputWidth, int inputHeight, int inpu
 	_inputCond.clear();
 	_inputCond.assign(stateSize, 0.0f);
 
-	_critic.createRandom(stateSize, criticNumRBFNodes, numOutputs, criticMinCenter, criticMaxCenter, criticMinWidth, criticMaxWidth, criticMinWeight, criticMaxWeight, generator);
+	_critic.createRandom(stateSize, numOutputs, criticNumHidden, criticNumPerHidden, criticInitWeightStdDev, generator);
 
 	_prevLayerInputf.clear();
 	_prevLayerInputf.assign(stateSize, false);
@@ -119,7 +119,7 @@ void HTMRLDiscreteAction::decodeInput() {
 	}
 }
 
-int HTMRLDiscreteAction::step(float reward, float qAlpha, float criticCenterAlpha, float criticWidthAlpha, float criticWeightAlpha, float criticWidthScalar, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed) {
+int HTMRLDiscreteAction::step(float reward, float qAlpha, float criticRMSDecay, float criticGradientAlpha, float criticGradientMomentum, float gamma, float lambda, float tauInv, float epsilon, float softmaxT, float kOut, float kHidden, float averageAbsErrorDecay, std::mt19937 &generator, std::vector<float> &condensed) {
 	decodeInput();
 
 	std::vector<bool> layerInput = _inputb;
@@ -177,7 +177,7 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float criticCenterAlph
 	// Get maximum Q prediction from critics
 	std::vector<float> criticOutputs(_critic.getNumOutputs());
 
-	_critic.getOutput(condensedInputf, criticOutputs);
+	_critic.process(condensedInputf, criticOutputs);
 
 	std::vector<float> originalOutputs = criticOutputs;
 
@@ -282,26 +282,34 @@ int HTMRLDiscreteAction::step(float reward, float qAlpha, float criticCenterAlph
 	// Rehearse
 	std::uniform_int_distribution<int> sampleDist(0, pReplaySamples.size() - 1);
 
-	//float minibatchInv = 1.0f / _minibatchSize;
+	float minibatchInv = 1.0f / _minibatchSize;
 
-	_critic.learnFeatures(condensedInputf, criticCenterAlpha, criticWidthAlpha, criticWidthScalar);
+	//_critic.learnFeatures(condensedInputf, criticCenterAlpha, criticWidthAlpha, criticWidthScalar);
 
 	for (int s = 0; s < _backpropPassesCritic; s++) {
-		int r = sampleDist(generator);
+		_critic.clearGradient();
 
-		ReplaySample* pSample = pReplaySamples[r];
+		for (int b = 0; b < _minibatchSize; b++) {
+			int r = sampleDist(generator);
 
-		_critic.getOutput(pSample->_inputs, criticOutputs);
+			ReplaySample* pSample = pReplaySamples[r];
 
-		float error = pSample->_actionQValues[pSample->_actionExploratory] - criticOutputs[pSample->_actionExploratory];
+			_critic.process(pSample->_inputs, criticOutputs);
 
-		if (std::abs(error) > _earlyStopError * _averageAbsError) {
-			std::vector<float> target = criticOutputs;
+			float error = pSample->_actionQValues[pSample->_actionExploratory] - criticOutputs[pSample->_actionExploratory];
 
-			target[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+			if (std::abs(error) > _earlyStopError * _averageAbsError) {
+				std::vector<float> target = criticOutputs;
 
-			_critic.update(pSample->_inputs, criticOutputs, target, criticWeightAlpha);
+				target[pSample->_actionExploratory] = pSample->_actionQValues[pSample->_actionExploratory];
+
+				_critic.accumulateGradient(pSample->_inputs, target);
+			}
 		}
+
+		_critic.scaleGradient(minibatchInv);
+
+		_critic.moveAlongGradientRMS(criticRMSDecay, criticGradientAlpha, criticGradientMomentum, kOut, kHidden);
 	}
 
 	// Recompute samples
