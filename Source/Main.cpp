@@ -1170,7 +1170,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float inputs[4][2] {
@@ -1648,6 +1648,211 @@ int main() {
 
 		totalTime += dt;
 		plotUpdateTimer += dt;
+	} while (!quit);
+}*/
+
+int main() {
+	sf::RenderWindow window;
+
+	window.create(sf::VideoMode(800, 600), "Mountain Car");
+
+	//window.setVerticalSyncEnabled(true);
+
+	window.setFramerateLimit(60);
+
+	// -------------------------- Load Resources --------------------------
+
+	sf::Texture backgroundTexture;
+	sf::Texture cartTexture;
+
+	cartTexture.loadFromFile("Resources/car.png");
+
+	// --------------------------------------------------------------------
+
+	sf::Sprite cartSprite;
+
+	cartSprite.setTexture(cartTexture);
+
+	cartSprite.setOrigin(sf::Vector2f(static_cast<float>(cartSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(cartSprite.getTexture()->getSize().y) * 0.5f));
+	cartSprite.setScale(sf::Vector2f(0.25f, 0.25f));
+
+	// ----------------------------- Physics ------------------------------
+
+	float pixelsPerMeter = 128.0f;
+
+	float velocity = 0.0f;
+	float position = -0.5f;
+
+	// ------------------------------- AI ---------------------------------
+
+	std::mt19937 generator(time(nullptr));
+
+	//rl::MultiLSTMRL agent;
+	//rl::MultiLSTMRL::MultiLSTMRLSettings settings;
+
+	htmrl::HTMRL htmRL;
+	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
+	regionDescs[0]._regionWidth = 32;
+	regionDescs[0]._regionHeight = 32;
+
+	std::vector<float> condensed;
+
+	//htmRL.createRandom(1, 1, 32, 32, 2, 2, 3, 1, 16, 0.1f, regionDescs, generator);
+	htmRL.createRandom(1, 1, 32, 32, 2, 2, 1, 16, 0.1f, regionDescs, generator);
+
+	sf::Image image;
+
+	image.create(htmRL.getCondenseBufferWidth(), htmRL.getCondenseBufferHeight());
+
+	// ---------------------------- Game Loop -----------------------------
+
+	bool quit = false;
+
+	sf::Clock clock;
+
+	float dt = 0.017f;
+
+	float fitness = 0.0f;
+	float prevFitness = 0.0f;
+
+	prevFitness = fitness;
+	fitness = 0.0f;
+
+	std::vector<sf::Vertex> hills;
+
+	for (float p = -3.141f; p < 3.141f;) {
+		sf::Vertex v1;
+		v1.position = sf::Vector2f(static_cast<float>(window.getSize().x) * 0.5f + p * pixelsPerMeter, static_cast<float>(window.getSize().y) * 0.5f + std::sin(p * 3.0f) * pixelsPerMeter * -0.333f);
+		v1.color = sf::Color::Red;
+
+		p += 0.1f;
+
+		sf::Vertex v2;
+		v2.position = sf::Vector2f(static_cast<float>(window.getSize().x) * 0.5f + p * pixelsPerMeter, static_cast<float>(window.getSize().y) * 0.5f + std::sin(p * 3.0f) * pixelsPerMeter * -0.333f);
+		v2.color = sf::Color::Red;
+
+		hills.push_back(v1);
+		hills.push_back(v2);
+	}
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (window.pollEvent(windowEvent))
+		{
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		// ---------------------------- Fitness ------------------------------
+
+		prevFitness = fitness;
+		fitness = (std::sin(position * 3.0f) + 1.0f) * 0.5f;
+		fitness *= fitness;
+
+		// ------------------------------ AI -------------------------------
+
+		float dFitness = (fitness - prevFitness) * 100.0f;
+
+		htmRL.setInput(0, 0, 0, 1.2f * (position + 0.52f));
+		htmRL.setInput(0, 0, 1, velocity * 15.0f);
+
+		/*int action;
+
+		action = htmRL.step(fitness * 0.5f, 0.5f, 0.05f, 0.01f, 0.2f, 0.99f, 0.99f, 1.0f, 0.1f, 0.0f, 0.0f, 0.005f, 0.05f, generator, condensed);
+
+		// ---------------------------- Physics ----------------------------
+
+		//float action = std::min(1.0f, std::max(-1.0f, agent.getOutput(0)));
+		float actionf = 0.0f;
+
+		switch (action)
+		{
+		case 0:
+			actionf = -1.0f;
+			break;
+		case 1:
+			actionf = 0.0f;
+			break;
+		case 2:
+			actionf = 1.0f;
+			break;
+		}*/
+
+		float actionf;
+
+		htmRL.step(fitness * 0.3f, 0.5f, 0.99f, 0.98f, 1.0f, 64, 4, 0.05f, 0.1f, 0.1f, 800, 400, 0.01f, 0.0f, generator, condensed);
+
+		actionf = htmRL.getOutput(0);
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+			actionf = -1.0f;
+		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+			actionf = 1.0f;
+
+		velocity += (-velocity * 0.01f + actionf * 0.001f + std::cos(3.0f * position) * -0.0025f) * dt / 0.017f;
+		position += velocity * dt / 0.017f;
+
+		// ---------------------------- Rendering ----------------------------
+
+		window.clear(sf::Color::White);
+
+		// Draw hills
+		window.draw(&hills[0], hills.size(), sf::Lines);
+
+		cartSprite.setPosition(sf::Vector2f(static_cast<float>(window.getSize().x) * 0.5f + pixelsPerMeter * position, static_cast<float>(window.getSize().y) * 0.5f + pixelsPerMeter * -0.333f * std::sinf(3.0f * position)));
+
+		float slope = std::cos(3.0f * position);
+
+		float angle = std::atan(slope);
+
+		cartSprite.setRotation(360.0f - 180.0f / static_cast<float>(std::_Pi) * angle);
+
+		window.draw(cartSprite);
+
+		for (size_t i = 0; i < htmRL.getCondenseBufferWidth() * htmRL.getCondenseBufferHeight(); i++) {
+			int x = i % htmRL.getCondenseBufferWidth();
+			int y = i / htmRL.getCondenseBufferWidth();
+
+			sf::Color c;
+
+			c.r = condensed[i] * 255.0f;
+			c.g = 0;
+			c.b = 0;
+
+			image.setPixel(x, y, c);
+		}
+
+		sf::Texture t;
+
+		t.loadFromImage(image);
+
+		sf::Sprite s;
+
+		s.setPosition(800.0f - 256.0f, 0.0f);
+
+		s.setScale(256.0f / htmRL.getCondenseBufferWidth(), 256.0f / htmRL.getCondenseBufferWidth());
+
+		s.setTexture(t);
+
+		window.draw(s);
+
+		// -------------------------------------------------------------------
+
+		window.display();
+
+		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
 }
 

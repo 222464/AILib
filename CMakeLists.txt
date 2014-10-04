@@ -73,6 +73,7 @@ set(AILIB_SRC
 	${SRC_DIR}/deep/RBM.cpp
 	${SRC_DIR}/deep/DSOM.cpp
 	${SRC_DIR}/dnf/Field.cpp
+	${SRC_DIR}/rbf/RBFNetwork.cpp
 	${SRC_DIR}/elman/ElmanNetwork.cpp
 	${SRC_DIR}/experiments/ExperimentAND.cpp
 	${SRC_DIR}/experiments/ExperimentOR.cpp
