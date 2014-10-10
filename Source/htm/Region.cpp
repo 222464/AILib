@@ -84,11 +84,8 @@ void Region::createRandom(int inputWidth, int inputHeight, int connectionRadius,
 bool Region::getOutput(int i) const {
 	const Column &column = _columns[i];
 
-	if (column._active)
-		return true;
-
 	for (int j = 0; j < column._cells.size(); j++)
-	if (column._cells[j]._activeState)
+	if (column._cells[j]._activeState || column._cells[j]._predictiveState)
 		return true;
 
 	return false;
@@ -342,7 +339,7 @@ void Region::spatialPooling(const std::vector<bool> &inputs, float minPermanence
 						overlap++;
 					}
 
-					receptiveFieldSize = std::max(receptiveFieldSize, std::abs(dx) + std::abs(dy));
+					receptiveFieldSize = std::max(receptiveFieldSize, std::max(std::abs(dx), std::abs(dy)));
 				}
 
 				connectionIndex++;
@@ -592,6 +589,199 @@ void Region::temporalPoolingNoLearn(float minPermanence, int activationThreshold
 	}
 }
 
+void Region::getBestMatchingCell(int columnIndex, int &cellIndex, int &segmentIndex, int predictionSteps, bool usePrevious, std::mt19937 &generator) {
+	Column &column = _columns[columnIndex];
+
+	// Go through cells and see which one has the best matching segment
+	int maxActiveConnections = 0;
+	cellIndex = -1;
+	segmentIndex = -1;
+
+	for (int j = 0; j < column._cells.size(); j++) {
+		Cell &cell = column._cells[j];
+
+		int maxSegmentIndex;
+
+		getBestMatchingSegment(columnIndex, j, maxSegmentIndex, predictionSteps, usePrevious);
+
+		if (maxSegmentIndex != -1) {
+			int activeCount = usePrevious ? cell._segments[maxSegmentIndex]._prevActiveActivity : cell._segments[maxSegmentIndex]._activeActivity;
+
+			if (activeCount > maxActiveConnections) {
+				cellIndex = j;
+				segmentIndex = maxSegmentIndex;
+				maxActiveConnections = activeCount;
+			}
+		}
+	}
+
+	if (cellIndex == -1) {
+		int minSegmentsCellIndex = 0;
+
+		int numSame = 0;
+
+		for (int j = 1; j < column._cells.size(); j++) {
+			Cell &cell = column._cells[j];
+
+			if (cell._segments.size() < column._cells[minSegmentsCellIndex]._segments.size()) {
+				numSame = 1;
+				minSegmentsCellIndex = j;
+			}
+			else if (cell._segments.size() == column._cells[minSegmentsCellIndex]._segments.size()) {
+				numSame++;
+
+				std::uniform_int_distribution<int> sameDist(0, numSame - 1);
+
+				if (sameDist(generator) == 0)
+					minSegmentsCellIndex = j;
+			}
+		}
+
+		cellIndex = minSegmentsCellIndex;
+
+		segmentIndex = -1;
+	}
+}
+
+void Region::getBestMatchingSegment(int columnIndex, int cellIndex, int &segmentIndex, int predictionSteps, bool usePrevious) {
+	Cell &cell = _columns[columnIndex]._cells[cellIndex];
+
+	segmentIndex = -1;
+
+	int maxActivity = 0;
+
+	for (int k = 0; k < cell._segments.size(); k++) {
+		Segment &segment = cell._segments[k];
+
+		if (segment._numPredictionSteps != predictionSteps)
+			continue;
+
+		if (usePrevious) {
+			if (segment._prevActiveActivity >= maxActivity) {
+				segmentIndex = k;
+
+				maxActivity = segment._prevActiveActivity;
+			}
+		}
+		else {
+			if (segment._activeActivity >= maxActivity) {
+				segmentIndex = k;
+
+				maxActivity = segment._prevActiveActivity;
+			}
+		}
+	}
+}
+
+void Region::updateSegmentActiveSynapses(int columnIndex, int cellIndex, int segmentIndex, bool usePrevious, int numConnections, int learningRadius, SegmentUpdateType updateType, SegmentUpdate &segmentUpdate, std::mt19937 &generator) {
+	Column &column = _columns[columnIndex];
+
+	int columnX = columnIndex % _regionWidth;
+	int columnY = columnIndex / _regionWidth;
+
+	segmentUpdate._columnIndex = columnIndex;
+	segmentUpdate._cellIndex = cellIndex;
+	segmentUpdate._segmentIndex = segmentIndex;
+	segmentUpdate._updateType = updateType;
+	segmentUpdate._numPredictionSteps = 1; // Means is sequence segment
+
+	if (segmentUpdate._segmentIndex != -1) {
+		Segment &segment = column._cells[cellIndex]._segments[segmentIndex];
+
+		for (std::unordered_map<ColumnAndCellIndices, Connection, ColumnAndCellIndices>::iterator it = segment._connections.begin(); it != segment._connections.end(); it++)
+		if (usePrevious) {
+			if (it->second._prevActive)
+				segmentUpdate._activeConnectionIndices.push_back(it->first);
+			else
+				segmentUpdate._inactiveConnectionIndices.push_back(it->first);
+		}
+		else {
+			if (it->second._active)
+				segmentUpdate._activeConnectionIndices.push_back(it->first);
+			else
+				segmentUpdate._inactiveConnectionIndices.push_back(it->first);
+		}
+
+		int numConnectionsAdd = numConnections - static_cast<int>(segment._connections.size());
+
+		if (numConnectionsAdd > 0) {
+			std::vector<ColumnAndCellIndices> availableCells;
+
+			for (int dx = -learningRadius; dx <= learningRadius; dx++)
+			for (int dy = -learningRadius; dy <= learningRadius; dy++) {
+				int learningX = columnX + dx;
+				int learningY = columnY + dy;
+
+				// If exists
+				if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
+					int neighborColumnIndex = learningX + learningY * _regionWidth;
+					Column &neighborColumn = _columns[neighborColumnIndex];
+
+					for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
+						if (neighborColumnIndex == columnIndex && neighborCellIndex == cellIndex)
+							continue;
+
+						if (segment._connections.find(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex)) != segment._connections.end())
+							continue;
+
+						if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
+							availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
+					}
+				}
+			}
+
+			std::shuffle(availableCells.begin(), availableCells.end(), generator);
+
+			int selectIndex = 0;
+
+			while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
+				// Select random cell to connect to from available list
+				segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
+
+				numConnectionsAdd--;
+				selectIndex++;
+			}
+		}
+	}
+	else {
+		int numConnectionsAdd = numConnections;
+
+		std::vector<ColumnAndCellIndices> availableCells;
+
+		for (int dx = -learningRadius; dx <= learningRadius; dx++)
+		for (int dy = -learningRadius; dy <= learningRadius; dy++) {
+			int learningX = columnX + dx;
+			int learningY = columnY + dy;
+
+			// If exists
+			if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
+				int neighborColumnIndex = learningX + learningY * _regionWidth;
+				Column &neighborColumn = _columns[neighborColumnIndex];
+
+				for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
+					if (neighborColumnIndex == columnIndex && neighborCellIndex == cellIndex)
+						continue;
+
+					if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
+						availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
+				}
+			}
+		}
+
+		std::shuffle(availableCells.begin(), availableCells.end(), generator);
+
+		int selectIndex = 0;
+
+		while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
+			// Select random cell to connect to from available list
+			segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
+
+			numConnectionsAdd--;
+			selectIndex++;
+		}
+	}
+}
+
 void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int minLearningThreshold, int activationThreshold, int newNumConnections, float permanenceIncrease, float permanenceDecrease, float newConnectionPermanence, int maxSteps, std::mt19937 &generator) {
 	// Phase 1
 	for (int a = 0; a < _activeColumnIndices.size(); a++) {
@@ -652,143 +842,18 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 		}
 
 		if (!learningCellChosen) {
-			// Go through cells and see which one has the best matching segment
-			int maxActiveConnections = 0;
-			int maxActiveConnectionsCellIndex = -1;
-			int maxActiveConnectionsSegmentIndex = -1;
+			int cellIndex;
+			int segmentIndex;
 
-			for (int j = 0; j < column._cells.size(); j++) {
-				Cell &cell = column._cells[j];
+			getBestMatchingCell(i, cellIndex, segmentIndex, 1, true, generator);
 
-				for (int k = 0; k < cell._segments.size(); k++) {
-					Segment &segment = cell._segments[k];
-
-					if (segment._numPredictionSteps != 1)
-						continue;
-
-					if (segment._prevActiveActivity > maxActiveConnections) {
-						maxActiveConnectionsCellIndex = j;
-						maxActiveConnectionsSegmentIndex = k;
-
-						maxActiveConnections = segment._prevActiveActivity;
-					}
-				}
-			}
-
-			if (maxActiveConnections < minLearningThreshold) {
-				int minSegmentsCellIndex = 0;
-
-				for (int j = 1; j < column._cells.size(); j++) {
-					Cell &cell = column._cells[j];
-
-					if (cell._segments.size() < column._cells[minSegmentsCellIndex]._segments.size())
-						minSegmentsCellIndex = j;
-				}
-
-				maxActiveConnectionsCellIndex = minSegmentsCellIndex;
-
-				maxActiveConnectionsSegmentIndex = -1;
-			}
-
-			column._cells[maxActiveConnectionsCellIndex]._learnState = true;
+			column._cells[cellIndex]._learnState = true;
 
 			SegmentUpdate segmentUpdate;
 
-			segmentUpdate._columnIndex = i;
-			segmentUpdate._cellIndex = maxActiveConnectionsCellIndex;
-			segmentUpdate._segmentIndex = maxActiveConnectionsSegmentIndex;
-			segmentUpdate._dueToPredictive = false;
-			segmentUpdate._numPredictionSteps = 1; // Means is sequence segment
+			updateSegmentActiveSynapses(i, cellIndex, segmentIndex, true, newNumConnections, learningRadius, _dueToActive, segmentUpdate, generator);
 
-			if (segmentUpdate._segmentIndex != -1) {
-				Segment &segment = column._cells[maxActiveConnectionsCellIndex]._segments[maxActiveConnectionsSegmentIndex];
-
-				for (std::unordered_map<ColumnAndCellIndices, Connection, ColumnAndCellIndices>::iterator it = segment._connections.begin(); it != segment._connections.end(); it++)
-				if (it->second._prevActive)
-					segmentUpdate._activeConnectionIndices.push_back(it->first);
-				else
-					segmentUpdate._inactiveConnectionIndices.push_back(it->first);
-
-				int numConnectionsAdd = newNumConnections - static_cast<int>(segment._connections.size());
-
-				if (numConnectionsAdd > 0) {
-					std::vector<ColumnAndCellIndices> availableCells;
-
-					for (int dx = -learningRadius; dx <= learningRadius; dx++)
-					for (int dy = -learningRadius; dy <= learningRadius; dy++) {
-						int learningX = columnX + dx;
-						int learningY = columnY + dy;
-
-						// If exists
-						if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
-							int neighborColumnIndex = learningX + learningY * _regionWidth;
-							Column &neighborColumn = _columns[neighborColumnIndex];
-
-							for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
-								if (neighborColumnIndex == i && neighborCellIndex == maxActiveConnectionsCellIndex)
-									continue;
-
-								if (segment._connections.find(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex)) != segment._connections.end())
-									continue;
-
-								if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
-									availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
-							}
-						}
-					}
-
-					std::shuffle(availableCells.begin(), availableCells.end(), generator);
-
-					int selectIndex = 0;
-
-					while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
-						// Select random cell to connect to from available list
-						segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
-
-						numConnectionsAdd--;
-						selectIndex++;
-					}
-				}
-			}
-			else {
-				int numConnectionsAdd = newNumConnections;
-
-				std::vector<ColumnAndCellIndices> availableCells;
-
-				for (int dx = -learningRadius; dx <= learningRadius; dx++)
-				for (int dy = -learningRadius; dy <= learningRadius; dy++) {
-					int learningX = columnX + dx;
-					int learningY = columnY + dy;
-
-					// If exists
-					if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
-						int neighborColumnIndex = learningX + learningY * _regionWidth;
-						Column &neighborColumn = _columns[neighborColumnIndex];
-
-						for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
-							if (neighborColumnIndex == i && neighborCellIndex == maxActiveConnectionsCellIndex)
-								continue;
-
-							if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
-								availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
-						}
-					}
-				}
-
-				std::shuffle(availableCells.begin(), availableCells.end(), generator);
-
-				int selectIndex = 0;
-
-				while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
-					// Select random cell to connect to from available list
-					segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
-
-					numConnectionsAdd--;
-					selectIndex++;
-				}
-			}
-
-			segmentUpdate._src = SegmentUpdate::_1;
+			segmentUpdate._numPredictionSteps = 1;
 
 			column._cells[segmentUpdate._cellIndex]._segmentUpdates.push_back(segmentUpdate);
 		}
@@ -838,139 +903,23 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 
 					SegmentUpdate segmentUpdate;
 
-					segmentUpdate._columnIndex = i;
-					segmentUpdate._cellIndex = j;
-					segmentUpdate._segmentIndex = k;
-
-					for (std::unordered_map<ColumnAndCellIndices, Connection, ColumnAndCellIndices>::iterator it = segment._connections.begin(); it != segment._connections.end(); it++)
-					if (it->second._active)
-						segmentUpdate._activeConnectionIndices.push_back(it->first);
-					else
-						segmentUpdate._inactiveConnectionIndices.push_back(it->first);
-
-					segmentUpdate._src = SegmentUpdate::_2;
+					updateSegmentActiveSynapses(i, j, k, false, newNumConnections, learningRadius, _dueToPredictive, segmentUpdate, generator);
 
 					cell._segmentUpdates.push_back(segmentUpdate);
 				}
 			}
 
 			if (cell._predictiveState && cell._numPredictionSteps != maxSteps) {
-				int maxActiveConnections = 0;
-				int maxActiveConnectionsSegmentIndex = -1;
+				int segmentIndex;
 
-				for (int k = 0; k < cell._segments.size(); k++) {
-					Segment &segment = cell._segments[k];
-
-					if (segment._numPredictionSteps != cell._numPredictionSteps + 1)
-						continue;
-
-					if (segment._prevActiveActivity > maxActiveConnections) {
-						maxActiveConnectionsSegmentIndex = k;
-
-						maxActiveConnections = segment._prevActiveActivity;
-					}
-				}
-
-				if (maxActiveConnections < minLearningThreshold)
-					maxActiveConnectionsSegmentIndex = -1;
+				getBestMatchingSegment(i, j, segmentIndex, cell._numPredictionSteps + 1, true);
 
 				SegmentUpdate segmentUpdate;
 
-				segmentUpdate._columnIndex = i;
-				segmentUpdate._cellIndex = j;
-				segmentUpdate._segmentIndex = maxActiveConnectionsSegmentIndex;
+				updateSegmentActiveSynapses(i, j, segmentIndex, true, newNumConnections, learningRadius, _dueToPredictive, segmentUpdate, generator);
 
-				if (maxActiveConnectionsSegmentIndex != -1) {
-					Segment &maxActiveConnectionsSegment = cell._segments[maxActiveConnectionsSegmentIndex];
-
-					for (std::unordered_map<ColumnAndCellIndices, Connection, ColumnAndCellIndices>::iterator it = maxActiveConnectionsSegment._connections.begin(); it != maxActiveConnectionsSegment._connections.end(); it++)
-					if (it->second._active)
-						segmentUpdate._activeConnectionIndices.push_back(it->first);
-					else
-						segmentUpdate._inactiveConnectionIndices.push_back(it->first);
-
-					int numConnectionsAdd = newNumConnections - static_cast<int>(maxActiveConnectionsSegment._connections.size());
-
-					if (numConnectionsAdd > 0) {
-						std::vector<ColumnAndCellIndices> availableCells;
-
-						for (int dx = -learningRadius; dx <= learningRadius; dx++)
-						for (int dy = -learningRadius; dy <= learningRadius; dy++) {
-							int learningX = columnX + dx;
-							int learningY = columnY + dy;
-
-							// If exists
-							if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
-								int neighborColumnIndex = learningX + learningY * _regionWidth;
-								Column &neighborColumn = _columns[neighborColumnIndex];
-
-								for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
-									if (neighborColumnIndex == i && neighborCellIndex == j)
-										continue;
-
-									if (maxActiveConnectionsSegment._connections.find(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex)) != maxActiveConnectionsSegment._connections.end())
-										continue;
-
-									if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
-										availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
-								}
-							}
-						}
-
-						std::shuffle(availableCells.begin(), availableCells.end(), generator);
-
-						int selectIndex = 0;
-
-						while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
-							// Select random cell to connect to from available list
-							segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
-
-							numConnectionsAdd--;
-							selectIndex++;
-						}
-					}
-				}
-				else {
+				if (segmentIndex == -1)
 					segmentUpdate._numPredictionSteps = cell._numPredictionSteps + 1;
-
-					int numConnectionsAdd = newNumConnections;
-
-					std::vector<ColumnAndCellIndices> availableCells;
-
-					for (int dx = -learningRadius; dx <= learningRadius; dx++)
-					for (int dy = -learningRadius; dy <= learningRadius; dy++) {
-						int learningX = columnX + dx;
-						int learningY = columnY + dy;
-
-						// If exists
-						if (learningX >= 0 && learningY >= 0 && learningX < _regionWidth && learningY < _regionHeight) {
-							int neighborColumnIndex = learningX + learningY * _regionWidth;
-							Column &neighborColumn = _columns[neighborColumnIndex];
-
-							for (int neighborCellIndex = 0; neighborCellIndex < neighborColumn._cells.size(); neighborCellIndex++) {
-								if (neighborColumnIndex == i && neighborCellIndex == j)
-									continue;
-
-								if (neighborColumn._cells[neighborCellIndex]._prevLearnState)
-									availableCells.push_back(ColumnAndCellIndices(neighborColumnIndex, neighborCellIndex));
-							}
-						}
-					}
-
-					std::shuffle(availableCells.begin(), availableCells.end(), generator);
-
-					int selectIndex = 0;
-
-					while (numConnectionsAdd > 0 && selectIndex < availableCells.size()) {
-						// Select random cell to connect to from available list
-						segmentUpdate._activeConnectionIndices.push_back(availableCells[selectIndex]);
-
-						numConnectionsAdd--;
-						selectIndex++;
-					}
-				}
-
-				segmentUpdate._src = SegmentUpdate::_3;
 
 				cell._segmentUpdates.push_back(segmentUpdate);
 			}
@@ -996,11 +945,13 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
-					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
+					if (segmentUpdate._isNew && segmentUpdate._updateType == _dueToPredictive) {
 						segmentUpdate._isNew = false;
 						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
+
+					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._segmentIndex == -1) {
 						if (segmentUpdate._activeConnectionIndices.size() > activationThreshold) {
@@ -1027,6 +978,8 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 								modifiedSegmentIndicesSet.insert(modIndex);
 							}
 						}
+						else
+							keepUpdates.push_back(segmentUpdate);
 					}
 					else {
 						Segment &segment = cell._segments[segmentUpdate._segmentIndex];
@@ -1066,11 +1019,13 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
-					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
+					if (segmentUpdate._isNew && segmentUpdate._updateType == _dueToPredictive) {
 						segmentUpdate._isNew = false;
 						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
+
+					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._segmentIndex != -1) {
 						Segment &segment = cell._segments[segmentUpdate._segmentIndex];
@@ -1098,17 +1053,21 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 							modifiedSegmentIndicesSet.insert(modIndex);
 						}	
 					}
+					else
+						keepUpdates.push_back(segmentUpdate);
 				}
 			}
 			else if (cell._predictiveState && cell._prevPredictiveState && cell._numPredictionSteps > 1 && cell._prevNumPredictionSteps == 1) {
 				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
 					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
 
-					if (segmentUpdate._isNew && segmentUpdate._dueToPredictive) {
+					if (segmentUpdate._isNew && segmentUpdate._updateType == _dueToPredictive) {
 						segmentUpdate._isNew = false;
 						keepUpdates.push_back(segmentUpdate);
 						continue;
 					}
+
+					segmentUpdate._isNew = false;
 
 					if (segmentUpdate._numPredictionSteps <= 1) {
 						if (segmentUpdate._segmentIndex != -1) {
@@ -1137,12 +1096,20 @@ void Region::temporalPoolingLearn(float minPermanence, int learningRadius, int m
 								modifiedSegmentIndicesSet.insert(modIndex);
 							}	
 						}
+						else
+							keepUpdates.push_back(segmentUpdate);
 					}
-					else {
-						segmentUpdate._isNew = false;
-
+					else
 						keepUpdates.push_back(segmentUpdate);
-					}
+				}
+			}
+			else {
+				for (int s = 0; s < cell._segmentUpdates.size(); s++) {
+					SegmentUpdate &segmentUpdate = cell._segmentUpdates[s];
+
+					segmentUpdate._isNew = false;
+
+					keepUpdates.push_back(segmentUpdate);
 				}
 			}
 

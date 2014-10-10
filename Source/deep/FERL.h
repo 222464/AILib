@@ -32,6 +32,12 @@ namespace deep {
 			return 1.0f / (1.0f + std::exp(-x));
 		}
 
+		struct ReplaySample {
+			std::vector<float> _visible;
+
+			float _q;
+		};
+
 	private:
 		struct Connection {
 			float _weight;
@@ -62,12 +68,6 @@ namespace deep {
 			{}
 		};
 
-		struct ReplaySample {
-			std::vector<float> _state;
-			std::vector<float> _action;
-			float _q;
-		};
-
 		std::vector<Hidden> _hidden;
 		std::vector<Visible> _visible;
 		int _numState;
@@ -78,8 +78,7 @@ namespace deep {
 		float _prevMax;
 		float _prevValue;
 
-		std::vector<float> _prevState;
-		std::vector<float> _prevAction;
+		std::vector<float> _prevVisible;
 
 		std::list<ReplaySample> _replaySamples;
 
@@ -127,6 +126,10 @@ namespace deep {
 
 		float getZInv() const {
 			return _zInv;
+		}
+
+		const std::list<ReplaySample> &getSamples() const {
+			return _replaySamples;
 		}
 	};
 }

@@ -27,13 +27,11 @@ misrepresented as being the original software.
 #include <unordered_map>
 
 namespace htm {
+	enum SegmentUpdateType {
+		_dueToActive, _dueToPredictive
+	};
+
 	struct SegmentUpdate {
-		enum Source {
-			_1, _2, _3, _null
-		};
-
-		Source _src;
-
 		int _columnIndex;
 		int _cellIndex;
 		int _segmentIndex;
@@ -41,13 +39,12 @@ namespace htm {
 		std::vector<ColumnAndCellIndices> _inactiveConnectionIndices;
 
 		bool _isNew;
-		bool _dueToPredictive;
+		SegmentUpdateType _updateType;
 		int _numPredictionSteps;
 
 		SegmentUpdate()
 			: _columnIndex(-1), _cellIndex(-1), _segmentIndex(-1),
-			_isNew(true), _dueToPredictive(true), _numPredictionSteps(1),
-			_src(_null)
+			_isNew(true), _updateType(_dueToActive), _numPredictionSteps(1)
 		{}
 
 		size_t operator()(const SegmentUpdate &value) const {

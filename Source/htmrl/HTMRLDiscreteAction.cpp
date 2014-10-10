@@ -30,7 +30,7 @@ float htmrl::defaultBoostFunctionDiscreteAction(float active, float minimum) {
 }
 
 HTMRLDiscreteAction::HTMRLDiscreteAction()
-: _encodeBlobRadius(1), _replaySampleFrames(3), _maxReplayChainSize(800),
+: _encodeBlobRadius(0), _replaySampleFrames(3), _maxReplayChainSize(800),
 _backpropPassesCritic(40), _minibatchSize(8),
 _prevMaxQAction(0), _prevChooseAction(0),
 _earlyStopError(0.0f), _averageAbsError(0.0f)

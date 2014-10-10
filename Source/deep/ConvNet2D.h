@@ -29,10 +29,10 @@ namespace deep {
 	class ConvNet2D {
 	public:
 		struct LayerPairDesc {
-			size_t _filterSizeWidth, _filterSizeHeight;
-			size_t _numFeatureMaps;
-			size_t _strideWidth, _strideHeight;
-			size_t _downsampleWidth, _downsampleHeight;
+			int _filterSizeWidth, _filterSizeHeight;
+			int _numFeatureMaps;
+			int _strideWidth, _strideHeight;
+			int _downsampleWidth, _downsampleHeight;
 
 			LayerPairDesc()
 				: _filterSizeWidth(4), _filterSizeHeight(4),
@@ -78,22 +78,22 @@ namespace deep {
 		};
 
 		struct ConvolutionLayer {		
-			size_t _filterSizeWidth, _filterSizeHeight;
-			size_t _strideWidth, _strideHeight;
-			size_t _mapWidth, _mapHeight;
+			int _filterSizeWidth, _filterSizeHeight;
+			int _strideWidth, _strideHeight;
+			int _mapWidth, _mapHeight;
 
 			std::vector<Map> _maps;
 		};
 
 		struct DownsamplingLayer {
-			size_t _mapWidth, _mapHeight;
-			size_t _downsampleWidth, _downsampleHeight;
+			int _mapWidth, _mapHeight;
+			int _downsampleWidth, _downsampleHeight;
 
 			std::vector<MaxpoolMap> _maps;
 		};
 
 		struct InputLayer {
-			size_t _mapWidth, _mapHeight;
+			int _mapWidth, _mapHeight;
 
 			std::vector<InputMap> _maps;
 		};
@@ -106,40 +106,44 @@ namespace deep {
 		std::vector<DownsamplingLayer> _downsamplingLayers;
 
 	public:
-		void createRandom(size_t inputMapWidth, size_t inputMapHeight, size_t inputNumMaps, const std::vector<LayerPairDesc> &layerDescs, float minWeight, float maxWeight, std::mt19937 &generator);
+		void createRandom(int inputMapWidth, int inputMapHeight, int inputNumMaps, const std::vector<LayerPairDesc> &layerDescs, float minWeight, float maxWeight, std::mt19937 &generator);
 
 		void activate();
 		void activateAndLearn(float alpha, std::mt19937 &generator);
 
-		size_t getInputWidth() const {
+		int getInputWidth() const {
 			return _inputLayer._mapWidth;
 		}
 
-		size_t getInputHeight() const {
+		int getInputHeight() const {
 			return _inputLayer._mapHeight;
 		}
 
-		size_t getInputNumMaps() const {
+		int getInputNumMaps() const {
 			return _inputLayer._maps.size();
 		}
 
-		size_t getOutputWidth() const {
+		int getOutputWidth() const {
 			return _downsamplingLayers.back()._mapWidth;
 		}
 
-		size_t getOutputHeight() const {
+		int getOutputHeight() const {
 			return _downsamplingLayers.back()._mapHeight;
 		}
 
-		size_t getOutputNumMaps() const {
+		int getOutputNumMaps() const {
 			return _downsamplingLayers.back()._maps.size();
 		}
 
-		void setInput(size_t x, size_t y, size_t m, float value) {
+		void setInput(int x, int y, int m, float value) {
 			_inputLayer._maps[m]._outputs[x + y * _inputLayer._mapWidth] = value;
 		}
 
-		float getOutput(size_t x, size_t y, size_t m) const {
+		float getInput(int x, int y, int m) const {
+			return _inputLayer._maps[m]._outputs[x + y * _inputLayer._mapWidth];
+		}
+
+		float getOutput(int x, int y, int m) const {
 			return _downsamplingLayers.back()._maps[m]._outputs[x + y * _downsamplingLayers.back()._mapWidth];
 		}
 	};

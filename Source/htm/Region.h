@@ -39,6 +39,10 @@ namespace htm {
 
 		std::vector<int> _activeColumnIndices;
 
+		void getBestMatchingCell(int columnIndex, int &cellIndex, int &segmentIndex, int predictionSteps, bool usePrevious, std::mt19937 &generator);
+		void getBestMatchingSegment(int columnIndex, int cellIndex, int &segmentIndex, int predictionSteps, bool usePrevious);
+		void updateSegmentActiveSynapses(int columnIndex, int cellIndex, int segmentIndex, bool usePrevious, int numConnections, int learningRadius, SegmentUpdateType updateType, SegmentUpdate &segmentUpdate, std::mt19937 &generator);
+
 	public:
 		void createRandom(int inputWidth, int inputHeight, int connectionRadius, float initInhibitionRadius, int initNumSegments,
 			int regionWidth, int regionHeight, int columnSize, float permanenceDistanceBias, float permanenceDistanceFalloff, float permanenceBiasFloor,

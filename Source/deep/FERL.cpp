@@ -35,7 +35,7 @@ void FERL::createRandom(int numState, int numAction, int numHidden, float weight
 	_numState = numState;
 	_numAction = numAction;
 
-	_visible.resize(numState + numAction);
+	_visible.resize(numState + numAction + numHidden);
 
 	_hidden.resize(numHidden);
 
@@ -53,20 +53,17 @@ void FERL::createRandom(int numState, int numAction, int numHidden, float weight
 			_hidden[k]._connections[vi]._weight = weightDist(generator);
 	}
 
-	_zInv = 1.0f / std::sqrt(static_cast<float>(numState));
+	_zInv = 1.0f / std::sqrt(static_cast<float>(numState + numHidden));
 
-	_prevState.clear();
-	_prevState.assign(_numState, 0.0f);
-
-	_prevAction.clear();
-	_prevAction.assign(_numAction, 0.0f);
+	_prevVisible.clear();
+	_prevVisible.assign(_visible.size(), 0.0f);
 }
 
 void FERL::createFromParents(const FERL &parent1, const FERL &parent2, float averageChance, std::mt19937 &generator) {
 	_numState = parent1._numState;
 	_numAction = parent1._numAction;
 
-	_visible.resize(_numState + _numAction);
+	_visible.resize(_numState + _numAction + parent1._hidden.size());
 
 	_hidden.resize(parent1._hidden.size());
 
@@ -84,13 +81,10 @@ void FERL::createFromParents(const FERL &parent1, const FERL &parent2, float ave
 			_hidden[k]._connections[vi]._weight = uniformDist(generator) < averageChance ? (parent1._hidden[k]._connections[vi]._weight + parent2._hidden[k]._connections[vi]._weight) * 0.5f : (uniformDist(generator) < 0.5f ? parent1._hidden[k]._connections[vi]._weight : parent2._hidden[k]._connections[vi]._weight);
 	}
 
-	_zInv = 1.0f / std::sqrt(static_cast<float>(_numState));
+	_zInv = 1.0f / std::sqrt(static_cast<float>(_numState + _hidden.size()));
 
-	_prevState.clear();
-	_prevState.assign(_numState, 0.0f);
-
-	_prevAction.clear();
-	_prevAction.assign(_numAction, 0.0f);
+	_prevVisible.clear();
+	_prevVisible.assign(_visible.size(), 0.0f);
 }
 
 void FERL::mutate(float perturbationStdDev, std::mt19937 &generator) {
@@ -118,7 +112,7 @@ float FERL::freeEnergy() const {
 		for (int vi = 0; vi < _visible.size(); vi++)
 			sum -= _hidden[k]._connections[vi]._weight * _visible[vi]._state * _hidden[k]._state;
 
-		sum += _hidden[k]._state * std::log(_hidden[k]._state) + (1.0f - _hidden[k]._state) * std::log(1.0f - _hidden[k]._state);
+		//sum += _hidden[k]._state * std::log(_hidden[k]._state) + (1.0f - _hidden[k]._state) * std::log(1.0f - _hidden[k]._state);
 	}
 
 	for (int vi = 0; vi < _visible.size(); vi++)
@@ -136,6 +130,11 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action,
 {
 	for (int i = 0; i < _numState; i++)
 		_visible[i]._state = state[i];
+
+	std::vector<float> prevHidden(_hidden.size());
+
+	for (int i = 0; i < _hidden.size(); i++)
+		_visible[_numState + _numAction + i]._state = prevHidden[i] = _hidden[i]._state;
 
 	std::vector<float> maxAction(_numAction);
 
@@ -204,8 +203,7 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action,
 
 	ReplaySample sample;
 
-	sample._action = _prevAction;
-	sample._state = _prevState;
+	sample._visible = _prevVisible;
 	sample._q = _prevValue + qAlpha * error;
 
 	// Update previous samples
@@ -241,11 +239,8 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action,
 
 		ReplaySample* pSample = pReplaySamples[replayIndex];
 
-		for (int i = 0; i < _numState; i++)
-			_visible[i]._state = pSample->_state[i];
-
-		for (int j = 0; j < _numAction; j++)
-			_visible[_numState + j]._state = pSample->_action[j];
+		for (int i = 0; i < _visible.size(); i++)
+			_visible[i]._state = pSample->_visible[i];
 
 		activate();
 
@@ -257,18 +252,21 @@ void FERL::step(const std::vector<float> &state, std::vector<float> &action,
 	_prevMax = nextQ;
 	_prevValue = predictedQ;
 
-	_prevState = state;
-	_prevAction = action;
-
 	for (int i = 0; i < _numState; i++)
 		_visible[i]._state = state[i];
 
 	for (int j = 0; j < _numAction; j++)
 		_visible[_numState + j]._state = action[j];
 
+	for (int i = 0; i < _hidden.size(); i++)
+		_visible[_numState + _numAction + i]._state = prevHidden[i];
+
 	activate();
 
-	std::cout << value() << " " << newAdv << " " << action[0] << std::endl;
+	for (int i = 0; i < _visible.size(); i++)
+		_prevVisible[i] = _visible[i]._state;
+
+	//std::cout << value() << " " << newAdv << " " << action[0] << std::endl;
 }
 
 void FERL::activate() {

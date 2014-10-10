@@ -40,6 +40,8 @@ misrepresented as being the original software.
 
 #include <deep/FERL.h>
 
+#include <convrl/ConvRL.h>
+
 #include <hypernet/BayesianOptimizerTrainer.h>
 #include <hypernet/EvolutionaryTrainer.h>
 
@@ -1651,7 +1653,506 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	} while (!quit);
 }*/
 
-int main() {
+/*int main() {
+	std::mt19937 generator(time(nullptr));
+
+	float reward = 0.0f;
+	float prevReward = 0.0f;
+
+	float initReward = 0.0f;
+
+	float totalReward = 0.0f;
+
+	sf::RenderWindow window;
+
+	window.create(sf::VideoMode(1600, 600), "Pole Balancing");
+
+	window.setVerticalSyncEnabled(true);
+
+	//window.setFramerateLimit(60);
+
+	// -------------------------- Load Resources --------------------------
+
+	sf::Texture backgroundTexture;
+	sf::Texture cartTexture;
+	sf::Texture poleTexture;
+
+	backgroundTexture.loadFromFile("Resources/background.png");
+	cartTexture.loadFromFile("Resources/cart.png");
+	poleTexture.loadFromFile("Resources/pole.png");
+
+	sf::Texture inputCartTexture;
+	sf::Texture inputPoleTexture;
+
+	inputCartTexture.loadFromFile("Resources/inputCart.png");
+	inputPoleTexture.loadFromFile("Resources/inputPole.png");
+
+	// --------------------------------------------------------------------
+
+	sf::Sprite backgroundSprite;
+	sf::Sprite cartSprite;
+	sf::Sprite poleSprite;
+
+	backgroundSprite.setTexture(backgroundTexture);
+	cartSprite.setTexture(cartTexture);
+	poleSprite.setTexture(poleTexture);
+
+	backgroundSprite.setPosition(sf::Vector2f(0.0f, 0.0f));
+
+	cartSprite.setOrigin(sf::Vector2f(static_cast<float>(cartSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(cartSprite.getTexture()->getSize().y)));
+	poleSprite.setOrigin(sf::Vector2f(static_cast<float>(poleSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(poleSprite.getTexture()->getSize().y)));
+
+	sf::Sprite inputCartSprite;
+	sf::Sprite inputPoleSprite;
+
+	inputCartSprite.setTexture(inputCartTexture);
+	inputPoleSprite.setTexture(inputPoleTexture);
+
+	inputCartSprite.setOrigin(sf::Vector2f(static_cast<float>(inputCartSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(inputCartSprite.getTexture()->getSize().y)));
+	inputPoleSprite.setOrigin(sf::Vector2f(static_cast<float>(inputPoleSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(inputPoleSprite.getTexture()->getSize().y)));
+
+
+	// ----------------------------- Physics ------------------------------
+
+	float pixelsPerMeter = 128.0f;
+	float inputPixelsPerMeter = 8.0f;
+	float poleLength = 1.0f;
+	float g = -2.8f;
+	float massMass = 40.0f;
+	float cartMass = 2.0f;
+	sf::Vector2f massPos(0.0f, poleLength);
+	sf::Vector2f massVel(0.0f, 0.0f);
+	float poleAngle = static_cast<float>(PI)* 0.0f;
+	float poleAngleVel = 0.0f;
+	float poleAngleAccel = 0.0f;
+	float cartX = 0.0f;
+	float cartVelX = 0.0f;
+	float cartAccelX = 0.0f;
+	float poleRotationalFriction = 0.008f;
+	float cartMoveRadius = 1.8f;
+	float cartFriction = 0.02f;
+	float maxSpeed = 3.0f;
+
+	// ---------------------------- Game Loop -----------------------------
+
+	bool quit = false;
+
+	sf::Clock clock;
+
+	float dt = 0.017f;
+
+	float fitness = 0.0f;
+	float prevFitness = 0.0f;
+
+	float lowPassFitness = 0.0f;
+
+	bool reverseDirection = false;
+
+	bool trainMode = true;
+
+	bool tDownLastFrame = false;
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	//deep::AutoLSTM alstm;
+
+	//elman::ElmanNetwork en;
+
+	//en.createRandom(4, 1, 10, -0.5f, 0.5f, generator);
+
+	//lstm::LSTMActorCritic lstmAC;
+
+	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
+
+	htmrl::HTMRLDiscreteAction htmRL;
+	std::vector<htmrl::HTMRLDiscreteAction::RegionDesc> regionDescs(3);
+	regionDescs[0]._connectionRadius = 1;
+	regionDescs[0]._initInhibitionRadius = 1.0f;
+	regionDescs[0]._desiredLocalActivity = 1;
+	regionDescs[0]._learningRadius = 1;
+	regionDescs[0]._regionWidth = 128;
+	regionDescs[0]._regionHeight = 128;
+
+	regionDescs[1]._connectionRadius = 2;
+	regionDescs[1]._initInhibitionRadius = 2.0f;
+	regionDescs[1]._desiredLocalActivity = 2;
+	regionDescs[1]._learningRadius = 2;
+	regionDescs[1]._regionWidth = 64;
+	regionDescs[1]._regionHeight = 64;
+
+	regionDescs[2]._connectionRadius = 2;
+	regionDescs[2]._initInhibitionRadius = 2.0f;
+	regionDescs[2]._desiredLocalActivity = 2;
+	regionDescs[2]._learningRadius = 2;
+	regionDescs[2]._regionWidth = 32;
+	regionDescs[2]._regionHeight = 32;
+
+	std::vector<float> condensed;
+
+	htmRL.createRandom(32, 32, 4, 4, 2, 2, 3, 1, 32, 0.1f, regionDescs, generator);
+
+	//falcon::Falcon fal;
+	//fal.create(4, 1);
+
+	//deep::FERL ferl;
+	//ferl.createRandom(4, 1, 24, 0.1f, generator);
+
+	//nn::SOMQAgent sqa;
+
+	//sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
+
+	sf::Font font;
+
+	font.loadFromFile("Resources/pixelated.ttf");
+
+	sf::Image image;
+
+	image.create(htmRL.getCondenseBufferWidth(), htmRL.getCondenseBufferHeight());
+
+	sf::RenderTexture inputRT;
+
+	inputRT.create(64, 32);
+
+	sf::RenderTexture rt;
+
+	rt.create(800, 600);
+
+	sf::plot::Plot plot;
+
+	plot.setSize(sf::Vector2f(rt.getSize().x, rt.getSize().y));
+	plot.setTitle("Avg. Reward");
+	plot.setFont("Resources/arial.ttf");
+	plot.setXLabel("Time (seconds)");
+	plot.setYLabel("Avg. Reward");
+	plot.setBackgroundColor(sf::Color::White);
+	plot.setTitleColor(sf::Color::Black);
+	plot.setPosition(sf::Vector2f(0.0f, 0.0f));
+
+	sf::plot::Curve &cAverage = plot.createCurve("Avg. Reward", sf::Color::Red);
+
+	cAverage.setFill(false);
+
+	plot.prepare();
+
+	float plotMin = 99999.0f;
+	float plotMax = -99999.0f;
+
+	rt.draw(plot);
+	rt.display();
+
+	float avgReward = 0.0f;
+	float avgRewardDecay = 0.003f;
+
+	float totalTime = 0.0f;
+
+	float plotUpdateTimer = 0.0f;
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (window.pollEvent(windowEvent))
+		{
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		// Update fitness
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI)* 0.5f - poleAngle);
+		else
+			fitness = -(static_cast<float>(PI)* 0.5f - (static_cast<float>(PI)* 2.0f - poleAngle));
+
+		fitness += static_cast<float>(PI) * 0.5f;
+
+		//fitness = fitness - std::abs(poleAngleVel * 1.0f);
+
+		//fitness = -std::abs(cartX);
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+			fitness = -cartX;
+		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+			fitness = cartX;
+
+		// ------------------------------ AI -------------------------------
+
+		float dFitness = fitness - prevFitness;
+
+		//reward = dFitness * 5.0f;
+
+		reward = fitness * 0.2f;
+
+		if (totalTime == 0.0f)
+			avgReward = reward;
+		else
+			avgReward = (1.0f - avgRewardDecay) * avgReward + avgRewardDecay * reward;
+
+		//agent.reinforceArp(std::min(1.0f, std::max(-1.0f, error)) * 0.5f + 0.5f, 0.1f, 0.05f);
+
+		//agent.setInput(0, 0, cartX * 0.5f);
+		//agent.setInput(0, 1, cartVelX);
+		//agent.setInput(1, 0, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI) / PI * 2.0f - 1.0f));
+		//agent.setInput(1, 1, poleAngleVel * 0.1f);
+
+		//agent.step(dFitness * 6.0f, 0.97f, 0.5f, 0.1f, 0.001f, regionDesc, 0.2f, 0.3f, 0.05f, generator);
+
+		//lstmAC.setInput(0, cartX * 0.25f);
+		//lstmAC.setInput(1, cartVelX);
+		//lstmAC.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
+		//lstmAC.setInput(3, poleAngleVel);
+
+		//lstmAC.step(dFitness * 10.0f, 0.2f, 0.01f, 0.02f, 0.4f, 0.0001f, 0.97f, 0.5f, 0.5f, 0.05f, 0.2f, 0.2f, 0.99f, generator);
+
+		//fal.update(fitness, 0.1f, 0.9f, 0.2f, fieldParams, 1.5f, 0.8f, 0.07f, generator);
+
+		//sqa.step(fitness, 0.3f, 0.96f, 0.5f, 0.07f, dt, generator);
+
+		//std::vector<float> state(4);
+
+		//state[0] = std::min(1.0f, std::max(-1.0f, cartX * 0.333f));
+		//state[1] = std::min(1.0f, std::max(-1.0f, cartVelX * 0.25f));
+		//state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) / (2.0f * static_cast<float>(PI)) * 2.0f - 1.0f;
+		//state[3] = std::min(1.0f, std::max(-1.0f, poleAngleVel * 0.25f));
+
+		//htmRL.setInput(0, 0, 0, state[0]);
+		//htmRL.setInput(0, 0, 1, state[1]);
+		//htmRL.setInput(1, 0, 0, state[2]);
+		//htmRL.setInput(1, 0, 1, state[3]);
+
+		sf::Image img = inputRT.getTexture().copyToImage();
+
+		for (int i = 0; i < htmRL.getInputWidth() * htmRL.getInputHeight(); i++) {
+			int x = i % htmRL.getInputWidth();
+			int y = i / htmRL.getInputWidth();
+
+			int xl = x * 2;
+			int yl = y;
+
+			htmRL.setInput(x, y, 0, img.getPixel(xl, yl).r / 255.0f * 2.0f - 1.0f);
+			htmRL.setInput(x, y, 1, img.getPixel(xl + 1, yl).r / 255.0f * 2.0f - 1.0f);
+		}
+
+		std::vector<float> output;
+
+		int action;
+
+		action = htmRL.step(reward, 0.5f, 0.05f, 0.005f, 0.2f, 0.994f, 0.99f, 1.0f, 0.15f, 0.0f, 0.0f, 0.0f, 0.05f, generator, condensed);
+
+		output.resize(1);
+		output[0] = action - 1;
+
+		//ferl.step(state, output, reward, 0.0001f, 0.97f, 0.8f, 6.0f, 8, 8, 0.05f, 0.05f, 0.1f, generator);
+
+		lowPassFitness += (fitness - lowPassFitness) * 0.2f;
+
+		float agentForce = 0.0f;
+
+		//if (!trainMode) {
+		//float dir = std::min(1.0f, std::max(-1.0f, agent.getOutput(0)));
+
+		float dir = output[0];
+
+		//dir = 1.4f * (dir * 2.0f - 1.0f);
+
+		agentForce = 4000.0f * dir;
+		//}
+		//float agentForce = 4000.0f * agent.getOutput(0);
+
+		prevFitness = fitness;
+
+		// ---------------------------- Physics ----------------------------
+
+		float pendulumCartAccelX = cartAccelX;
+
+		if (cartX < -cartMoveRadius)
+			pendulumCartAccelX = 0.0f;
+		else if (cartX > cartMoveRadius)
+			pendulumCartAccelX = 0.0f;
+
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
+		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
+		poleAngle += poleAngleVel * dt;
+
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI)* 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI)* 0.5f) * poleLength);
+
+		float force = 0.0f;
+
+		if (std::abs(cartVelX) < maxSpeed) {
+			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+				force = -4000.0f;
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+				force = 4000.0f;
+		}
+
+		//if (trainMode) {
+		//	en.calculateGradient(std::vector<float>(1, force / 4000.0f));
+
+		//	en.moveAlongGradient(0.01f);
+		//}
+
+		//en.updateContext();
+
+		if (cartX < -cartMoveRadius) {
+			cartX = -cartMoveRadius;
+
+			cartAccelX = -cartVelX / dt;
+			cartVelX = -0.5f * cartVelX;
+		}
+		else if (cartX > cartMoveRadius) {
+			cartX = cartMoveRadius;
+
+			cartAccelX = -cartVelX / dt;
+			cartVelX = -0.5f * cartVelX;
+		}
+
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
+		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
+		cartX += cartVelX * dt;
+
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
+
+		if (poleAngle < 0.0f)
+			poleAngle += static_cast<float>(PI)* 2.0f;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+			if (!tDownLastFrame) {
+				trainMode = !trainMode;
+			}
+
+			tDownLastFrame = true;
+		}
+		else
+			tDownLastFrame = false;
+
+		// ---------------------------- Rendering ----------------------------
+
+		// Render to input buffer
+		inputRT.clear();
+
+		inputCartSprite.setPosition(sf::Vector2f(inputRT.getSize().x * 0.5f + inputPixelsPerMeter * cartX, inputRT.getSize().y * 0.5f + 4.0f));
+
+		inputRT.draw(inputCartSprite);
+
+		inputPoleSprite.setPosition(inputCartSprite.getPosition() + sf::Vector2f(0.0f, -4.0f));
+		inputPoleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI) + 180.0f);
+
+		inputRT.draw(inputPoleSprite);
+
+		inputRT.display();
+
+		window.clear();
+
+		window.draw(backgroundSprite);
+
+		cartSprite.setPosition(sf::Vector2f(800.0f * 0.5f + pixelsPerMeter * cartX, 600.0f * 0.5f + 3.0f));
+
+		window.draw(cartSprite);
+
+		poleSprite.setPosition(cartSprite.getPosition() + sf::Vector2f(0.0f, -45.0f));
+		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI)+180.0f);
+
+		window.draw(poleSprite);
+
+		if (plotUpdateTimer >= 1.0f) {
+			plotUpdateTimer -= 1.0f;
+
+			plotMin = std::min<float>(avgReward, plotMin);
+			plotMax = std::max<float>(avgReward, plotMax);
+
+			cAverage.addValue(avgReward);
+
+			plot.prepare();
+
+			cAverage.prepare(sf::Vector2f(0.0f, totalTime), sf::Vector2f(plotMin, plotMax));
+
+			rt.draw(plot);
+
+			rt.display();
+		}
+
+		sf::Sprite plotSprite;
+
+		plotSprite.setPosition(800.0f, 0.0f);
+
+		plotSprite.setTexture(rt.getTexture());
+
+		window.draw(plotSprite);
+
+		if (trainMode) {
+			sf::Text text;
+
+			text.setFont(font);
+
+			text.setString("Train");
+
+			text.setPosition(10.0f, 10.0f);
+
+			text.setColor(sf::Color::Blue);
+
+			window.draw(text);
+		}
+
+		for (size_t i = 0; i < htmRL.getCondenseBufferWidth() * htmRL.getCondenseBufferHeight(); i++) {
+			int x = i % htmRL.getCondenseBufferWidth();
+			int y = i / htmRL.getCondenseBufferWidth();
+
+			sf::Color c;
+
+			c.r = condensed[i] * 255.0f;
+			c.g = 0;
+			c.b = 0;
+
+			image.setPixel(x, y, c);
+		}
+
+		sf::Texture t;
+
+		t.loadFromImage(image);
+
+		sf::Sprite s;
+
+		s.setPosition(800.0f - 256.0f, 0.0f);
+
+		s.setScale(256.0f / htmRL.getCondenseBufferWidth(), 256.0f / htmRL.getCondenseBufferWidth());
+
+		s.setTexture(t);
+
+		window.draw(s);
+
+		sf::Sprite inputSprite;
+
+		inputSprite.setTexture(inputRT.getTexture());
+
+		inputSprite.setPosition(0, 0);
+		inputSprite.setScale(4.0f, 4.0f);
+
+		window.draw(inputSprite);
+
+		// -------------------------------------------------------------------
+
+		window.display();
+
+		//dt = clock.getElapsedTime().asSeconds();
+
+		totalTime += dt;
+		plotUpdateTimer += dt;
+	} while (!quit);
+}*/
+
+/*int main() {
 	sf::RenderWindow window;
 
 	window.create(sf::VideoMode(800, 600), "Mountain Car");
@@ -1768,28 +2269,6 @@ int main() {
 		htmRL.setInput(0, 0, 0, 1.2f * (position + 0.52f));
 		htmRL.setInput(0, 0, 1, velocity * 15.0f);
 
-		/*int action;
-
-		action = htmRL.step(fitness * 0.5f, 0.5f, 0.05f, 0.01f, 0.2f, 0.99f, 0.99f, 1.0f, 0.1f, 0.0f, 0.0f, 0.005f, 0.05f, generator, condensed);
-
-		// ---------------------------- Physics ----------------------------
-
-		//float action = std::min(1.0f, std::max(-1.0f, agent.getOutput(0)));
-		float actionf = 0.0f;
-
-		switch (action)
-		{
-		case 0:
-			actionf = -1.0f;
-			break;
-		case 1:
-			actionf = 0.0f;
-			break;
-		case 2:
-			actionf = 1.0f;
-			break;
-		}*/
-
 		float actionf;
 
 		htmRL.step(fitness * 0.3f, 0.5f, 0.99f, 0.98f, 1.0f, 64, 4, 0.05f, 0.1f, 0.1f, 800, 400, 0.01f, 0.0f, generator, condensed);
@@ -1854,7 +2333,7 @@ int main() {
 
 		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
-}
+}*/
 
 /*const size_t entrySize = 30; // 31 if you include the weight
 
@@ -2422,7 +2901,7 @@ int main() {
 		
 		region.spatialPooling(input, 0.3f, 3.0f, 18, 0.02f, 0.015f, 0.01f, 0.05f, 0.05f, 0.015f, boostFunc);
 
-		region.temporalPoolingLearn(0.3f, 5, 2, 10, 64, 0.02f, 0.015f, 0.301f, 6, generator);
+		region.temporalPoolingLearn(0.3f, 4, 1, 10, 32, 0.02f, 0.015f, 0.301f, 6, generator);
 
 		std::vector<bool> reconstructionData;
 
@@ -2522,3 +3001,625 @@ int main() {
 
 	return 0;
 }*/
+
+/*int main() {
+	std::mt19937 generator(time(nullptr));
+
+	lstm::LSTMG lstmg;
+
+	lstmg.createRandomLayered(1, 1, 1, 2, 1, 4, -0.1f, 0.1f, generator);
+
+	float prevY = 0.0f;
+
+	for (int i = 0; i < 2000; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.2f) {
+		float y = std::sin(x);
+
+		lstmg.setInput(0, 0.0f);
+
+		lstmg.step(true);
+
+		lstmg.getDeltas(std::vector<float>(1, y), 0.0f, true);
+
+		lstmg.moveAlongDeltas(0.01f);
+
+		prevY = y;
+	}
+
+	prevY = 0.0f;
+
+	for (float x = 0.0f; x < 6.28f; x += 0.2f) {
+		float y = std::sin(x);
+
+		lstmg.setInput(0, 0.0f);
+
+		lstmg.step(true);
+
+		std::cout << lstmg.getOutput(0) << std::endl;
+
+		prevY = y;
+	}
+
+	return 0;
+}*/
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	float reward = 0.0f;
+	float prevReward = 0.0f;
+
+	float initReward = 0.0f;
+
+	float totalReward = 0.0f;
+
+	sf::RenderWindow window;
+
+	window.create(sf::VideoMode(1600, 600), "Pole Balancing");
+
+	window.setVerticalSyncEnabled(true);
+
+	//window.setFramerateLimit(60);
+
+	// -------------------------- Load Resources --------------------------
+
+	sf::Texture backgroundTexture;
+	sf::Texture cartTexture;
+	sf::Texture poleTexture;
+
+	backgroundTexture.loadFromFile("Resources/background.png");
+	cartTexture.loadFromFile("Resources/cart.png");
+	poleTexture.loadFromFile("Resources/pole.png");
+
+	sf::Texture inputCartTexture;
+	sf::Texture inputPoleTexture;
+
+	inputCartTexture.loadFromFile("Resources/inputCart.png");
+	inputPoleTexture.loadFromFile("Resources/inputPole.png");
+
+	// --------------------------------------------------------------------
+
+	sf::Sprite backgroundSprite;
+	sf::Sprite cartSprite;
+	sf::Sprite poleSprite;
+
+	backgroundSprite.setTexture(backgroundTexture);
+	cartSprite.setTexture(cartTexture);
+	poleSprite.setTexture(poleTexture);
+
+	backgroundSprite.setPosition(sf::Vector2f(0.0f, 0.0f));
+
+	cartSprite.setOrigin(sf::Vector2f(static_cast<float>(cartSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(cartSprite.getTexture()->getSize().y)));
+	poleSprite.setOrigin(sf::Vector2f(static_cast<float>(poleSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(poleSprite.getTexture()->getSize().y)));
+
+	sf::Sprite inputCartSprite;
+	sf::Sprite inputPoleSprite;
+
+	inputCartSprite.setTexture(inputCartTexture);
+	inputPoleSprite.setTexture(inputPoleTexture);
+
+	inputCartSprite.setOrigin(sf::Vector2f(static_cast<float>(inputCartSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(inputCartSprite.getTexture()->getSize().y)));
+	inputPoleSprite.setOrigin(sf::Vector2f(static_cast<float>(inputPoleSprite.getTexture()->getSize().x) * 0.5f, static_cast<float>(inputPoleSprite.getTexture()->getSize().y)));
+
+
+	// ----------------------------- Physics ------------------------------
+
+	float pixelsPerMeter = 128.0f;
+	float inputPixelsPerMeter = 8.0f;
+	float poleLength = 1.0f;
+	float g = -2.8f;
+	float massMass = 40.0f;
+	float cartMass = 2.0f;
+	sf::Vector2f massPos(0.0f, poleLength);
+	sf::Vector2f massVel(0.0f, 0.0f);
+	float poleAngle = static_cast<float>(PI)* 0.0f;
+	float poleAngleVel = 0.0f;
+	float poleAngleAccel = 0.0f;
+	float cartX = 0.0f;
+	float cartVelX = 0.0f;
+	float cartAccelX = 0.0f;
+	float poleRotationalFriction = 0.008f;
+	float cartMoveRadius = 1.8f;
+	float cartFriction = 0.02f;
+	float maxSpeed = 3.0f;
+
+	// ---------------------------- Game Loop -----------------------------
+
+	bool quit = false;
+
+	sf::Clock clock;
+
+	float dt = 0.017f;
+
+	float fitness = 0.0f;
+	float prevFitness = 0.0f;
+
+	float lowPassFitness = 0.0f;
+
+	bool reverseDirection = false;
+
+	bool trainMode = true;
+
+	bool tDownLastFrame = false;
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	//deep::AutoLSTM alstm;
+
+	//elman::ElmanNetwork en;
+
+	//en.createRandom(4, 1, 10, -0.5f, 0.5f, generator);
+
+	//lstm::LSTMActorCritic lstmAC;
+
+	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
+
+	deep::ConvRL agent;
+
+	std::vector<deep::ConvNet2D::LayerPairDesc> descs(2);
+
+	descs[0]._downsampleWidth = 2;
+	descs[0]._downsampleHeight = 2;
+	descs[0]._filterSizeWidth = 5;
+	descs[0]._filterSizeHeight = 5;
+	descs[0]._numFeatureMaps = 3;
+	descs[0]._strideWidth = 1;
+	descs[0]._strideHeight = 1;
+
+	descs[1]._downsampleWidth = 2;
+	descs[1]._downsampleHeight = 2;
+	descs[1]._filterSizeWidth = 5;
+	descs[1]._filterSizeHeight = 5;
+	descs[1]._numFeatureMaps = 6;
+	descs[1]._strideWidth = 1;
+	descs[1]._strideHeight = 1;
+
+	agent.createRandom(64, 32, 1, descs, -0.2f, 0.2f, 1, 32, 0.05f, generator);
+
+	//falcon::Falcon fal;
+	//fal.create(4, 1);
+
+	//deep::FERL ferl;
+	//ferl.createRandom(4, 1, 24, 0.1f, generator);
+
+	//nn::SOMQAgent sqa;
+
+	//sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
+
+	sf::Font font;
+
+	font.loadFromFile("Resources/pixelated.ttf");
+
+	sf::RenderTexture inputRT;
+
+	inputRT.create(64, 32);
+
+	sf::RenderTexture rt;
+
+	rt.create(800, 600);
+
+	sf::plot::Plot plot;
+
+	plot.setSize(sf::Vector2f(rt.getSize().x, rt.getSize().y));
+	plot.setTitle("Avg. Reward");
+	plot.setFont("Resources/arial.ttf");
+	plot.setXLabel("Time (seconds)");
+	plot.setYLabel("Avg. Reward");
+	plot.setBackgroundColor(sf::Color::White);
+	plot.setTitleColor(sf::Color::Black);
+	plot.setPosition(sf::Vector2f(0.0f, 0.0f));
+
+	sf::plot::Curve &cAverage = plot.createCurve("Avg. Reward", sf::Color::Red);
+
+	cAverage.setFill(false);
+
+	plot.prepare();
+
+	float plotMin = 99999.0f;
+	float plotMax = -99999.0f;
+
+	rt.draw(plot);
+	rt.display();
+
+	float avgReward = 0.0f;
+	float avgRewardDecay = 0.003f;
+
+	float totalTime = 0.0f;
+
+	float plotUpdateTimer = 0.0f;
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (window.pollEvent(windowEvent))
+		{
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		// Update fitness
+		if (poleAngle < static_cast<float>(PI))
+			fitness = -(static_cast<float>(PI)* 0.5f - poleAngle);
+		else
+			fitness = -(static_cast<float>(PI)* 0.5f - (static_cast<float>(PI)* 2.0f - poleAngle));
+
+		fitness += static_cast<float>(PI)* 0.5f;
+
+		//fitness = fitness - std::abs(poleAngleVel * 1.0f);
+
+		//fitness = -std::abs(cartX);
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+			fitness = -cartX;
+		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+			fitness = cartX;
+
+		// ------------------------------ AI -------------------------------
+
+		float dFitness = fitness - prevFitness;
+
+		//reward = dFitness * 5.0f;
+
+		reward = fitness * 0.2f;
+
+		if (totalTime == 0.0f)
+			avgReward = reward;
+		else
+			avgReward = (1.0f - avgRewardDecay) * avgReward + avgRewardDecay * reward;
+
+		sf::Image img = inputRT.getTexture().copyToImage();
+
+		for (int i = 0; i < img.getSize().x * img.getSize().y; i++) {
+			int x = i % img.getSize().x;
+			int y = i / img.getSize().x;
+
+			agent.setInput(x, y, 0, img.getPixel(x, y).r / 255.0f);
+		}
+
+		std::vector<float> convBuff;
+
+		agent.step(reward, 0.5f, 0.993f, 0.99f, 1.0f, 0.005f, 100, 10, 32, 4, 0.05f, 0.1f, 0.05f, 800, 400, 0.01f, 0.0f, generator, convBuff);
+		
+		float dir = agent.getOutput(0);
+
+		//dir = 1.4f * (dir * 2.0f - 1.0f);
+
+		float agentForce = 4000.0f * dir;
+		//}
+		//float agentForce = 4000.0f * agent.getOutput(0);
+
+		prevFitness = fitness;
+
+		// ---------------------------- Physics ----------------------------
+
+		float pendulumCartAccelX = cartAccelX;
+
+		if (cartX < -cartMoveRadius)
+			pendulumCartAccelX = 0.0f;
+		else if (cartX > cartMoveRadius)
+			pendulumCartAccelX = 0.0f;
+
+		poleAngleAccel = pendulumCartAccelX * std::cos(poleAngle) + g * std::sin(poleAngle);
+		poleAngleVel += -poleRotationalFriction * poleAngleVel + poleAngleAccel * dt;
+		poleAngle += poleAngleVel * dt;
+
+		massPos = sf::Vector2f(cartX + std::cos(poleAngle + static_cast<float>(PI)* 0.5f) * poleLength, std::sin(poleAngle + static_cast<float>(PI)* 0.5f) * poleLength);
+
+		float force = 0.0f;
+
+		if (std::abs(cartVelX) < maxSpeed) {
+			force = std::max(-4000.0f, std::min(4000.0f, agentForce));
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+				force = -4000.0f;
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+				force = 4000.0f;
+		}
+
+		//if (trainMode) {
+		//	en.calculateGradient(std::vector<float>(1, force / 4000.0f));
+
+		//	en.moveAlongGradient(0.01f);
+		//}
+
+		//en.updateContext();
+
+		if (cartX < -cartMoveRadius) {
+			cartX = -cartMoveRadius;
+
+			cartAccelX = -cartVelX / dt;
+			cartVelX = -0.5f * cartVelX;
+		}
+		else if (cartX > cartMoveRadius) {
+			cartX = cartMoveRadius;
+
+			cartAccelX = -cartVelX / dt;
+			cartVelX = -0.5f * cartVelX;
+		}
+
+		cartAccelX = 0.25f * (force + massMass * poleLength * poleAngleAccel * std::cos(poleAngle) - massMass * poleLength * poleAngleVel * poleAngleVel * std::sin(poleAngle)) / (massMass + cartMass);
+		cartVelX += -cartFriction * cartVelX + cartAccelX * dt;
+		cartX += cartVelX * dt;
+
+		poleAngle = std::fmod(poleAngle, (2.0f * static_cast<float>(PI)));
+
+		if (poleAngle < 0.0f)
+			poleAngle += static_cast<float>(PI)* 2.0f;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+			if (!tDownLastFrame) {
+				trainMode = !trainMode;
+			}
+
+			tDownLastFrame = true;
+		}
+		else
+			tDownLastFrame = false;
+
+		// ---------------------------- Rendering ----------------------------
+
+		// Render to input buffer
+		inputRT.clear();
+
+		inputCartSprite.setPosition(sf::Vector2f(inputRT.getSize().x * 0.5f + inputPixelsPerMeter * cartX, inputRT.getSize().y * 0.5f + 4.0f));
+
+		inputRT.draw(inputCartSprite);
+
+		inputPoleSprite.setPosition(inputCartSprite.getPosition() + sf::Vector2f(0.0f, -4.0f));
+		inputPoleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI)+180.0f);
+
+		inputRT.draw(inputPoleSprite);
+
+		inputRT.display();
+
+		window.clear();
+
+		window.draw(backgroundSprite);
+
+		cartSprite.setPosition(sf::Vector2f(800.0f * 0.5f + pixelsPerMeter * cartX, 600.0f * 0.5f + 3.0f));
+
+		window.draw(cartSprite);
+
+		poleSprite.setPosition(cartSprite.getPosition() + sf::Vector2f(0.0f, -45.0f));
+		poleSprite.setRotation(poleAngle * 180.0f / static_cast<float>(PI)+180.0f);
+
+		window.draw(poleSprite);
+
+		if (plotUpdateTimer >= 1.0f) {
+			plotUpdateTimer -= 1.0f;
+
+			plotMin = std::min<float>(avgReward, plotMin);
+			plotMax = std::max<float>(avgReward, plotMax);
+
+			cAverage.addValue(avgReward);
+
+			plot.prepare();
+
+			cAverage.prepare(sf::Vector2f(0.0f, totalTime), sf::Vector2f(plotMin, plotMax));
+
+			rt.draw(plot);
+
+			rt.display();
+		}
+
+		sf::Sprite plotSprite;
+
+		plotSprite.setPosition(800.0f, 0.0f);
+
+		plotSprite.setTexture(rt.getTexture());
+
+		window.draw(plotSprite);
+
+		if (trainMode) {
+			sf::Text text;
+
+			text.setFont(font);
+
+			text.setString("Train");
+
+			text.setPosition(10.0f, 10.0f);
+
+			text.setColor(sf::Color::Blue);
+
+			window.draw(text);
+		}
+
+		sf::Sprite inputSprite;
+
+		inputSprite.setTexture(inputRT.getTexture());
+
+		inputSprite.setPosition(0, 0);
+		inputSprite.setScale(4.0f, 4.0f);
+
+		window.draw(inputSprite);
+
+		sf::Image condensedImage;
+
+		condensedImage.create(agent.getConvNet().getOutputWidth(), agent.getConvNet().getOutputHeight());
+
+		for (int x = 0; x < agent.getConvNet().getOutputWidth(); x++)
+		for (int y = 0; y < agent.getConvNet().getOutputHeight(); y++) {
+			sf::Color color;
+
+			color.r = 255.0f * convBuff[0 + y * agent.getConvNet().getOutputNumMaps() + x * agent.getConvNet().getOutputHeight() * agent.getConvNet().getOutputNumMaps()];
+			color.g = 255.0f * convBuff[1 + y * agent.getConvNet().getOutputNumMaps() + x * agent.getConvNet().getOutputHeight() * agent.getConvNet().getOutputNumMaps()];
+
+			condensedImage.setPixel(x, y, color);
+		}
+
+		sf::Texture condensedTexture;
+		condensedTexture.loadFromImage(condensedImage);
+
+		sf::Sprite condensedSprite;
+
+		condensedSprite.setTexture(condensedTexture);
+
+		float scale = 20.0f;
+
+		condensedSprite.setPosition(800.0f - condensedImage.getSize().x * scale, 0.0f);
+		condensedSprite.setScale(scale, scale);
+
+		window.draw(condensedSprite);
+
+		// -------------------------------------------------------------------
+
+		window.display();
+
+		//dt = clock.getElapsedTime().asSeconds();
+
+		totalTime += dt;
+		plotUpdateTimer += dt;
+	} while (!quit);
+
+	/*deep::FERL ferl;
+
+	ferl.createRandom(2, 2, 12, 0.1f, generator);
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	int tunnelLength = 4;
+
+	float reward = 0.0f;
+
+	for (int e = 0; e < 10000; e++) {
+		int x = 1;
+
+		bool sideIsUp = dist01(generator) < 0.5f;
+
+		for (int t = 0; t < 8; t++) {
+			std::vector<float> input(2);
+
+			if (t == 0)
+				input[0] = sideIsUp ? 1.0f : -1.0f;
+			else
+				input[0] = 0.0f;
+
+			if (x == tunnelLength)
+				input[1] = 1.0f;
+			else
+				input[1] = 0.0f;
+
+			std::vector<float> action(2);
+
+			ferl.step(input, action, reward, 0.5f, 0.9f, 0.9f, 1.0f, 32, 4, 0.05f, 0.15f, 0.05f, 800, 400, 0.05f, 0.0f, generator);
+
+			reward *= 0.5f;
+
+			if (x == tunnelLength) {
+				if (action[0] < -0.333f)
+					x--;
+
+				if (action[1] > 0.333f) {
+					if (sideIsUp)
+						reward = 1.0f;
+					else
+						reward = -0.5f;
+
+					break;
+				}
+				else if (action[1] < -0.333f) {
+					if (!sideIsUp)
+						reward = 1.0f;
+					else
+						reward = -0.5f;
+
+					break;
+				}
+			}
+			else if (x == 1) {
+				if (action[0] > 0.333f)
+					x++;
+			}
+			else {
+				if (action[0] > 0.333f)
+					x++;
+				else if (action[0] < -0.333f)
+					x--;
+			}
+		}
+	}
+
+	// Tests
+	int successes = 0;
+	int failures = 0;
+
+	for (int e = 0; e < 1000; e++) {
+		int x = 1;
+
+		bool sideIsUp = dist01(generator) < 0.5f;
+
+		for (int t = 0; t < 8; t++) {
+			std::vector<float> input(2);
+
+			if (t == 0)
+				input[0] = sideIsUp ? 1.0f : -1.0f;
+			else
+				input[0] = 0.0f;
+
+			if (x == tunnelLength)
+				input[1] = 1.0f;
+			else
+				input[1] = 0.0f;
+
+			std::vector<float> action(2);
+
+			ferl.step(input, action, reward, 0.5f, 0.9f, 0.9f, 1.0f, 32, 4, 0.05f, 0.15f, 0.05f, 800, 400, 0.05f, 0.0f, generator);
+
+			reward *= 0.5f;
+
+			if (x == tunnelLength) {
+				if (action[0] < -0.333f)
+					x--;
+
+				if (action[1] > 0.333f) {
+					if (sideIsUp) {
+						reward = 1.0f;
+						successes++;
+					}
+					else {
+						reward = -0.5f;
+						failures++;
+					}
+
+					break;
+				}
+				else if (action[1] < -0.333f) {
+					if (!sideIsUp) {
+						reward = 1.0f;
+						successes++;
+					}
+					else {
+						reward = -0.5f;
+						failures++;
+					}
+
+					break;
+				}
+			}
+			else if (x == 1) {
+				if (action[0] > 0.333f)
+					x++;
+			}
+			else {
+				if (action[0] > 0.333f)
+					x++;
+				else if (action[0] < -0.333f)
+					x--;
+			}
+		}
+	}
+
+	std::cout << successes << " " << failures << std::endl;*/
+}

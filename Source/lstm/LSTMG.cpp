@@ -556,10 +556,16 @@ void LSTMG::clear() {
 }
 
 float LSTMG::gain(int j, int ci) {
-	if (ci == -1) // Unused
-		return 0.0f;
+	int gaterIndex;
 
-	int gaterIndex = _units[j]._ingoingConnections[ci]._gaterIndex;
+	if (ci == -1) {
+		if (_units[j]._recurrentConnectionIndex == -1)
+			return 0.0f;
+
+		gaterIndex = _units[j]._ingoingConnections[_units[j]._recurrentConnectionIndex]._gaterIndex;
+	}
+	else
+		gaterIndex = _units[j]._ingoingConnections[ci]._gaterIndex;
 
 	if (gaterIndex != -1)
 		return _units[gaterIndex]._activation;
@@ -575,21 +581,16 @@ float LSTMG::gain(int j, int ci) {
 float LSTMG::theTerm(int j, int k) {
 	float term = 0.0f;
 
-	if (_units[k]._ingoingConnections.empty())
-		return 0.0f;
+	if (_units[k]._recurrentConnectionIndex != -1) {
+		int gaterIndex = _units[k]._ingoingConnections[_units[k]._recurrentConnectionIndex]._gaterIndex;
 
-	int gaterIndex;
-
-	if (_units[k]._recurrentConnectionIndex == -1)
-		return 0.0f;
-	else
-		gaterIndex = _units[k]._ingoingConnections[_units[k]._recurrentConnectionIndex]._gaterIndex;
-
-	if (gaterIndex == j)
-		term = _units[k]._prevState;
+		if (gaterIndex == j)
+			term = _units[k]._prevState;
+	}
 
 	for (int ii = 0; ii < _units[k]._ingoingConnections.size(); ii++)
-		term += _units[k]._ingoingConnections[ii]._weight * _units[_units[k]._ingoingConnections[ii]._gaterIndex]._prevActivation;
+	if (_units[k]._ingoingConnections[ii]._gaterIndex == j)
+		term += _units[k]._ingoingConnections[ii]._weight * _units[k]._ingoingConnections[ii]._prevActivation;
 
 	return term;
 }
@@ -607,7 +608,15 @@ void LSTMG::step(bool linearOutput) {
 	for (int j = _inputIndices.size(); j < _units.size(); j++) {
 		float sg = _units[j]._prevGain = gain(j, -1);
 
-		_units[j]._state *= sg;
+		for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
+			int i = _units[j]._ingoingConnections[ci]._inputIndex;
+
+			_units[j]._ingoingConnections[ci]._prevGain = gain(j, ci);
+
+			_units[j]._ingoingConnections[ci]._prevActivation = _units[i]._activation;
+		}
+
+		_units[j]._state *= gain(j, -1);
 
 		for (int ci = 0; ci < _units[j]._ingoingConnections.size(); ci++) {
 			int i = _units[j]._ingoingConnections[ci]._inputIndex;
@@ -635,7 +644,7 @@ void LSTMG::step(bool linearOutput) {
 		else {
 			_units[j]._state += _units[j]._bias;
 
-			_units[j]._activation = _units[j]._state + _units[j]._bias;
+			_units[j]._activation = _units[j]._state;
 		}
 	}
 
