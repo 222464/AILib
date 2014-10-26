@@ -45,6 +45,8 @@ namespace raahn {
 
 		void update(const std::vector<float> &inputs, std::vector<float> &outputs, float alpha);
 
+		void getReconstruction(const std::vector<float> &inputs, std::vector<float> &reconstruction);
+
 		static float sigmoid(float x) {
 			return 1.0f / (1.0f + std::exp(-x));
 		}

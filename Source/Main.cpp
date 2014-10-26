@@ -40,6 +40,8 @@ misrepresented as being the original software.
 
 #include <deep/FERL.h>
 
+#include <rbf/SDRRBFNetwork.h>
+
 #include <convrl/ConvRL.h>
 
 #include <hypernet/BayesianOptimizerTrainer.h>
@@ -74,6 +76,8 @@ misrepresented as being the original software.
 #include <deep/RBM.h>
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
+
+#include <raahn/AutoEncoder.h>
 
 #include <time.h>
 #include <iostream>
@@ -3046,7 +3050,94 @@ int main() {
 int main() {
 	std::mt19937 generator(time(nullptr));
 
-	float reward = 0.0f;
+	std::cout << "SDR RBF:" << std::endl;
+
+	rbf::SDRRBFNetwork sdrrbf;
+
+	sdrrbf.createRandom(4, 4, 4, 4, 2, 1, -0.1f, 0.1f, 0.01f, 1.0f, -0.1f, 0.1f, generator);
+
+	for (int i = 0; i < 10; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
+		float y = std::sin(x);
+
+		std::vector<float> input(16, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+		
+		sdrrbf.getOutput(input, output, 2, 4.0f);
+
+		sdrrbf.update(input, output, target, 0.05f, 0.05f, 0.05f, 1.0f);
+	}
+
+	float error = 0.0f;
+
+	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
+		float y = std::sin(x);
+
+		std::vector<float> input(16, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		sdrrbf.getOutput(input, output, 2, 4.0f);
+
+		error += std::abs(output[0] - y);
+
+		sdrrbf.update(input, output, target, 0.05f, 0.05f, 0.05f, 1.0f);
+
+		std::cout << output[0] << std::endl;
+	}
+
+	std::cout << "Error: " << error << std::endl;
+	std::cout << "MLP:" << std::endl;
+
+	deep::FA fa;
+
+	fa.createRandom(1, 1, 1, 16, 0.1f, generator);
+
+	error = 0.0f;
+
+	for (int i = 0; i < 10; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
+		float y = std::sin(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fa.clearGradient();
+
+		fa.process(input, output);
+
+		error += std::abs(output[0] - y);
+
+		fa.accumulateGradient(input, target);
+
+		fa.moveAlongGradientRMS(0.05f, 0.05f, 0.1f, 0.0f, 0.0f);
+	}
+
+	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
+		float y = std::sin(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fa.clearGradient();
+
+		fa.process(input, output);
+
+		fa.accumulateGradient(input, target);
+
+		fa.moveAlongGradientRMS(0.05f, 0.05f, 0.1f, 0.0f, 0.0f);
+
+		std::cout << output[0] << std::endl;
+	}
+
+	std::cout << "Error: " << error << std::endl;
+
+	system("pause");
+
+	/*float reward = 0.0f;
 	float prevReward = 0.0f;
 
 	float initReward = 0.0f;
@@ -3060,6 +3151,37 @@ int main() {
 	window.setVerticalSyncEnabled(true);
 
 	//window.setFramerateLimit(60);
+
+	raahn::AutoEncoder ae;
+
+	ae.createRandom(4, 4, -0.1f, 0.1f, generator);
+
+	for (int i = 0; i < 40000; i++) {
+		std::vector<float> input(4, 0.0f);
+
+		input[i % 4] = 1.0f;
+
+		std::vector<float> outputs(3);
+
+		ae.update(input, outputs, 0.01f);
+	}
+
+	for (int i = 0; i < 4; i++) {
+		std::vector<float> input(4, 0.0f);
+
+		input[i % 4] = 1.0f;
+
+		std::vector<float> reconstruction(4);
+
+		ae.getReconstruction(input, reconstruction);
+
+		for (int j = 0; j < 4; j++)
+			std::cout << reconstruction[j] << " ";
+
+		std::cout << std::endl;
+	}
+
+	system("pause");
 
 	// -------------------------- Load Resources --------------------------
 
@@ -3481,7 +3603,7 @@ int main() {
 
 		totalTime += dt;
 		plotUpdateTimer += dt;
-	} while (!quit);
+	} while (!quit);*/
 
 	/*deep::FERL ferl;
 

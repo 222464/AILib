@@ -104,7 +104,9 @@ void AutoEncoder::update(const std::vector<float> &inputs, std::vector<float> &o
 		for (size_t w = 0; w < _hidden.size(); w++)
 			sum += outputs[w] * _hidden[w]._weights[n];
 
-		_inputErrorBuffer[n] = inputs[n] - sigmoid(sum);
+		float output = sigmoid(sum);
+
+		_inputErrorBuffer[n] = (inputs[n] - sigmoid(sum)) * output * (1.0f - output);
 	}
 
 	for (size_t n = 0; n < _inputBiases.size(); n++)
@@ -116,9 +118,37 @@ void AutoEncoder::update(const std::vector<float> &inputs, std::vector<float> &o
 		for (size_t w = 0; w < _hidden[n]._weights.size(); w++)
 			error += _inputErrorBuffer[w] * _hidden[n]._weights[w];
 
-		_inputBiases[n] += alpha * -error;
+		error *= outputs[n] * (1.0f - outputs[n]);
+
+		_hidden[n]._bias += alpha * error;
+
+		for (size_t w = 0; w < _hidden[n]._weights.size(); w++) {
+			_hidden[n]._weights[w] += alpha * (error * inputs[w] + _inputErrorBuffer[w] * outputs[n]);
+		}
+	}
+}
+
+void AutoEncoder::getReconstruction(const std::vector<float> &inputs, std::vector<float> &reconstruction) {
+	std::vector<float> outputs(_hidden.size());
+
+	for (size_t n = 0; n < _hidden.size(); n++) {
+		float sum = _hidden[n]._bias;
 
 		for (size_t w = 0; w < _hidden[n]._weights.size(); w++)
-			_hidden[n]._weights[w] += alpha * _inputErrorBuffer[w] * outputs[n];
+			sum += inputs[w] * _hidden[n]._weights[w];
+
+		outputs[n] = sigmoid(sum);
+	}
+
+	if (reconstruction.size() != _inputBiases.size())
+		reconstruction.resize(_inputBiases.size());
+
+	for (size_t n = 0; n < _inputBiases.size(); n++) {
+		float sum = _inputBiases[n];
+
+		for (size_t w = 0; w < _hidden.size(); w++)
+			sum += outputs[w] * _hidden[w]._weights[n];
+
+		reconstruction[n] = sigmoid(sum);
 	}
 }
