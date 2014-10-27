@@ -25,6 +25,8 @@ misrepresented as being the original software.
 
 #include <iostream>
 
+#include <assert.h>
+
 using namespace rbf;
 
 void SDRRBFNetwork::createRandom(int inputWidth, int inputHeight, int rbfWidth, int rbfHeight, int receptiveRadius, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator) {
@@ -67,7 +69,7 @@ void SDRRBFNetwork::createRandom(int inputWidth, int inputHeight, int rbfWidth, 
 	}
 }
 
-void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity) {
+void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float minActivation) {
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
 
@@ -87,8 +89,8 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
-			float xn = rx + dx * inputWidthInv;
-			float yn = ry + dy * inputHeightInv;
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
 
 			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
 				int x = xn * _inputWidth;
@@ -97,6 +99,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 				int j = x + y * _inputWidth;
 
 				float delta = input[j] - _rbfNodes[i]._center[weightIndex];
+
 				dist2 += delta * delta;
 			}
 
@@ -112,6 +115,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 		int i = rx + ry * _rbfWidth;
 
 		float maximum = 0.0f;
+		float minimum = 1.0f;
 
 		for (int dx = -inhibitionRadius; dx <= inhibitionRadius; dx++)
 		for (int dy = -inhibitionRadius; dy <= inhibitionRadius; dy++) {
@@ -122,10 +126,13 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 				int j = x + y * _rbfWidth;
 
 				maximum = std::max(maximum, _rbfNodes[j]._activation);
+				minimum = std::min(minimum, _rbfNodes[j]._activation);
 			}
 		}
 
-		_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) * sparsity);
+		assert(maximum >= minimum);
+
+		_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) / (minActivation + maximum - minimum) * sparsity);
 	}
 
 	if (output.size() != _outputNodes.size())
@@ -171,8 +178,8 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
-			float xn = rx + dx * inputWidthInv;
-			float yn = ry + dy * inputHeightInv;
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
 
 			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
 				int x = xn * _inputWidth;
@@ -180,9 +187,9 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 
 				int j = x + y * _inputWidth;
 
-				float delta = input[j] - _rbfNodes[i]._center[weightIndex];
+				_rbfNodes[i]._center[weightIndex] += centerAlpha * _rbfNodes[i]._output * (input[j] - _rbfNodes[i]._center[weightIndex]);
 
-				_rbfNodes[i]._center[j] += centerAlpha * _rbfNodes[i]._output * delta;
+				float delta = input[j] - _rbfNodes[i]._center[weightIndex];
 
 				dist2 += delta * delta;
 			}
@@ -190,6 +197,6 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 			weightIndex++;
 		}
 
-		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * _rbfNodes[i]._output * (std::sqrt(dist2) * widthScalar - _rbfNodes[i]._width));
+		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * _rbfNodes[i]._output * (1.0f / (widthScalar * widthScalar * dist2) - _rbfNodes[i]._width));
 	}
 }

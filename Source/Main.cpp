@@ -3047,95 +3047,169 @@ int main() {
 	return 0;
 }*/
 
+float testFunc(float x) {
+	return std::sin(x);
+}
+
 int main() {
 	std::mt19937 generator(time(nullptr));
 
-	std::cout << "SDR RBF:" << std::endl;
+	sf::plot::Plot p;
+
+	p.setSize(sf::Vector2f(800.0f, 600.0f));
+	p.setTitle("Avg. Reward");
+	p.setFont("Resources/arial.ttf");
+	p.setBackgroundColor(sf::Color::White);
+	p.setTitleColor(sf::Color::Black);
+	p.setPosition(sf::Vector2f(0.0f, 0.0f));
+	p.setXLabel("X");
+	p.setYLabel("Y");
+
+	sf::plot::Curve &c1 = p.createCurve("Function", sf::Color::Black);
+	sf::plot::Curve &c2 = p.createCurve("SDRRBF", sf::Color::Red);
+	sf::plot::Curve &c3 = p.createCurve("MLP", sf::Color::Blue);
+
+	c1.setFill(false);
+	//c1.setLimit(2000);
+
+	c2.setFill(false);
+	//c2.setLimit(2000);
+
+	c3.setFill(false);
+	//c3.setLimit(2000);
+
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		c1.addValue(y);
+	}
+
+	//std::cout << "SDR RBF:" << std::endl;
 
 	rbf::SDRRBFNetwork sdrrbf;
 
-	sdrrbf.createRandom(4, 4, 4, 4, 2, 1, -0.1f, 0.1f, 0.01f, 1.0f, -0.1f, 0.1f, generator);
+	sdrrbf.createRandom(2, 2, 64, 64, 1, 1, -0.1f, 0.1f, 0.01f, 0.05f, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 10; i++)
-	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
-		float y = std::sin(x);
+	for (int i = 0; i < 4; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+		float y = testFunc(x);
 
-		std::vector<float> input(16, x);
+		std::vector<float> input(4, x);
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 		
-		sdrrbf.getOutput(input, output, 2, 4.0f);
+		sdrrbf.getOutput(input, output, 3, 8.0f);
 
-		sdrrbf.update(input, output, target, 0.05f, 0.05f, 0.05f, 1.0f);
+		//std::cout << output[0] << std::endl;
+
+		sdrrbf.update(input, output, target, 0.0001f, 0.001f, 0.001f, 1.0f);
 	}
 
 	float error = 0.0f;
 
-	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
-		float y = std::sin(x);
+	sf::Image img;
 
-		std::vector<float> input(16, x);
+	img.create(8, 8);
+
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(4, x);
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		sdrrbf.getOutput(input, output, 2, 4.0f);
+		sdrrbf.getOutput(input, output, 3, 8.0f);
+
+		if (x == 0.0f) {
+			for (int x = 0; x < 8; x++)
+			for (int y = 0; y < 8; y++) {
+				sf::Color c = sf::Color::Black;
+				c.r = 255.0f * sdrrbf.getRBFNode(x, y)._output;
+
+				img.setPixel(x, y, c);
+			}
+		}
 
 		error += std::abs(output[0] - y);
 
-		sdrrbf.update(input, output, target, 0.05f, 0.05f, 0.05f, 1.0f);
+		//sdrrbf.update(input, output, target, 0.05f, 0.05f, 0.05f, 1.0f);
 
-		std::cout << output[0] << std::endl;
+		std::cout << x << " " << output[0] << std::endl;
+
+		c2.addValue(output[0]);
+
+		system("pause");
 	}
 
-	std::cout << "Error: " << error << std::endl;
-	std::cout << "MLP:" << std::endl;
+	img.saveToFile("region.png");
+
+	//std::cout << "Error: " << error << std::endl;
+
+	//system("pause");
+
+	//std::cout << "MLP:" << std::endl;
 
 	deep::FA fa;
 
 	fa.createRandom(1, 1, 1, 16, 0.1f, generator);
 
-	error = 0.0f;
-
-	for (int i = 0; i < 10; i++)
-	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
-		float y = std::sin(x);
+	for (int i = 0; i < 4; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+		float y = testFunc(x);
 
 		std::vector<float> input(1, x);
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
 		fa.clearGradient();
+
+		fa.process(input, output);
+
+		fa.accumulateGradient(input, target);
+
+		fa.moveAlongGradientRMS(0.05f, 0.001f, 0.1f, 0.0f, 0.0f);
+	}
+
+	error = 0.0f;
+
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
 
 		fa.process(input, output);
 
 		error += std::abs(output[0] - y);
 
-		fa.accumulateGradient(input, target);
-
-		fa.moveAlongGradientRMS(0.05f, 0.05f, 0.1f, 0.0f, 0.0f);
-	}
-
-	for (float x = 0.0f; x < 6.28f; x += 0.001f) {
-		float y = std::sin(x);
-
-		std::vector<float> input(1, x);
-		std::vector<float> output(1);
-		std::vector<float> target(1, y);
-
-		fa.clearGradient();
-
-		fa.process(input, output);
-
-		fa.accumulateGradient(input, target);
-
-		fa.moveAlongGradientRMS(0.05f, 0.05f, 0.1f, 0.0f, 0.0f);
+		c3.addValue(output[0]);
 
 		std::cout << output[0] << std::endl;
 	}
 
-	std::cout << "Error: " << error << std::endl;
+	//std::cout << "Error: " << error << std::endl;
 
-	system("pause");
+	//system("pause");
+
+	//c1.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
+
+	p.prepare();
+
+	c1.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
+	c2.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
+	c3.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
+	
+	sf::RenderTexture rt;
+	rt.create(800, 600);
+
+	rt.clear();
+
+	rt.draw(p);
+
+	rt.display();
+
+	rt.getTexture().copyToImage().saveToFile("plot.png");
 
 	/*float reward = 0.0f;
 	float prevReward = 0.0f;
