@@ -62,7 +62,7 @@ namespace rbf {
 	public:
 		void createRandom(int inputWidth, int inputHeight, int rbfWidth, int rbfHeight, int receptiveRadius, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float minActivation = 0.001f);
+		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float minActivation = 0.00001f);
 	
 		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar);
 	

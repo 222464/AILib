@@ -3088,9 +3088,9 @@ int main() {
 
 	rbf::SDRRBFNetwork sdrrbf;
 
-	sdrrbf.createRandom(2, 2, 64, 64, 1, 1, -0.1f, 0.1f, 0.01f, 0.05f, -0.1f, 0.1f, generator);
+	sdrrbf.createRandom(2, 2, 8, 8, 1, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 60; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
 		float y = testFunc(x);
 
@@ -3098,11 +3098,11 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 		
-		sdrrbf.getOutput(input, output, 3, 8.0f);
+		sdrrbf.getOutput(input, output, 3, 32.0f);
 
 		//std::cout << output[0] << std::endl;
 
-		sdrrbf.update(input, output, target, 0.0001f, 0.001f, 0.001f, 1.0f);
+		sdrrbf.update(input, output, target, 0.01f, 0.01f, 0.01f, 1.0f);
 	}
 
 	float error = 0.0f;
@@ -3118,7 +3118,7 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		sdrrbf.getOutput(input, output, 3, 8.0f);
+		sdrrbf.getOutput(input, output, 3, 32.0f);
 
 		if (x == 0.0f) {
 			for (int x = 0; x < 8; x++)
@@ -3153,7 +3153,7 @@ int main() {
 
 	fa.createRandom(1, 1, 1, 16, 0.1f, generator);
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 6; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
 		float y = testFunc(x);
 

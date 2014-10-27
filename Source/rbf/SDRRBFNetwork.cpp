@@ -115,7 +115,9 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 		int i = rx + ry * _rbfWidth;
 
 		float maximum = 0.0f;
-		float minimum = 1.0f;
+		float average = 0.0f;
+
+		int count = 0;
 
 		for (int dx = -inhibitionRadius; dx <= inhibitionRadius; dx++)
 		for (int dy = -inhibitionRadius; dy <= inhibitionRadius; dy++) {
@@ -126,13 +128,17 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 				int j = x + y * _rbfWidth;
 
 				maximum = std::max(maximum, _rbfNodes[j]._activation);
-				minimum = std::min(minimum, _rbfNodes[j]._activation);
+
+				average += _rbfNodes[j]._activation;
+				count++;
 			}
 		}
 
-		assert(maximum >= minimum);
+		average /= count;
 
-		_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) / (minActivation + maximum - minimum) * sparsity);
+		_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) / (minActivation + maximum - average) * sparsity);
+
+		assert(_rbfNodes[i]._output >= 0.0f && _rbfNodes[i]._output <= 1.0f);
 	}
 
 	if (output.size() != _outputNodes.size())
@@ -197,6 +203,6 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 			weightIndex++;
 		}
 
-		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * _rbfNodes[i]._output * (1.0f / (widthScalar * widthScalar * dist2) - _rbfNodes[i]._width));
+		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * _rbfNodes[i]._output * (dist2 / (2.0f * widthScalar * widthScalar) - _rbfNodes[i]._width));
 	}
 }
