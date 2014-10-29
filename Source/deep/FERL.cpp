@@ -300,3 +300,83 @@ void FERL::updateOnError(float error, float momentum) {
 		_visible[vi]._bias._prevDWeight = dBias;
 	}
 }
+
+void FERL::saveToFile(std::ostream &os, bool saveReplayInformation) {
+	os << _hidden.size() << " " << _visible.size() << " " << _numState << " " << _numAction << " " << _zInv << " " << _prevMax << " " << _prevValue << std::endl;
+
+	// Save hidden nodes
+	for (int k = 0; k < _hidden.size(); k++) {
+		os << _hidden[k]._state << " " << _hidden[k]._bias._weight << " " << _hidden[k]._bias._prevDWeight;
+
+		for (int vi = 0; vi < _visible.size(); vi++)
+			os << " " << _hidden[k]._connections[vi]._weight << " " << _hidden[k]._connections[vi]._prevDWeight;
+
+		os << std::endl;
+	}
+
+	// Save visible nodes
+	for (int vi = 0; vi < _visible.size(); vi++)
+		os << _visible[vi]._state << " " << _visible[vi]._bias._weight << " " << _visible[vi]._bias._prevDWeight << std::endl;
+
+	if (saveReplayInformation) {
+		os << "t" << _replaySamples.size() << std::endl;
+
+		for (std::list<ReplaySample>::iterator it = _replaySamples.begin(); it != _replaySamples.end(); it++) {
+			for (int i = 0; i < it->_visible.size(); i++)
+				os << it->_visible[i] << " ";
+
+			os << it->_q << std::endl;
+		}
+	}
+	else
+		os << "f" << std::endl;
+}
+
+void FERL::loadFromFile(std::istream &is, bool loadReplayInformation) {
+	int numHidden, numVisible;
+
+	is >> numHidden >> numVisible >> _numState >> _numAction >> _zInv >> _prevMax >> _prevValue;
+
+	_hidden.resize(numHidden);
+
+	for (int k = 0; k < numHidden; k++) {
+		_hidden[k]._connections.resize(numVisible);
+
+		is >> _hidden[k]._state >> _hidden[k]._bias._weight >> _hidden[k]._bias._prevDWeight;
+
+		for (int vi = 0; vi < numVisible; vi++)
+			is >> _hidden[k]._connections[vi]._weight >> _hidden[k]._connections[vi]._prevDWeight;
+	}
+
+	_visible.resize(numVisible);
+
+	for (int vi = 0; vi < numVisible; vi++)
+		is >> _visible[vi]._state >> _visible[vi]._bias._weight >> _visible[vi]._bias._prevDWeight;
+
+	if (loadReplayInformation) {
+		std::string hasReplayInformationString;
+
+		is >> hasReplayInformationString;
+
+		if (hasReplayInformationString == "t") {
+			int numSamples;
+
+			is >> numSamples;
+
+			for (int i = 0; i < numSamples; i++) {
+				ReplaySample rs;
+
+				rs._visible.resize(numVisible);
+
+				for (int j = 0; j < numVisible; j++)
+					is >> rs._visible[j];
+				
+				is >> rs._q;
+
+				_replaySamples.push_back(rs);
+			}
+		}
+		else
+			std::cerr << "Stream does not contain replay information, but the application tried to load it!" << std::endl;
+	}
+}

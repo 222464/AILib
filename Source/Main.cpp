@@ -3090,7 +3090,7 @@ int main() {
 
 	sdrrbf.createRandom(2, 2, 8, 8, 1, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 60; i++)
+	for (int i = 0; i < 6; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
 		float y = testFunc(x);
 
@@ -3098,7 +3098,7 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 		
-		sdrrbf.getOutput(input, output, 3, 32.0f);
+		sdrrbf.getOutput(input, output, 3, 8.0f, generator);
 
 		//std::cout << output[0] << std::endl;
 
@@ -3118,7 +3118,7 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		sdrrbf.getOutput(input, output, 3, 32.0f);
+		sdrrbf.getOutput(input, output, 3, 8.0f, generator);
 
 		if (x == 0.0f) {
 			for (int x = 0; x < 8; x++)

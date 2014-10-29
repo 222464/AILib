@@ -24,6 +24,7 @@ misrepresented as being the original software.
 #include <vector>
 #include <list>
 #include <random>
+#include <string>
 
 namespace deep {
 	class FERL {
@@ -103,6 +104,9 @@ namespace deep {
 		void updateOnError(float error, float momentum);
 
 		float freeEnergy() const;
+
+		void saveToFile(std::ostream &os, bool saveReplayInformation = false);
+		void loadFromFile(std::istream &is, bool loadReplayInformation = false);
 
 		float value() const {
 			return -freeEnergy() * _zInv;

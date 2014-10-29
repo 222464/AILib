@@ -69,12 +69,14 @@ void SDRRBFNetwork::createRandom(int inputWidth, int inputHeight, int rbfWidth, 
 	}
 }
 
-void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float minActivation) {
+void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, std::mt19937 &generator) {
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
 
 	float rbfWidthInv = 1.0f / _rbfWidth;
 	float rbfHeightInv = 1.0f / _rbfHeight;
+
+	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
 
 	for (int rx = 0; rx < _rbfWidth; rx++)
 	for (int ry = 0; ry < _rbfHeight; ry++) {
@@ -136,7 +138,12 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 
 		average /= count;
 
-		_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) / (minActivation + maximum - average) * sparsity);
+		float divisor = maximum - average;
+
+		if (divisor == 0.0f)
+			_rbfNodes[i]._output = uniformDist(generator) < (1.0f / count) ? 1.0f : 0.0f;
+		else
+			_rbfNodes[i]._output = std::exp((_rbfNodes[i]._activation - maximum) / divisor * sparsity);
 
 		assert(_rbfNodes[i]._output >= 0.0f && _rbfNodes[i]._output <= 1.0f);
 	}
