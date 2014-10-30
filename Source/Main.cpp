@@ -3088,9 +3088,9 @@ int main() {
 
 	rbf::SDRRBFNetwork sdrrbf;
 
-	sdrrbf.createRandom(2, 2, 8, 8, 1, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, generator);
+	sdrrbf.createRandom(2, 2, 32, 32, 1, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 160; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
 		float y = testFunc(x);
 
@@ -3098,18 +3098,18 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 		
-		sdrrbf.getOutput(input, output, 3, 8.0f, generator);
+		sdrrbf.getOutput(input, output, 3, 32.0f, generator);
 
 		//std::cout << output[0] << std::endl;
 
-		sdrrbf.update(input, output, target, 0.01f, 0.01f, 0.01f, 1.0f);
+		sdrrbf.update(input, output, target, 0.02f, 0.05f, 0.05f, 2.0f, 0.01f, 0.2f);
 	}
 
 	float error = 0.0f;
 
 	sf::Image img;
 
-	img.create(8, 8);
+	img.create(32, 32);
 
 	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
 		float y = testFunc(x);
@@ -3118,11 +3118,11 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		sdrrbf.getOutput(input, output, 3, 8.0f, generator);
+		sdrrbf.getOutput(input, output, 3, 32.0f, generator);
 
 		if (x == 0.0f) {
-			for (int x = 0; x < 8; x++)
-			for (int y = 0; y < 8; y++) {
+			for (int x = 0; x < 16; x++)
+			for (int y = 0; y < 16; y++) {
 				sf::Color c = sf::Color::Black;
 				c.r = 255.0f * sdrrbf.getRBFNode(x, y)._output;
 
@@ -3153,8 +3153,11 @@ int main() {
 
 	fa.createRandom(1, 1, 1, 16, 0.1f, generator);
 
-	for (int i = 0; i < 6; i++)
+	std::uniform_real_distribution<float> angleDist(0.0f, 6.28f);
+
+	for (int i = 0; i < 16000; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+
 		float y = testFunc(x);
 
 		std::vector<float> input(1, x);

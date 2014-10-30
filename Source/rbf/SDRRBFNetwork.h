@@ -64,7 +64,7 @@ namespace rbf {
 
 		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, std::mt19937 &generator);
 	
-		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar);
+		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold);
 	
 		int getNumInputs() const {
 			return _rbfNodes[0]._center.size();

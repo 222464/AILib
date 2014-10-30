@@ -161,7 +161,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 	}
 }
 
-void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar) {
+void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold) {
 	// Update output node weights
 	for (int i = 0; i < _outputNodes.size(); i++) {
 		float alphaError = weightAlpha * (target[i] - output[i]);
@@ -171,6 +171,11 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 		
 		_outputNodes[i]._bias._weight += alphaError;
 	}
+
+	float squaredError = 0.0f;
+
+	for (int i = 0; i < output.size(); i++)
+		squaredError += std::pow(target[i] - output[i], 2);
 
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
@@ -189,6 +194,8 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 
 		int weightIndex = 0;
 
+		float learnScalar = std::max(0.0f, _rbfNodes[i]._output - minLearningThreshold);
+
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
 			float xn = rxn + dx * inputWidthInv;
@@ -200,7 +207,7 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 
 				int j = x + y * _inputWidth;
 
-				_rbfNodes[i]._center[weightIndex] += centerAlpha * _rbfNodes[i]._output * (input[j] - _rbfNodes[i]._center[weightIndex]);
+				_rbfNodes[i]._center[weightIndex] += centerAlpha * learnScalar * (input[j] - _rbfNodes[i]._center[weightIndex]);
 
 				float delta = input[j] - _rbfNodes[i]._center[weightIndex];
 
@@ -210,6 +217,6 @@ void SDRRBFNetwork::update(const std::vector<float> &input, std::vector<float> &
 			weightIndex++;
 		}
 
-		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * _rbfNodes[i]._output * (dist2 / (2.0f * widthScalar * widthScalar) - _rbfNodes[i]._width));
+		_rbfNodes[i]._width = std::max(0.0f, _rbfNodes[i]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist2) - _rbfNodes[i]._width));
 	}
 }
