@@ -93,9 +93,11 @@ void CHTMRegion::createRandom(int inputWidth, int inputHeight, int columnsWidth,
 void CHTMRegion::stepBegin() {
 	for (int i = 0; i < _columns.size(); i++) {
 		_columns[i]._predictionPrev = _columns[i]._prediction;
+		_columns[i]._perturbedPredictionPrev = _columns[i]._perturbedPrediction;
 
 		for (int j = 0; j < _cellsPerColumn; j++) {
 			_columns[i]._cells[j]._predictionPrev = _columns[i]._cells[j]._prediction;
+			_columns[i]._cells[j]._perturbedPredictionPrev = _columns[i]._cells[j]._perturbedPrediction;
 		}
 	}
 }
@@ -118,7 +120,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 
 		float dist2 = 0.0f;
 
-		int weightIndex = 0;
+		int wi = 0;
 
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
@@ -131,12 +133,12 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 
 				int j = x + y * _inputWidth;
 
-				float delta = input[j] - _columns[i]._center[weightIndex]._weight;
+				float delta = input[j] - _columns[i]._center[wi]._weight;
 
 				dist2 += delta * delta;
 			}
 
-			weightIndex++;
+			wi++;
 		}
 
 		_columns[i]._activation = std::exp(-_columns[i]._width * dist2);
@@ -253,6 +255,230 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 			sum += _columns[j]._cells[k]._state * _outputNodes[i]._connections[k + j * _cellsPerColumn]._weight;
 
 		output[i] = sum;
+	}
+}
+
+void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator) {
+	float inputWidthInv = 1.0f / _inputWidth;
+	float inputHeightInv = 1.0f / _inputHeight;
+
+	float rbfWidthInv = 1.0f / _columnsWidth;
+	float rbfHeightInv = 1.0f / _columnsHeight;
+
+	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		float dist2 = 0.0f;
+
+		int wi = 0;
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				float delta = input[j] - _columns[i]._center[wi]._weight;
+
+				dist2 += delta * delta;
+			}
+
+			wi++;
+		}
+
+		_columns[i]._activation = std::exp(-_columns[i]._width * dist2);
+	}
+
+	// Sparsify
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float maximum = 0.0f;
+		float average = 0.0f;
+
+		int count = 0;
+
+		for (int dx = -inhibitionRadius; dx <= inhibitionRadius; dx++)
+		for (int dy = -inhibitionRadius; dy <= inhibitionRadius; dy++) {
+			int x = rx + dx;
+			int y = ry + dy;
+
+			if (x >= 0 && x < _columnsWidth && y >= 0 && y < _columnsHeight) {
+				int j = x + y * _columnsWidth;
+
+				maximum = std::max(maximum, _columns[j]._activation);
+
+				average += _columns[j]._activation;
+				count++;
+			}
+		}
+
+		average /= count;
+
+		float divisor = maximum - average;
+
+		if (divisor == 0.0f)
+			_columns[i]._state = uniformDist(generator) < (1.0f / count) ? 1.0f : 0.0f;
+		else
+			_columns[i]._state = std::exp((_columns[i]._activation - maximum) / divisor * sparsity);
+	}
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float columnState = _columns[i]._state;
+
+		float minPredictionError = 1.0f;
+
+		for (int ci = 0; ci < _cellsPerColumn; ci++) {
+			float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+			float predictionError = std::fabs(columnState - prediction);
+
+			minPredictionError = std::min(minPredictionError, predictionError);
+		}
+
+		for (int ci = 0; ci < _cellsPerColumn; ci++) {
+			float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+			float predictionError = std::fabs(columnState - prediction);
+
+			_columns[i]._cells[ci]._state = std::exp((minPredictionError - predictionError) * cellIntensity) * columnState;
+		}
+	}
+
+	// Clear intents
+	for (int i = 0; i < _columns.size(); i++)
+	for (int ci = 0; ci < _cellsPerColumn; ci++) {
+		_columns[i]._cells[ci]._intent = 0.0f;
+	}
+
+	// Form predictions
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float maxPrediction = 0.0f;
+		
+		for (int ci = 0; ci < _cellsPerColumn; ci++) {
+			float cellQWeight = _outputNodes.front()._connections[i + ci * _cellsPerColumn]._weight;
+
+			float sum = 0.0f;
+
+			// Go through all connections 
+			int wi = 0;
+
+			for (int dx = -_cellRadius; dx <= _cellRadius; dx++)
+			for (int dy = -_cellRadius; dy <= _cellRadius; dy++)
+			for (int cio = 0; cio < _cellsPerColumn; cio++) {
+				int cx = rx + dx;
+				int cy = ry + dy;
+
+				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
+					float cellWeight = _columns[i]._cells[ci]._connections[wi]._weight;
+
+					float connectionState = _columns[cx + cy * _columnsWidth]._cells[cio]._state;
+
+					sum += cellWeight * connectionState;
+
+					_columns[cx + cy * _columnsWidth]._cells[cio]._intent += cellQWeight * cellWeight;
+				}
+
+				wi++;
+			}
+
+			_columns[i]._cells[ci]._predictionState = sum;
+
+			_columns[i]._cells[ci]._prediction = sigmoid(sum * predictionIntensity);
+
+			maxPrediction = std::max(maxPrediction, _columns[i]._cells[ci]._prediction);
+		}
+
+		_columns[i]._prediction = maxPrediction;
+
+		_columns[i]._output = std::max(_columns[i]._state, _columns[i]._prediction);
+	}
+
+	// Get perturbed prediction from intents
+	for (int i = 0; i < _columns.size(); i++) {
+		float maxPerturbedPrediction = 0.0f;
+
+		for (int ci = 0; ci < _cellsPerColumn; ci++) {
+			_columns[i]._cells[ci]._perturbedPrediction = sigmoid((_columns[i]._cells[ci]._predictionState + _columns[i]._cells[ci]._intent * perturbationIntensity) * predictionIntensity);
+
+			maxPerturbedPrediction = std::max(maxPerturbedPrediction, _columns[i]._cells[ci]._perturbedPrediction);
+		}
+
+		_columns[i]._perturbedPrediction = maxPerturbedPrediction;
+	}
+
+	if (output.size() != _outputNodes.size())
+		output.resize(_outputNodes.size());
+
+	for (int i = 0; i < _outputNodes.size(); i++) {
+		float sum = _outputNodes[i]._bias._weight;
+
+		for (int j = 0; j < _columns.size(); j++)
+		for (int k = 0; k < _cellsPerColumn; k++)
+			sum += _columns[j]._cells[k]._state * _outputNodes[i]._connections[k + j * _cellsPerColumn]._weight;
+
+		output[i] = sum;
+	}
+
+	// Reconstruct input using perturbed columns outputs
+	action.clear();
+	action.assign(input.size(), 0.0f);
+
+	std::vector<float> sums(input.size(), 0.0f);
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		float dist2 = 0.0f;
+
+		int wi = 0;
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				action[j] += _columns[i]._perturbedPrediction * _columns[i]._center[wi]._weight;
+				sums[j] += _columns[i]._perturbedPrediction;
+			}
+
+			wi++;
+		}
+	}
+
+	for (int i = 0; i < action.size(); i++) {
+		if (sums[i] == 0.0f)
+			action[i] = 0.0f;
+		else
+			action[i] /= sums[i];
 	}
 }
 

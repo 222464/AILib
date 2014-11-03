@@ -32,20 +32,17 @@ namespace chtm {
 
 		float _prevValue;
 
-		std::vector<float> _prevActionUnclamped;
-		std::vector<float> _prevActionPerturbed;
-
 	public:
 		CHTMRL()
 			: _prevValue(0.0f)
 		{}
 
-		void createRandom(int inputWidth, int inputHeight, int numOutputs, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius,
+		void createRandom(int inputWidth, int inputHeight, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius,
 			float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight,
 			float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator);
 
-		void step(float reward, const std::vector<float> &input, std::vector<float> &action, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float weightAlphaAction, float centerAlpha, float widthAlpha, float widthScalar,
-			float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, float breakRate, float perturbationStdDev, std::mt19937 &generator);
+		void step(float reward, const std::vector<float> &input, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float centerAlpha, float widthAlpha, float widthScalar,
+			float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator);
 
 		const CHTMRegion &getRegion() const {
 			return _region;

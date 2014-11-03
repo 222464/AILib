@@ -2160,7 +2160,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	} while (!quit);
 }*/
 
-/*int main() {
+int main() {
 	sf::RenderWindow window;
 
 	window.create(sf::VideoMode(800, 600), "Mountain Car");
@@ -2196,22 +2196,9 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 	std::mt19937 generator(time(nullptr));
 
-	//rl::MultiLSTMRL agent;
-	//rl::MultiLSTMRL::MultiLSTMRLSettings settings;
+	chtm::CHTMRL htm;
 
-	htmrl::HTMRL htmRL;
-	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
-	regionDescs[0]._regionWidth = 32;
-	regionDescs[0]._regionHeight = 32;
-
-	std::vector<float> condensed;
-
-	//htmRL.createRandom(1, 1, 32, 32, 2, 2, 3, 1, 16, 0.1f, regionDescs, generator);
-	htmRL.createRandom(1, 1, 32, 32, 2, 2, 1, 16, 0.1f, regionDescs, generator);
-
-	sf::Image image;
-
-	image.create(htmRL.getCondenseBufferWidth(), htmRL.getCondenseBufferHeight());
+	htm.createRandom(2, 2, 16, 16, 3, 1, 3, -0.75f, 0.75f, 0.01f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -2244,6 +2231,12 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		hills.push_back(v2);
 	}
 
+	std::vector<float> prevState(4, 0.0f);
+
+	sf::Image image;
+
+	image.create(16, 16);
+
 	do {
 		clock.restart();
 
@@ -2268,20 +2261,30 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		prevFitness = fitness;
 		fitness = (std::sin(position * 3.0f) + 1.0f) * 0.5f;
-		fitness *= fitness;
 
 		// ------------------------------ AI -------------------------------
 
 		float dFitness = (fitness - prevFitness) * 100.0f;
 
-		htmRL.setInput(0, 0, 0, 1.2f * (position + 0.52f));
-		htmRL.setInput(0, 0, 1, velocity * 15.0f);
+		std::vector<float> state(4);
+
+		state[0] = 1.2f * (position + 0.52f);
+		state[1] = velocity * 15.0f;
+		state[2] = prevState[2];
+		state[3] = prevState[3];
+
+		std::vector<float> action(4);
+
+		htm.step(fitness, state, action, 2.0f, 5, 32.0f, 16.0f, 16.0f, 0.0004f, 0.1f, 0.1f, 0.5f, 0.001f, 0.01f, 0.03f, 0.5f, 0.99f, 0.98f, 1.0f, generator);
 
 		float actionf;
 
-		htmRL.step(fitness * 0.3f, 0.5f, 0.99f, 0.98f, 1.0f, 64, 4, 0.05f, 0.1f, 0.1f, 800, 400, 0.01f, 0.0f, generator, condensed);
+		std::normal_distribution<float> pertDist(0.0f, 0.05f);
 
-		actionf = htmRL.getOutput(0);
+		prevState[2] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[2])) + pertDist(generator)));
+		prevState[3] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[3])) + pertDist(generator)));
+
+		actionf = (prevState[2] + prevState[3]) * 0.5f;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 			actionf = -1.0f;
@@ -2308,13 +2311,11 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		window.draw(cartSprite);
 
-		for (size_t i = 0; i < htmRL.getCondenseBufferWidth() * htmRL.getCondenseBufferHeight(); i++) {
-			int x = i % htmRL.getCondenseBufferWidth();
-			int y = i / htmRL.getCondenseBufferWidth();
-
+		for (int x = 0; x < 16; x++)
+		for (int y = 0; y < 16; y++) {
 			sf::Color c;
 
-			c.r = condensed[i] * 255.0f;
+			c.r = htm.getRegion().getColumn(x, y)._state * 255.0f;
 			c.g = 0;
 			c.b = 0;
 
@@ -2329,7 +2330,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		s.setPosition(800.0f - 256.0f, 0.0f);
 
-		s.setScale(256.0f / htmRL.getCondenseBufferWidth(), 256.0f / htmRL.getCondenseBufferWidth());
+		s.setScale(256.0f / image.getSize().x, 256.0f / image.getSize().y);
 
 		s.setTexture(t);
 
@@ -2341,7 +2342,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
-}*/
+}
 
 /*const size_t entrySize = 30; // 31 if you include the weight
 
@@ -3420,7 +3421,7 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -3835,7 +3836,7 @@ int main() {
 	} while (!quit);
 
 	return 0;
-}
+}*/
 
 	/*deep::FERL ferl;
 

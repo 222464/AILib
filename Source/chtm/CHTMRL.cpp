@@ -29,30 +29,22 @@ misrepresented as being the original software.
 
 using namespace chtm;
 
-void CHTMRL::createRandom(int inputWidth, int inputHeight, int numOutputs, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius,
+void CHTMRL::createRandom(int inputWidth, int inputHeight, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius,
 	float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight,
 	float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator)
 {
-	assert(inputWidth * inputHeight > numOutputs);
-
-	_region.createRandom(inputWidth, inputHeight, columnsWidth, columnsHeight, cellsPerColumn, receptiveRadius, cellRadius, numOutputs + 1,
+	_region.createRandom(inputWidth, inputHeight, columnsWidth, columnsHeight, cellsPerColumn, receptiveRadius, cellRadius, 1,
 		minCenter, maxCenter, minWidth, maxWidth, minInputWeight, maxInputWeight, minCellWeight, maxCellWeight, minOutputWeight, maxOutputWeight, generator);
-
-	_prevActionUnclamped.clear();
-	_prevActionUnclamped.assign(numOutputs, 0.0f);
-
-	_prevActionPerturbed.clear();
-	_prevActionPerturbed.assign(numOutputs, 0.0f);
 }
 
-void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float weightAlphaAction, float centerAlpha, float widthAlpha, float widthScalar,
-	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, float breakRate, float perturbationStdDev, std::mt19937 &generator)
+void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float centerAlpha, float widthAlpha, float widthScalar,
+	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator)
 {
 	_region.stepBegin();
 
-	std::vector<float> output(_prevActionUnclamped.size() + 1);
+	std::vector<float> output(1);
 
-	_region.getOutput(input, output, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
+	_region.getOutputAction(input, output, action, perturbationIntensity, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
 
 	float newAdv = _prevValue + (reward + gamma * output[0] - _prevValue) * tauInv;
 
@@ -60,40 +52,14 @@ void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<flo
 
 	_prevValue = output[0];
 
-	std::vector<float> error(_prevActionUnclamped.size() + 1);
+	std::vector<float> error(1, tdError);
 
-	error[0] = tdError;
+	std::vector<float> outputLambdas(1, lambda);
 
-	if (tdError > 0.0f) {
-		for (int i = 0; i < _prevActionPerturbed.size(); i++)
-			error[i + 1] = _prevActionPerturbed[i] - _prevActionUnclamped[i];
-	}
-	else {
-		for (int i = 0; i < _prevActionUnclamped.size(); i++)
-			error[i + 1] = 0.0f;
-	}
-
-	std::vector<float> outputLambdas(_prevActionUnclamped.size() + 1, 0.0f);
-	outputLambdas[0] = lambda;
-
-	std::vector<float> weightAlphas(_prevActionUnclamped.size() + 1, weightAlphaAction);
+	std::vector<float> weightAlphas(1, weightAlphaQ);
 	weightAlphas[0] = weightAlphaQ;
 
 	_region.learnTraces(input, output, error, weightAlphas, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, outputLambdas);
 
-	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
-	std::normal_distribution<float> perturbationDist(0.0f, perturbationStdDev);
-
-	for (int i = 0; i < _prevActionUnclamped.size(); i++) {
-		_prevActionUnclamped[i] = output[i + 1];
-
-		if (uniformDist(generator) < breakRate)
-			_prevActionPerturbed[i] = uniformDist(generator) * 2.0f - 1.0f;
-		else
-			_prevActionPerturbed[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _prevActionUnclamped[i])) + perturbationDist(generator)));
-	}
-
-	action = _prevActionPerturbed;
-
-	std::cout << output[0] << std::endl;
+	std::cout << output[0] << " " << action[3] << std::endl;
 }
