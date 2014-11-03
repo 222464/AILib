@@ -2275,16 +2275,23 @@ int main() {
 
 		std::vector<float> action(4);
 
-		htm.step(fitness, state, action, 2.0f, 5, 32.0f, 16.0f, 16.0f, 0.0004f, 0.1f, 0.1f, 0.5f, 0.001f, 0.01f, 0.03f, 0.5f, 0.99f, 0.98f, 1.0f, generator);
+		htm.step(fitness, state, action, 0.5f, 5, 32.0f, 16.0f, 16.0f, 0.0004f, 0.1f, 0.1f, 0.5f, 0.001f, 0.01f, 0.03f, 0.5f, 0.99f, 0.98f, 1.0f, generator);
 
 		float actionf;
 
 		std::normal_distribution<float> pertDist(0.0f, 0.05f);
+		std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
 
-		prevState[2] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[2])) + pertDist(generator)));
-		prevState[3] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[3])) + pertDist(generator)));
+		if (uniformDist(generator) < 0.05f) {
+			prevState[2] = uniformDist(generator) * 2.0f - 1.0f;
+			prevState[3] = uniformDist(generator) * 2.0f - 1.0f;
+		}
+		else {
+			prevState[2] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[2])) + pertDist(generator)));
+			prevState[3] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[3])) + pertDist(generator)));
+		}
 
-		actionf = (prevState[2] + prevState[3]) * 0.5f;
+		actionf = (prevState[2]) * 1.0f;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 			actionf = -1.0f;

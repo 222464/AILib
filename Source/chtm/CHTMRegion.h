@@ -33,6 +33,7 @@ namespace chtm {
 
 		struct InputConnection {
 			float _weight;
+			float _width;
 		};
 
 		struct OutputConnection {
@@ -66,8 +67,6 @@ namespace chtm {
 
 		struct Column {
 			std::vector<InputConnection> _center;
-
-			float _width;
 
 			float _activation;
 			float _state;

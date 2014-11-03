@@ -61,10 +61,10 @@ void CHTMRegion::createRandom(int inputWidth, int inputHeight, int columnsWidth,
 	for (int i = 0; i < _columns.size(); i++) {
 		_columns[i]._center.resize(numColumnInputWeights);
 
-		for (int j = 0; j < _columns[i]._center.size(); j++)
+		for (int j = 0; j < _columns[i]._center.size(); j++) {
 			_columns[i]._center[j]._weight = centerDist(generator);
-
-		_columns[i]._width = widthDist(generator);
+			_columns[i]._center[j]._width = widthDist(generator);
+		}
 
 		_columns[i]._cells.resize(cellsPerColumn);
 
@@ -133,7 +133,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 
 				int j = x + y * _inputWidth;
 
-				float delta = input[j] - _columns[i]._center[wi]._weight;
+				float delta = (input[j] - _columns[i]._center[wi]._weight) * _columns[i]._center[wi]._width;
 
 				dist2 += delta * delta;
 			}
@@ -141,7 +141,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 			wi++;
 		}
 
-		_columns[i]._activation = std::exp(-_columns[i]._width * dist2);
+		_columns[i]._activation = std::exp(-dist2);
 	}
 
 	// Sparsify
@@ -289,7 +289,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 				int j = x + y * _inputWidth;
 
-				float delta = input[j] - _columns[i]._center[wi]._weight;
+				float delta = (input[j] - _columns[i]._center[wi]._weight) * _columns[i]._center[wi]._width;
 
 				dist2 += delta * delta;
 			}
@@ -297,7 +297,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 			wi++;
 		}
 
-		_columns[i]._activation = std::exp(-_columns[i]._width * dist2);
+		_columns[i]._activation = std::exp(-dist2);
 	}
 
 	// Sparsify
@@ -466,7 +466,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 				int j = x + y * _inputWidth;
 
-				action[j] += _columns[i]._perturbedPrediction * _columns[i]._center[wi]._weight;
+				action[j] += _columns[i]._perturbedPrediction * _columns[i]._center[wi]._weight * _columns[i]._center[wi]._width;
 				sums[j] += _columns[i]._perturbedPrediction;
 			}
 
@@ -507,8 +507,6 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 		float rxn = rx * rbfWidthInv;
 		float ryn = ry * rbfHeightInv;
 
-		float dist2 = 0.0f;
-
 		int wi = 0;
 
 		float learnScalar = std::max(0.0f, _columns[i]._state - minLearningThreshold);
@@ -528,13 +526,13 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 
 				float delta = input[j] - _columns[i]._center[wi]._weight;
 
-				dist2 += delta * delta;
+				float dist = std::fabs(delta);
+
+				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
 			}
 
 			wi++;
 		}
-
-		_columns[i]._width = std::max(0.0f, _columns[i]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist2) - _columns[i]._width));
 
 		float columnPredictionError = _columns[i]._state - _columns[i]._predictionPrev;
 
@@ -592,8 +590,6 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 		float rxn = rx * rbfWidthInv;
 		float ryn = ry * rbfHeightInv;
 
-		float dist2 = 0.0f;
-
 		int wi = 0;
 
 		float learnScalar = std::max(0.0f, _columns[i]._state - minLearningThreshold);
@@ -613,13 +609,13 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 
 				float delta = input[j] - _columns[i]._center[wi]._weight;
 
-				dist2 += delta * delta;
+				float dist = std::fabs(delta);
+
+				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
 			}
 
 			wi++;
 		}
-
-		_columns[i]._width = std::max(0.0f, _columns[i]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist2) - _columns[i]._width));
 
 		float columnPredictionError = _columns[i]._state - _columns[i]._predictionPrev;
 

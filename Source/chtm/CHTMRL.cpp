@@ -57,7 +57,6 @@ void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<flo
 	std::vector<float> outputLambdas(1, lambda);
 
 	std::vector<float> weightAlphas(1, weightAlphaQ);
-	weightAlphas[0] = weightAlphaQ;
 
 	_region.learnTraces(input, output, error, weightAlphas, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, outputLambdas);
 
