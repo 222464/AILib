@@ -30,14 +30,14 @@ misrepresented as being the original software.
 using namespace chtm;
 
 void CHTMRL::createRandom(int inputWidth, int inputHeight, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius,
-	float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight,
+	float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight, float minReconWeight, float maxReconWeight,
 	float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator)
 {
 	_region.createRandom(inputWidth, inputHeight, columnsWidth, columnsHeight, cellsPerColumn, receptiveRadius, cellRadius, 1,
-		minCenter, maxCenter, minWidth, maxWidth, minInputWeight, maxInputWeight, minCellWeight, maxCellWeight, minOutputWeight, maxOutputWeight, generator);
+		minCenter, maxCenter, minWidth, maxWidth, minInputWeight, maxInputWeight, minReconWeight, maxReconWeight, minCellWeight, maxCellWeight, minOutputWeight, maxOutputWeight, generator);
 }
 
-void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float centerAlpha, float widthAlpha, float widthScalar,
+void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar,
 	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator)
 {
 	_region.stepBegin();
@@ -58,7 +58,7 @@ void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<flo
 
 	std::vector<float> weightAlphas(1, weightAlphaQ);
 
-	_region.learnTraces(input, output, error, weightAlphas, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, outputLambdas);
+	_region.learnTraces(input, output, error, weightAlphas, reconAlpha, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, outputLambdas);
 
 	std::cout << output[0] << " " << action[3] << std::endl;
 }

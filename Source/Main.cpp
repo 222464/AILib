@@ -2198,7 +2198,7 @@ int main() {
 
 	chtm::CHTMRL htm;
 
-	htm.createRandom(2, 2, 16, 16, 3, 1, 3, -0.75f, 0.75f, 0.01f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
+	htm.createRandom(2, 2, 16, 16, 3, 1, 3, -0.75f, 0.75f, 0.01f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -2275,7 +2275,7 @@ int main() {
 
 		std::vector<float> action(4);
 
-		htm.step(fitness, state, action, 0.5f, 5, 32.0f, 16.0f, 16.0f, 0.0004f, 0.1f, 0.1f, 0.5f, 0.001f, 0.01f, 0.03f, 0.5f, 0.99f, 0.98f, 1.0f, generator);
+		htm.step(fitness, state, action, 1.0f, 5, 32.0f, 16.0f, 16.0f, 0.0001f, 0.01f, 0.01f, 0.01f, 0.01f, 0.001f, 0.01f, 0.03f, 0.5f, 0.993f, 0.98f, 1.0f, generator);
 
 		float actionf;
 
@@ -2322,7 +2322,7 @@ int main() {
 		for (int y = 0; y < 16; y++) {
 			sf::Color c;
 
-			c.r = htm.getRegion().getColumn(x, y)._state * 255.0f;
+			c.r = htm.getRegion().getColumn(x, y)._perturbedPrediction * 255.0f;
 			c.g = 0;
 			c.b = 0;
 

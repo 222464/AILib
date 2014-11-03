@@ -30,12 +30,13 @@ misrepresented as being the original software.
 using namespace chtm;
 
 void CHTMRegion::createRandom(int inputWidth, int inputHeight, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius, int numOutputs,
-	float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight,
+	float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight, float minReconWeight, float maxReconWeight,
 	float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator)
 {
 	std::uniform_real_distribution<float> centerDist(minCenter, maxCenter);
 	std::uniform_real_distribution<float> widthDist(minWidth, maxWidth);
 	std::uniform_real_distribution<float> inputWeightDist(minInputWeight, maxInputWeight);
+	std::uniform_real_distribution<float> reconWeightDist(minReconWeight, maxReconWeight);
 	std::uniform_real_distribution<float> cellWeightDist(minCellWeight, maxCellWeight);
 	std::uniform_real_distribution<float> outputWeightDist(minOutputWeight, maxOutputWeight);
 
@@ -71,6 +72,8 @@ void CHTMRegion::createRandom(int inputWidth, int inputHeight, int columnsWidth,
 		for (int j = 0; j < _columns[i]._cells.size(); j++) {
 			_columns[i]._cells[j]._connections.resize(numCellConnections);
 
+			_columns[i]._cells[j]._bias._weight = cellWeightDist(generator);
+
 			for (int k = 0; k < _columns[i]._cells[j]._connections.size(); k++)
 				_columns[i]._cells[j]._connections[k]._weight = cellWeightDist(generator);
 		}
@@ -88,6 +91,44 @@ void CHTMRegion::createRandom(int inputWidth, int inputHeight, int columnsWidth,
 
 		_outputNodes[i]._bias._weight = outputWeightDist(generator);
 	}
+
+	_reconNodes.resize(numInputs);
+
+	for (int i = 0; i < _reconNodes.size(); i++)
+		_reconNodes[i]._bias._weight = reconWeightDist(generator);
+
+	float inputWidthInv = 1.0f / _inputWidth;
+	float inputHeightInv = 1.0f / _inputHeight;
+
+	float rbfWidthInv = 1.0f / _columnsWidth;
+	float rbfHeightInv = 1.0f / _columnsHeight;
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				ReconConnection c;
+
+				c._weight = reconWeightDist(generator);
+
+				_reconNodes[j]._connections.push_back(c);
+			}
+		}
+	}
 }
 
 void CHTMRegion::stepBegin() {
@@ -97,6 +138,7 @@ void CHTMRegion::stepBegin() {
 
 		for (int j = 0; j < _cellsPerColumn; j++) {
 			_columns[i]._cells[j]._predictionPrev = _columns[i]._cells[j]._prediction;
+			_columns[i]._cells[j]._predictionStatePrev = _columns[i]._cells[j]._predictionState;
 			_columns[i]._cells[j]._perturbedPredictionPrev = _columns[i]._cells[j]._perturbedPrediction;
 		}
 	}
@@ -212,7 +254,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 		float maxPrediction = 0.0f;
 
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float sum = 0.0f;
+			float sum = _columns[i]._cells[ci]._bias._weight;
 
 			// Go through all connections 
 			int wi = 0;
@@ -376,7 +418,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
 			float cellQWeight = _outputNodes.front()._connections[i + ci * _cellsPerColumn]._weight;
 
-			float sum = 0.0f;
+			float sum = _columns[i]._cells[ci]._bias._weight;
 
 			// Go through all connections 
 			int wi = 0;
@@ -417,7 +459,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 		float maxPerturbedPrediction = 0.0f;
 
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			_columns[i]._cells[ci]._perturbedPrediction = sigmoid((_columns[i]._cells[ci]._predictionState + _columns[i]._cells[ci]._intent * perturbationIntensity) * predictionIntensity);
+			_columns[i]._cells[ci]._perturbedPrediction = sigmoid((_columns[i]._cells[ci]._predictionStatePrev + _columns[i]._cells[ci]._intent * perturbationIntensity) * predictionIntensity);
 
 			maxPerturbedPrediction = std::max(maxPerturbedPrediction, _columns[i]._cells[ci]._perturbedPrediction);
 		}
@@ -439,10 +481,13 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 	}
 
 	// Reconstruct input using perturbed columns outputs
-	action.clear();
-	action.assign(input.size(), 0.0f);
+	if (action.size() != input.size())
+		action.resize(input.size());
 
-	std::vector<float> sums(input.size(), 0.0f);
+	for (int i = 0; i < action.size(); i++)
+		action[i] = _reconNodes[i]._bias._weight;
+
+	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
 
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
@@ -466,23 +511,15 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 				int j = x + y * _inputWidth;
 
-				action[j] += _columns[i]._perturbedPrediction * _columns[i]._center[wi]._weight * _columns[i]._center[wi]._width;
-				sums[j] += _columns[i]._perturbedPrediction;
+				action[j] += _columns[i]._perturbedPrediction * _reconNodes[j]._connections[reconWeightCounters[j]++]._weight;
 			}
 
 			wi++;
 		}
 	}
-
-	for (int i = 0; i < action.size(); i++) {
-		if (sums[i] == 0.0f)
-			action[i] = 0.0f;
-		else
-			action[i] /= sums[i];
-	}
 }
 
-void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha) {
+void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha) {
 	// Update output node weights
 	for (int i = 0; i < _outputNodes.size(); i++) {
 		float alphaError = weightAlpha * (target[i] - output[i]);
@@ -493,6 +530,12 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 		
 		_outputNodes[i]._bias._weight += alphaError;
 	}
+
+	std::vector<float> reconNodeSums(_reconNodes.size());
+	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
+
+	for (int i = 0; i < _reconNodes.size(); i++)
+		reconNodeSums[i] = _reconNodes[i]._bias._weight;
 
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
@@ -529,6 +572,8 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 				float dist = std::fabs(delta);
 
 				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
+			
+				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]++]._weight * _columns[i]._state;
 			}
 
 			wi++;
@@ -538,6 +583,8 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
 			float cellState = _columns[i]._cells[ci]._state;
+
+			_columns[i]._cells[ci]._bias._weight += cellAlpha * columnPredictionError;
 
 			// Go through all connections and update them
 			int wi = 0;
@@ -558,9 +605,50 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 			}
 		}
 	}
+
+	// Learn reconstruction
+	std::vector<float> reconErrors(_reconNodes.size());
+
+	for (int i = 0; i < _reconNodes.size(); i++) {
+		reconErrors[i] = input[i] - reconNodeSums[i];
+
+		_reconNodes[i]._bias._weight += reconAlpha * reconErrors[i];
+	}
+
+	reconWeightCounters.clear();
+	reconWeightCounters.assign(_reconNodes.size(), 0);
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		int wi = 0;
+
+		float learnScalar = std::max(0.0f, _columns[i]._state - minLearningThreshold);
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				_reconNodes[j]._connections[reconWeightCounters[j]++]._weight += reconAlpha * reconErrors[j] * _columns[i]._state;
+			}
+
+			wi++;
+		}
+	}
 }
 
-void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, const std::vector<float> &outputLambdas) {
+void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, const std::vector<float> &outputLambdas) {
 	// Update output node weights
 	for (int i = 0; i < _outputNodes.size(); i++) {
 		float alphaError = outputWeightAlphas[i] * error[i];
@@ -577,6 +665,12 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 		_outputNodes[i]._bias._eligibility += 1.0f;
 	}
 
+	std::vector<float> reconNodeSums(_reconNodes.size());
+	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
+
+	for (int i = 0; i < _reconNodes.size(); i++)
+		reconNodeSums[i] = _reconNodes[i]._bias._weight;
+
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
 
@@ -612,6 +706,8 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 				float dist = std::fabs(delta);
 
 				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
+			
+				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]++]._weight * _columns[i]._state;
 			}
 
 			wi++;
@@ -621,6 +717,8 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
 			float cellState = _columns[i]._cells[ci]._state;
+
+			_columns[i]._cells[ci]._bias._weight += cellAlpha * columnPredictionError;
 
 			// Go through all connections and update them
 			int wi = 0;
@@ -639,6 +737,47 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 
 				wi++;
 			}
+		}
+	}
+
+	// Learn reconstruction
+	std::vector<float> reconErrors(_reconNodes.size());
+
+	for (int i = 0; i < _reconNodes.size(); i++) {
+		reconErrors[i] = input[i] - reconNodeSums[i];
+
+		_reconNodes[i]._bias._weight += reconAlpha * reconErrors[i];
+	}
+
+	reconWeightCounters.clear();
+	reconWeightCounters.assign(_reconNodes.size(), 0);
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		int wi = 0;
+
+		float learnScalar = std::max(0.0f, _columns[i]._state - minLearningThreshold);
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				_reconNodes[j]._connections[reconWeightCounters[j]++]._weight += reconAlpha * reconErrors[j] * _columns[i]._state;
+			}
+
+			wi++;
 		}
 	}
 }

@@ -36,6 +36,10 @@ namespace chtm {
 			float _width;
 		};
 
+		struct ReconConnection {
+			float _weight;
+		};
+
 		struct OutputConnection {
 			float _weight;
 
@@ -49,6 +53,7 @@ namespace chtm {
 		struct ColumnCell {
 			float _state;
 			float _predictionState;
+			float _predictionStatePrev;
 			float _prediction;
 			float _predictionPrev;
 			float _perturbedPrediction;
@@ -58,8 +63,11 @@ namespace chtm {
 
 			std::vector<LateralConnection> _connections;
 
+			LateralConnection _bias;
+
 			ColumnCell()
-				: _state(0.0f), _predictionState(0.0f), _prediction(0.0f), _predictionPrev(0.0f),
+				: _state(0.0f), _predictionState(0.0f), _predictionStatePrev(0.0f), 
+				_prediction(0.0f), _predictionPrev(0.0f),
 				_perturbedPrediction(0.0f), _perturbedPredictionPrev(0.0f),
 				_intent(0.0f)
 			{}
@@ -84,6 +92,12 @@ namespace chtm {
 			{}
 		};
 
+		struct ReconNode {
+			std::vector<ReconConnection> _connections;
+
+			ReconConnection _bias;
+		};
+
 		struct OutputNode {
 			std::vector<OutputConnection> _connections;
 
@@ -95,6 +109,7 @@ namespace chtm {
 		}
 
 	private:
+		std::vector<ReconNode> _reconNodes;
 		std::vector<Column> _columns;
 		std::vector<OutputNode> _outputNodes;
 
@@ -106,7 +121,7 @@ namespace chtm {
 
 	public:
 		void createRandom(int inputWidth, int inputHeight, int columnsWidth, int columnsHeight, int cellsPerColumn, int receptiveRadius, int cellRadius, int numOutputs,
-			float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight,
+			float minCenter, float maxCenter, float minWidth, float maxWidth, float minInputWeight, float maxInputWeight, float minReconWeight, float maxReconWeight,
 			float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator);
 
 		void stepBegin();
@@ -115,9 +130,9 @@ namespace chtm {
 	
 		void getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
 
-		void learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha);
+		void learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha);
 
-		void learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, const std::vector<float> &outputLambdas);
+		void learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, const std::vector<float> &outputLambdas);
 
 		void findInputError(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, std::vector<float> &inputError);
 
