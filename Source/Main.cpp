@@ -59,6 +59,9 @@ misrepresented as being the original software.
 
 #include <ctrnn/GeneticAlgorithm.h>
 
+#include <chtm/CHTMRegion.h>
+#include <chtm/CHTMRL.h>
+
 #include <nn/GeneticAlgorithm.h>
 
 #include <falcon/Falcon.h>
@@ -76,6 +79,7 @@ misrepresented as being the original software.
 #include <deep/RBM.h>
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
+#include <deep/SharpFA.h>
 
 #include <raahn/AutoEncoder.h>
 
@@ -3047,69 +3051,81 @@ int main() {
 	return 0;
 }*/
 
-float testFunc(float x) {
-	return std::sin(x);
+/*float testFunc(float x) {
+	return std::sin(x * 3.0f);
+}
+
+void addPlotData(std::ostream &os, int plotIndex, const std::vector<std::tuple<float, float>> &data) {
+	os << "local c" << plotIndex << " = { " << std::endl;
+
+	for (int i = 0; i < data.size(); i++) {
+		os << "    { " << std::get<0>(data[i]) << ", " << std::get<1>(data[i]) << " }";
+
+		if (i != data.size() - 1)
+			os << ",";
+
+		os << std::endl;
+	}
+
+	os << "}" << std::endl << std::endl;
 }
 
 int main() {
+	int iter = 64;
+
 	std::mt19937 generator(time(nullptr));
 
-	sf::plot::Plot p;
+	std::ofstream toFile("output.txt");
 
-	p.setSize(sf::Vector2f(800.0f, 600.0f));
-	p.setTitle("Avg. Reward");
-	p.setFont("Resources/arial.ttf");
-	p.setBackgroundColor(sf::Color::White);
-	p.setTitleColor(sf::Color::Black);
-	p.setPosition(sf::Vector2f(0.0f, 0.0f));
-	p.setXLabel("X");
-	p.setYLabel("Y");
+	std::vector<std::tuple<float, float>> data;
 
-	sf::plot::Curve &c1 = p.createCurve("Function", sf::Color::Black);
-	sf::plot::Curve &c2 = p.createCurve("SDRRBF", sf::Color::Red);
-	sf::plot::Curve &c3 = p.createCurve("MLP", sf::Color::Blue);
-
-	c1.setFill(false);
-	//c1.setLimit(2000);
-
-	c2.setFill(false);
-	//c2.setLimit(2000);
-
-	c3.setFill(false);
-	//c3.setLimit(2000);
+	data.clear();
 
 	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
 		float y = testFunc(x);
 
-		c1.addValue(y);
+		data.push_back(std::make_tuple(x, y));
 	}
+
+	addPlotData(toFile, 1, data);
+
+	data.clear();
 
 	//std::cout << "SDR RBF:" << std::endl;
 
-	rbf::SDRRBFNetwork sdrrbf;
+	chtm::CHTMRegion htm;
 
-	sdrrbf.createRandom(2, 2, 32, 32, 1, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, generator);
+	htm.createRandom(2, 2, 16, 16, 3, 2, 3, 1, -0.1f, 0.1f, 0.01f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 160; i++)
-	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
-		float y = testFunc(x);
+	for (int i = 0; i < iter; i++) {
+		float prevY = 0.0f;
 
-		std::vector<float> input(4, x);
-		std::vector<float> output(1);
-		std::vector<float> target(1, y);
-		
-		sdrrbf.getOutput(input, output, 3, 32.0f, generator);
+		for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+			float y = testFunc(x);
 
-		//std::cout << output[0] << std::endl;
+			std::vector<float> input(4, x);
+			std::vector<float> output(1);
+			std::vector<float> target(1, y);
 
-		sdrrbf.update(input, output, target, 0.02f, 0.05f, 0.05f, 2.0f, 0.01f, 0.2f);
+			htm.stepBegin();
+
+			htm.getOutput(input, output, 3, 32.0f, 8.0f, 8.0f, generator);
+
+			htm.learn(input, output, target, 0.01f, 0.05f, 0.05f, 2.0f, 0.01f, 0.2f, 0.01f);
+
+			prevY = y;
+		}
+
+		std::cout << i << std::endl;
 	}
 
 	float error = 0.0f;
 
 	sf::Image img;
 
-	img.create(32, 32);
+	img.create(16, 16);
+
+	float prevY = 0.0f;
 
 	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
 		float y = testFunc(x);
@@ -3118,13 +3134,15 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		sdrrbf.getOutput(input, output, 3, 32.0f, generator);
+		htm.stepBegin();
+
+		htm.getOutput(input, output, 3, 32.0f, 8.0f, 8.0f, generator);
 
 		if (x == 0.0f) {
 			for (int x = 0; x < 16; x++)
 			for (int y = 0; y < 16; y++) {
 				sf::Color c = sf::Color::Black;
-				c.r = 255.0f * sdrrbf.getRBFNode(x, y)._output;
+				c.r = 255.0f * htm.getColumn(x, y)._output;
 
 				img.setPixel(x, y, c);
 			}
@@ -3136,10 +3154,16 @@ int main() {
 
 		std::cout << x << " " << output[0] << std::endl;
 
-		c2.addValue(output[0]);
+		data.push_back(std::make_tuple(x, output[0]));
+
+		prevY = y;
 
 		system("pause");
 	}
+
+	addPlotData(toFile, 2, data);
+
+	data.clear();
 
 	img.saveToFile("region.png");
 
@@ -3148,14 +3172,13 @@ int main() {
 	//system("pause");
 
 	//std::cout << "MLP:" << std::endl;
+	deep::FA fans;
 
-	deep::FA fa;
-
-	fa.createRandom(1, 1, 1, 16, 0.1f, generator);
+	fans.createRandom(1, 1, 1, 256, 0.1f, generator);
 
 	std::uniform_real_distribution<float> angleDist(0.0f, 6.28f);
 
-	for (int i = 0; i < 16000; i++)
+	for (int i = 0; i < iter; i++)
 	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
 
 		float y = testFunc(x);
@@ -3164,13 +3187,13 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		fa.clearGradient();
+		fans.clearGradient();
 
-		fa.process(input, output);
+		fans.process(input, output);
 
-		fa.accumulateGradient(input, target);
+		fans.accumulateGradient(input, target);
 
-		fa.moveAlongGradientRMS(0.05f, 0.001f, 0.1f, 0.0f, 0.0f);
+		fans.moveAlongGradientRMS(0.05f, 0.01f, 0.1f, 0.0f, 0.0f);
 	}
 
 	error = 0.0f;
@@ -3182,14 +3205,168 @@ int main() {
 		std::vector<float> output(1);
 		std::vector<float> target(1, y);
 
-		fa.process(input, output);
+		fans.process(input, output);
 
 		error += std::abs(output[0] - y);
 
-		c3.addValue(output[0]);
+		data.push_back(std::make_tuple(x, output[0]));
 
 		std::cout << output[0] << std::endl;
 	}
+
+	addPlotData(toFile, 3, data);
+
+	data.clear();
+
+	deep::SharpFA fa;
+
+	fa.createRandom(1, 1, 1, 256, 0.1f, generator);
+
+	for (int i = 0; i < iter; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fa.clearGradient();
+
+		fa.process(input, output, 0.5f, 3);
+
+		fa.accumulateGradient(input, target);
+
+		fa.moveAlongGradientRMS(0.05f, 0.01f, 0.1f, 0.0f, 0.0f);
+	}
+
+	error = 0.0f;
+
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fa.process(input, output, 0.5f, 3);
+
+		error += std::abs(output[0] - y);
+
+		data.push_back(std::make_tuple(x, output[0]));
+
+		std::cout << output[0] << std::endl;
+	}
+
+	addPlotData(toFile, 4, data);
+
+	data.clear();
+
+	deep::DBN dbn;
+
+	dbn.createRandom(1, 1, std::vector<int>(1, 256), -0.1f, 0.1f, generator);
+
+	for (int i = 0; i < 10000; i++) {
+		float x2 = angleDist(generator);
+
+		float y = testFunc(x2);
+
+		std::vector<float> input(1, x2);
+		std::vector<float> output(1);
+		std::vector<float> mean(16);
+		std::vector<float> target(1, y);
+
+		dbn.trainLayerUnsupervised(0, input, 0.01f, generator);
+	}
+
+	error = 0.0f;
+
+	dbn.prepareForGradientDescent();
+
+	for (int i = 0; i < iter; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		dbn.execute(input, output);
+	
+		dbn.getError(target);
+
+		dbn.accumulateGradient();
+
+		dbn.moveAlongAccumulatedGradient(0.001f);
+	}
+	
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		dbn.execute(input, output);
+
+		error += std::abs(output[0] - y);
+
+		data.push_back(std::make_tuple(x, output[0]));
+
+		std::cout << output[0] << std::endl;
+	}
+
+	addPlotData(toFile, 5, data);
+
+	data.clear();
+
+	deep::FA fanss;
+
+	fanss.createRandom(1, 1, 1, 256, 0.1f, generator);
+
+	for (int i = 0; i < iter; i++)
+	for (float x = 0.0f; x < 6.28f; x += 0.01f) {
+
+		float x2 = angleDist(generator);
+
+		float y = testFunc(x2);
+
+		std::vector<float> input(1, x2);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fanss.clearGradient();
+
+		fanss.process(input, output);
+
+		fanss.accumulateGradient(input, target);
+
+		fanss.moveAlongGradientRMS(0.05f, 0.01f, 0.1f, 0.0f, 0.0f);
+	}
+
+	error = 0.0f;
+
+	for (float x = 0.0f; x < 6.28f; x += 0.1f) {
+		float y = testFunc(x);
+
+		std::vector<float> input(1, x);
+		std::vector<float> output(1);
+		std::vector<float> target(1, y);
+
+		fanss.process(input, output);
+
+		error += std::abs(output[0] - y);
+
+		data.push_back(std::make_tuple(x, output[0]));
+
+		std::cout << output[0] << std::endl;
+	}
+
+	addPlotData(toFile, 6, data);
+
+	data.clear();
+
+	toFile.close();
 
 	//std::cout << "Error: " << error << std::endl;
 
@@ -3197,24 +3374,56 @@ int main() {
 
 	//c1.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
 
-	p.prepare();
+	return 0;
+}*/
 
-	c1.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
-	c2.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
-	c3.prepare(sf::Vector2f(0.0f, 6.28f), sf::Vector2f(-2.0f, 2.0f));
-	
-	sf::RenderTexture rt;
-	rt.create(800, 600);
+/*int main() {
+	std::mt19937 generator(time(nullptr));
 
-	rt.clear();
+	sf::RenderWindow renderWindow;
 
-	rt.draw(p);
+	renderWindow.create(sf::VideoMode(512, 512), "Circles", sf::Style::Default);
 
-	rt.display();
+	sf::Clock clock;
 
-	rt.getTexture().copyToImage().saveToFile("plot.png");
+	bool quit = false;
 
-	/*float reward = 0.0f;
+	bool aPressedLastFrame = false;
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (renderWindow.pollEvent(windowEvent)) {
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) && !aPressedLastFrame) {
+
+		}
+
+		aPressedLastFrame = sf::Keyboard::isKeyPressed(sf::Keyboard::A);
+
+	} while (!quit);
+
+	return 0;
+}*/
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	float reward = 0.0f;
 	float prevReward = 0.0f;
 
 	float initReward = 0.0f;
@@ -3228,37 +3437,6 @@ int main() {
 	window.setVerticalSyncEnabled(true);
 
 	//window.setFramerateLimit(60);
-
-	raahn::AutoEncoder ae;
-
-	ae.createRandom(4, 4, -0.1f, 0.1f, generator);
-
-	for (int i = 0; i < 40000; i++) {
-		std::vector<float> input(4, 0.0f);
-
-		input[i % 4] = 1.0f;
-
-		std::vector<float> outputs(3);
-
-		ae.update(input, outputs, 0.01f);
-	}
-
-	for (int i = 0; i < 4; i++) {
-		std::vector<float> input(4, 0.0f);
-
-		input[i % 4] = 1.0f;
-
-		std::vector<float> reconstruction(4);
-
-		ae.getReconstruction(input, reconstruction);
-
-		for (int j = 0; j < 4; j++)
-			std::cout << reconstruction[j] << " ";
-
-		std::cout << std::endl;
-	}
-
-	system("pause");
 
 	// -------------------------- Load Resources --------------------------
 
@@ -3343,48 +3521,6 @@ int main() {
 
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
-	//deep::AutoLSTM alstm;
-
-	//elman::ElmanNetwork en;
-
-	//en.createRandom(4, 1, 10, -0.5f, 0.5f, generator);
-
-	//lstm::LSTMActorCritic lstmAC;
-
-	//lstmAC.createRandom(4, 1, 1, 24, 2, 1, 1, 24, 2, 1, -0.5f, 0.5f, generator);
-
-	deep::ConvRL agent;
-
-	std::vector<deep::ConvNet2D::LayerPairDesc> descs(2);
-
-	descs[0]._downsampleWidth = 2;
-	descs[0]._downsampleHeight = 2;
-	descs[0]._filterSizeWidth = 5;
-	descs[0]._filterSizeHeight = 5;
-	descs[0]._numFeatureMaps = 3;
-	descs[0]._strideWidth = 1;
-	descs[0]._strideHeight = 1;
-
-	descs[1]._downsampleWidth = 2;
-	descs[1]._downsampleHeight = 2;
-	descs[1]._filterSizeWidth = 5;
-	descs[1]._filterSizeHeight = 5;
-	descs[1]._numFeatureMaps = 6;
-	descs[1]._strideWidth = 1;
-	descs[1]._strideHeight = 1;
-
-	agent.createRandom(64, 32, 1, descs, -0.2f, 0.2f, 1, 32, 0.05f, generator);
-
-	//falcon::Falcon fal;
-	//fal.create(4, 1);
-
-	//deep::FERL ferl;
-	//ferl.createRandom(4, 1, 24, 0.1f, generator);
-
-	//nn::SOMQAgent sqa;
-
-	//sqa.createRandom(4, 1, 2, 60, nn::BrownianPerturbation(), -0.5f, 0.5f, generator);
-
 	sf::Font font;
 
 	font.loadFromFile("Resources/pixelated.ttf");
@@ -3426,6 +3562,12 @@ int main() {
 	float totalTime = 0.0f;
 
 	float plotUpdateTimer = 0.0f;
+
+	chtm::CHTMRL agent;
+
+	agent.createRandom(2, 3, 1, 32, 32, 3, 2, 3, -0.1f, 0.1f, 0.05f, 0.5f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
+
+	std::vector<float> prevInput(6, 0.0f);
 
 	do {
 		clock.restart();
@@ -3479,18 +3621,28 @@ int main() {
 
 		sf::Image img = inputRT.getTexture().copyToImage();
 
-		for (int i = 0; i < img.getSize().x * img.getSize().y; i++) {
-			int x = i % img.getSize().x;
-			int y = i / img.getSize().x;
+		std::vector<float> state(6);
 
-			agent.setInput(x, y, 0, img.getPixel(x, y).r / 255.0f);
-		}
+		//lstmAC.setInput(0, cartX * 0.25f);
+		//lstmAC.setInput(1, cartVelX);
+		//lstmAC.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
+		//lstmAC.setInput(3, poleAngleVel);
 
-		std::vector<float> convBuff;
+		state[0] = cartX * 0.25f;
+		state[1] = cartVelX;
+		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI));
+		state[3] = poleAngleVel;
+		state[4] = prevInput[4];
+		state[5] = prevInput[5];
 
-		agent.step(reward, 0.5f, 0.993f, 0.99f, 1.0f, 0.005f, 100, 10, 32, 4, 0.05f, 0.1f, 0.05f, 800, 400, 0.01f, 0.0f, generator, convBuff);
-		
-		float dir = agent.getOutput(0);
+		std::vector<float> action(1);
+
+		agent.step(reward, state, action, 4, 32.0f, 8.0f, 8.0f, 0.0001f, 0.02f, 0.01f, 0.01f, 0.5f, 0.001f, 0.01f, 0.01f, 0.5f, 0.994f, 0.98f, 1.0f, 0.05f, 0.05f, generator);
+
+		float dir = action[0];
+
+		prevInput = state;
+		prevInput[5] = prevInput[4] = action[0];
 
 		//dir = 1.4f * (dir * 2.0f - 1.0f);
 
@@ -3644,34 +3796,6 @@ int main() {
 
 		window.draw(inputSprite);
 
-		sf::Image condensedImage;
-
-		condensedImage.create(agent.getConvNet().getOutputWidth(), agent.getConvNet().getOutputHeight());
-
-		for (int x = 0; x < agent.getConvNet().getOutputWidth(); x++)
-		for (int y = 0; y < agent.getConvNet().getOutputHeight(); y++) {
-			sf::Color color;
-
-			color.r = 255.0f * convBuff[0 + y * agent.getConvNet().getOutputNumMaps() + x * agent.getConvNet().getOutputHeight() * agent.getConvNet().getOutputNumMaps()];
-			color.g = 255.0f * convBuff[1 + y * agent.getConvNet().getOutputNumMaps() + x * agent.getConvNet().getOutputHeight() * agent.getConvNet().getOutputNumMaps()];
-
-			condensedImage.setPixel(x, y, color);
-		}
-
-		sf::Texture condensedTexture;
-		condensedTexture.loadFromImage(condensedImage);
-
-		sf::Sprite condensedSprite;
-
-		condensedSprite.setTexture(condensedTexture);
-
-		float scale = 20.0f;
-
-		condensedSprite.setPosition(800.0f - condensedImage.getSize().x * scale, 0.0f);
-		condensedSprite.setScale(scale, scale);
-
-		window.draw(condensedSprite);
-
 		// -------------------------------------------------------------------
 
 		window.display();
@@ -3680,7 +3804,10 @@ int main() {
 
 		totalTime += dt;
 		plotUpdateTimer += dt;
-	} while (!quit);*/
+	} while (!quit);
+
+	return 0;
+}
 
 	/*deep::FERL ferl;
 
@@ -3820,5 +3947,5 @@ int main() {
 		}
 	}
 
-	std::cout << successes << " " << failures << std::endl;*/
-}
+	std::cout << successes << " " << failures << std::endl;
+}*/

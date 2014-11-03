@@ -128,12 +128,9 @@ int main() {
 
 	std::vector<float> q(mazeSize * 4, 10.0f);
 
-	htmrl::HTMRL htmRL;
-	std::vector<htmrl::HTMRL::RegionDesc> regionDescs(1);
-	regionDescs[0]._regionWidth = 12;
-	regionDescs[0]._regionHeight = 12;
+	deep::FERL ferl;
 
-	htmRL.createRandom(3, 3, 4, 4, 4, 60, 0.1f, regionDescs, generator);
+	ferl.createRandom(8, 4, 8, 0.1f, generator);
 
 	// Find start and end
 	int startX, startY;
@@ -306,17 +303,9 @@ int main() {
 		prevBotY = botY;
 		prevAction = action;
 
-		for (int o = 0; o < 8; o++)
-			htmRL.setInput(o % 3, o / 3, obs[o]);
+		std::vector<float> output(4);
 
-		std::vector<float> output;
-
-		htmRL.step(reward, 0.001f, 0.97f, 0.9f, 5.0f, 8, 8, 0.05f, 0.05f, 0.05f, generator);
-
-		output.resize(4);
-
-		for (int a = 0; a < 4; a++)
-			output[a] = htmRL.getOutput(a);
+		ferl.step(obs, output, reward, 0.5f, 0.98f, 0.95f, 1.0f, 8, 6, 0.01f, 0.05f, 0.05f, 600, 200, 0.005f, 0.1f, generator);
 
 		//agent.step(obs, output, reward, 0.001f, 0.95f, 0.8f, 5.0f, 8, 8, 0.05f, 0.15f, 0.05f, generator);
 
