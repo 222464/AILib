@@ -118,7 +118,7 @@ namespace chtm {
 			return _columns.size();
 		}
 
-		const Column &getColumn(int x, int y) {
+		const Column &getColumn(int x, int y) const {
 			return _columns[x + y * _columnsWidth];
 		}
 	};

@@ -47,5 +47,8 @@ namespace chtm {
 		void step(float reward, const std::vector<float> &input, std::vector<float> &action, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float weightAlphaAction, float centerAlpha, float widthAlpha, float widthScalar,
 			float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, float breakRate, float perturbationStdDev, std::mt19937 &generator);
 
+		const CHTMRegion &getRegion() const {
+			return _region;
+		}
 	};
 }

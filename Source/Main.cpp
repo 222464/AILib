@@ -3565,7 +3565,7 @@ int main() {
 
 	chtm::CHTMRL agent;
 
-	agent.createRandom(2, 3, 1, 32, 32, 3, 2, 3, -0.1f, 0.1f, 0.05f, 0.5f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
+	agent.createRandom(2, 3, 1, 32, 32, 3, 2, 3, -0.75f, 0.75f, 0.02f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
 
 	std::vector<float> prevInput(6, 0.0f);
 
@@ -3629,15 +3629,15 @@ int main() {
 		//lstmAC.setInput(3, poleAngleVel);
 
 		state[0] = cartX * 0.25f;
-		state[1] = cartVelX;
-		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI));
-		state[3] = poleAngleVel;
+		state[1] = cartVelX * 0.4f;
+		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) / (2.0f * static_cast<float>(PI)) * 2.0f - 1.0f;
+		state[3] = poleAngleVel * 0.2f;
 		state[4] = prevInput[4];
 		state[5] = prevInput[5];
 
 		std::vector<float> action(1);
 
-		agent.step(reward, state, action, 4, 32.0f, 8.0f, 8.0f, 0.0001f, 0.02f, 0.01f, 0.01f, 0.5f, 0.001f, 0.01f, 0.01f, 0.5f, 0.994f, 0.98f, 1.0f, 0.05f, 0.05f, generator);
+		agent.step(reward, state, action, 8, 16.0f, 4.0f, 4.0f, 0.002f, 0.02f, 0.01f, 0.01f, 4.0f, 0.01f, 0.01f, 0.01f, 0.5f, 0.994f, 0.98f, 1.0f, 0.05f, 0.05f, generator);
 
 		float dir = action[0];
 
@@ -3795,6 +3795,34 @@ int main() {
 		inputSprite.setScale(4.0f, 4.0f);
 
 		window.draw(inputSprite);
+
+		sf::Image regionImage;
+
+		regionImage.create(32, 32);
+
+		for (int x = 0; x < 32; x++)
+		for (int y = 0; y < 32; y++) {
+			float s = agent.getRegion().getColumn(x, y)._state;
+
+			sf::Color c = sf::Color::Black;
+
+			c.r = 255.0f * s;
+
+			regionImage.setPixel(x, y, c);
+		}
+
+		sf::Texture regionTex;
+		regionTex.loadFromImage(regionImage);
+
+		float pw = 4.0f;
+
+		sf::Sprite regionSprite;
+		regionSprite.setPosition(800.0f - 32 * pw, 0.0f);
+		regionSprite.setScale(pw, pw);
+
+		regionSprite.setTexture(regionTex);
+
+		window.draw(regionSprite);
 
 		// -------------------------------------------------------------------
 

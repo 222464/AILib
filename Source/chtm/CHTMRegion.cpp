@@ -198,9 +198,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 
 			float predictionError = std::fabs(columnState - prediction);
 
-			float newCellState = std::exp((minPredictionError - predictionError) * cellIntensity) * columnState;
-
-			_columns[i]._cells[ci]._state = newCellState;
+			_columns[i]._cells[ci]._state = std::exp((minPredictionError - predictionError) * cellIntensity) * columnState;
 		}
 	}
 
