@@ -37,14 +37,14 @@ void CHTMRL::createRandom(int inputWidth, int inputHeight, int columnsWidth, int
 		minCenter, maxCenter, minWidth, maxWidth, minInputWeight, maxInputWeight, minReconWeight, maxReconWeight, minCellWeight, maxCellWeight, minOutputWeight, maxOutputWeight, generator);
 }
 
-void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, float perturbationIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar,
+void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<float> &action, float indecisivnessIntensity, float perturbationIntensity, float intentSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar,
 	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator)
 {
 	_region.stepBegin();
 
 	std::vector<float> output(1);
 
-	_region.getOutputAction(input, output, action, perturbationIntensity, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
+	_region.getOutputAction(input, output, action, indecisivnessIntensity, perturbationIntensity, intentSparsity, intentIntensity, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
 
 	float newAdv = _prevValue + (reward + gamma * output[0] - _prevValue) * tauInv;
 
@@ -58,7 +58,7 @@ void CHTMRL::step(float reward, const std::vector<float> &input, std::vector<flo
 
 	std::vector<float> weightAlphas(1, weightAlphaQ);
 
-	_region.learnTraces(input, output, error, weightAlphas, reconAlpha, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, outputLambdas);
+	_region.learnTraces(input, output, error, weightAlphas, reconAlpha, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, predictionIntensity, outputLambdas);
 
-	std::cout << output[0] << " " << action[3] << std::endl;
+	std::cout << output[0] << " " << action[4] << std::endl;
 }
