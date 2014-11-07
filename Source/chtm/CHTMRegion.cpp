@@ -403,38 +403,6 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 		}
 	}
 
-	// Form pre-predictions
-	for (int rx = 0; rx < _columnsWidth; rx++)
-	for (int ry = 0; ry < _columnsHeight; ry++) {
-		int i = rx + ry * _columnsWidth;
-
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float sum = _columns[i]._cells[ci]._bias._weight;
-
-			// Go through all connections 
-			int wi = 0;
-
-			for (int dx = -_cellRadius; dx <= _cellRadius; dx++)
-			for (int dy = -_cellRadius; dy <= _cellRadius; dy++)
-			for (int cio = 0; cio < _cellsPerColumn; cio++) {
-				int cx = rx + dx;
-				int cy = ry + dy;
-
-				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
-					float cellWeight = _columns[i]._cells[ci]._connections[wi]._weight;
-
-					int connectionIndex = cx + cy * _columnsWidth;
-
-					sum += cellWeight * _columns[connectionIndex]._cells[cio]._state;
-				}
-
-				wi++;
-			}
-
-			_columns[i]._cells[ci]._prePrediction = sigmoid(sum * predictionIntensity);
-		}
-	}
-
 	// Clear intents
 	for (int i = 0; i < _columns.size(); i++)
 	for (int ci = 0; ci < _cellsPerColumn; ci++) {
@@ -513,14 +481,14 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 			float predictionError = std::fabs(columnState - prediction);
 
 			float predictedActivation = std::exp((minPredictionError - predictionError) * cellIntensity);
-			_columns[i]._cells[ci]._predictionState = predictedActivation * columnState;
+			_columns[i]._cells[ci]._predictionState = predictedActivation;
 		}
 
 		// Now find the intent
 		float intent = 0.0f;
 
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			intent += _columns[i]._cells[ci]._predictionState * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight;
+			intent += _columns[i]._cells[ci]._predictionState * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
 		}
 
 		_columns[i]._intent = intent;
@@ -532,6 +500,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 		int i = rx + ry * _columnsWidth;
 
 		float maxSum = -99999.0f;
+		float maxPrediction = 0.0f;
 		//float maxPerturbedPrediction = 0.0f;
 		
 		for (int ci = 0; ci < _cellsPerColumn; ci++) {
@@ -562,6 +531,8 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 			_columns[i]._cells[ci]._prediction = sigmoid(sum * predictionIntensity);
 
 			maxSum = std::max(maxSum, sum);
+
+			maxPrediction = std::max(maxPrediction, _columns[i]._cells[ci]._prediction);
 		}
 
 		/*float columnUncertainty = 0.0f;
@@ -570,7 +541,7 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 			columnUncertainty += maxPrediction - _columns[i]._cells[ci]._prediction;
 		}
 
-		columnUncertainty /= _cellsPerColumn;*/
+		columnUncertainty /= _cellsPerColumn - 1;*/
 
 		_columns[i]._prediction = sigmoid((maxSum + _columns[i]._intent * perturbationIntensity) * predictionIntensity);
 
