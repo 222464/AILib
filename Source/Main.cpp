@@ -3643,9 +3643,12 @@ int main() {
 		state[4] = prevInput[4];
 		state[5] = prevInput[5];
 
-		std::vector<float> action(1);
+		std::vector<float> action(6);
+		std::vector<bool> actionMask(6, false);
+		actionMask[4] = true;
+		actionMask[5] = true;
 
-		agent.step(reward, state, action, 0.0f, 1.0f, 16.0f, 1.0f, 8, 16.0f, 4.0f, 4.0f, 0.0001f, 0.005f, 0.005f, 0.005f, 0.0025f, 0.005f, 0.1f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, generator);
+		agent.step(reward, state, actionMask, action, 0.2f, 16, 0.2f, 0.9f, 0.0f, 0.2f, 16.0f, 1.0f, 8, 16.0f, 8.0f, 8.0f, 0.0001f, 0.005f, 0.005f, 0.005f, 0.005f, 0.0001f, 0.01f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, generator);
 
 
 		std::normal_distribution<float> pertDist(0.0f, 0.05f);
@@ -3820,7 +3823,7 @@ int main() {
 
 		for (int x = 0; x < 32; x++)
 		for (int y = 0; y < 32; y++) {
-			float s = agent.getRegion().getColumn(x, y)._prediction;
+			float s = agent.getRegion().getColumn(x, y)._intent;
 
 			sf::Color c = sf::Color::Black;
 

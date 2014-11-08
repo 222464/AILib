@@ -137,6 +137,7 @@ void CHTMRegion::stepBegin() {
 		_columns[i]._perturbedPredictionPrev = _columns[i]._perturbedPrediction;
 
 		for (int j = 0; j < _cellsPerColumn; j++) {
+			_columns[i]._cells[j]._statePrev = _columns[i]._cells[j]._state;
 			_columns[i]._cells[j]._predictionPrev = _columns[i]._cells[j]._prediction;
 			_columns[i]._cells[j]._predictionStatePrev = _columns[i]._cells[j]._predictionState;
 			_columns[i]._cells[j]._perturbedPredictionPrev = _columns[i]._cells[j]._perturbedPrediction;
@@ -300,7 +301,7 @@ void CHTMRegion::getOutput(const std::vector<float> &input, std::vector<float> &
 	}
 }
 
-void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float indecisivnessIntensity, float perturbationIntensity, float predictionSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator) {
+void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float indecisivnessIntensity, float perturbationIntensity, float predictionSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, int optimizationSteps, float optimizationAlpha, float annealingPerturbationStdDev, float annealingPerturbationDecay, float reconAlpha, std::mt19937 &generator) {
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
 
@@ -308,6 +309,8 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 	float rbfHeightInv = 1.0f / _columnsHeight;
 
 	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
+
+	std::normal_distribution<float> annealingPerurbationDist(0.0f, annealingPerturbationStdDev);
 
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
@@ -377,6 +380,79 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 			_columns[i]._state = std::exp((_columns[i]._activation - maximum) / divisor * sparsity);
 	}
 
+	// Determine and correct reconstruction
+	std::vector<float> reconNodeSums(_reconNodes.size());
+	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
+
+	for (int i = 0; i < _reconNodes.size(); i++)
+		reconNodeSums[i] = _reconNodes[i]._bias._weight;
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]]._weight * _columns[i]._state;
+
+				reconWeightCounters[j]++;
+			}
+		}
+	}
+
+	// Learn reconstruction
+	std::vector<float> reconErrors(_reconNodes.size());
+
+	for (int i = 0; i < _reconNodes.size(); i++) {
+		reconErrors[i] = input[i] - reconNodeSums[i];
+
+		_reconNodes[i]._bias._weight += reconAlpha * reconErrors[i];
+	}
+
+	reconWeightCounters.clear();
+	reconWeightCounters.assign(_reconNodes.size(), 0);
+
+	for (int rx = 0; rx < _columnsWidth; rx++)
+	for (int ry = 0; ry < _columnsHeight; ry++) {
+		int i = rx + ry * _columnsWidth;
+
+		float rxn = rx * rbfWidthInv;
+		float ryn = ry * rbfHeightInv;
+
+		int wi = 0;
+
+		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
+		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
+			float xn = rxn + dx * inputWidthInv;
+			float yn = ryn + dy * inputHeightInv;
+
+			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
+				int x = xn * _inputWidth;
+				int y = yn * _inputHeight;
+
+				int j = x + y * _inputWidth;
+
+				_reconNodes[j]._connections[reconWeightCounters[j]]._weight += reconAlpha * reconErrors[j] * _columns[i]._state;
+
+				reconWeightCounters[j]++;
+			}
+
+			wi++;
+		}
+	}
+
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
 		int i = rx + ry * _columnsWidth;
@@ -425,81 +501,13 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 	float averageWeightVarianceInv = 1.0f / averageWeightVariance;
 
-	// Form pre-predictions to derive intents
-	for (int rx = 0; rx < _columnsWidth; rx++)
-	for (int ry = 0; ry < _columnsHeight; ry++) {
-		int i = rx + ry * _columnsWidth;
-
-		float maxPrePrediction = 0.0f;
-
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float sum = _columns[i]._cells[ci]._bias._weight;
-
-			// Go through all connections 
-			int wi = 0;
-
-			for (int dx = -_cellRadius; dx <= _cellRadius; dx++)
-			for (int dy = -_cellRadius; dy <= _cellRadius; dy++)
-			for (int cio = 0; cio < _cellsPerColumn; cio++) {
-				int cx = rx + dx;
-				int cy = ry + dy;
-
-				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
-					float cellWeight = _columns[i]._cells[ci]._connections[wi]._weight;
-
-					int connectionIndex = cx + cy * _columnsWidth;
-
-					float connectionActivation = _columns[connectionIndex]._cells[cio]._activation;
-
-					sum += cellWeight * _columns[connectionIndex]._cells[cio]._state;
-				}
-
-				wi++;
-			}
-
-			_columns[i]._cells[ci]._prePrediction = sigmoid(sum * predictionIntensity);
-
-			maxPrePrediction = std::max(maxPrePrediction, _columns[i]._cells[ci]._prePrediction);
-		}
-
-		// Inhibit
-		float columnState = maxPrePrediction;
-
-		float minPredictionError = 1.0f;
-
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float prediction = _columns[i]._cells[ci]._prePrediction;
-
-			float predictionError = std::fabs(columnState - prediction);
-
-			minPredictionError = std::min(minPredictionError, predictionError);
-		}
-
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float prediction = _columns[i]._cells[ci]._predictionPrev;
-
-			float predictionError = std::fabs(columnState - prediction);
-
-			float predictedActivation = std::exp((minPredictionError - predictionError) * cellIntensity);
-			_columns[i]._cells[ci]._predictionState = predictedActivation;
-		}
-
-		// Now find the intent
-		float intent = 0.0f;
-
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			intent += _columns[i]._cells[ci]._predictionState * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
-		}
-
-		_columns[i]._intent = intent;
-	}
+	std::vector<float> bestCellStates(_cellsPerColumn);
 
 	// Form predictions
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
 		int i = rx + ry * _columnsWidth;
 
-		float maxSum = -99999.0f;
 		float maxPrediction = 0.0f;
 		//float maxPerturbedPrediction = 0.0f;
 		
@@ -520,17 +528,13 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 					int connectionIndex = cx + cy * _columnsWidth;
 
-					float connectionActivation = _columns[connectionIndex]._cells[cio]._activation;
-
-					sum += cellWeight * (_columns[connectionIndex]._cells[cio]._state + _columns[connectionIndex]._cells[cio]._intent * perturbationIntensity);
+					sum += cellWeight * _columns[connectionIndex]._cells[cio]._state;
 				}
 
 				wi++;
 			}
 
 			_columns[i]._cells[ci]._prediction = sigmoid(sum * predictionIntensity);
-
-			maxSum = std::max(maxSum, sum);
 
 			maxPrediction = std::max(maxPrediction, _columns[i]._cells[ci]._prediction);
 		}
@@ -543,77 +547,99 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 		columnUncertainty /= _cellsPerColumn - 1;*/
 
-		_columns[i]._prediction = sigmoid((maxSum + _columns[i]._intent * perturbationIntensity) * predictionIntensity);
+		_columns[i]._prediction = maxPrediction;
 
 		_columns[i]._output = std::max(_columns[i]._state, _columns[i]._prediction);
 	}
 
-	// Gather intent
-	/*for (int rx = 0; rx < _columnsWidth; rx++)
+	// Derive action
+	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
 		int i = rx + ry * _columnsWidth;
 
-		float maxIntent = 0.0f;
+		// Simulate competition to find desirable (high output) states of cells
+		float chooseState = _columns[i]._prediction;
 
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float error = _columns[i]._perturbedPrediction - _columns[i]._prediction;
+		float maxQ;
 
-			// Go through all connections 
-			int wi = 0;
+		{
+			float minPredictionError = 1.0f;
 
-			for (int dx = -_cellRadius; dx <= _cellRadius; dx++)
-			for (int dy = -_cellRadius; dy <= _cellRadius; dy++)
-			for (int cio = 0; cio < _cellsPerColumn; cio++) {
-				int cx = rx + dx;
-				int cy = ry + dy;
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._prediction;
 
-				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
-					float cellWeight = _columns[i]._cells[ci]._connections[wi]._weight;
+				float predictionError = std::fabs(chooseState - prediction);
 
-					float connectionState = _columns[cx + cy * _columnsWidth]._cells[cio]._state;
-
-					_columns[cx + cy * _columnsWidth]._cells[cio]._intent += error * cellWeight;
-				}
-
-				wi++;
+				minPredictionError = std::min(minPredictionError, predictionError);
 			}
-		}
-	}*/
 
-	// Inhibit perturbed prediction
-	/*for (int rx = 0; rx < _columnsWidth; rx++)
-	for (int ry = 0; ry < _columnsHeight; ry++) {
-		int i = rx + ry * _columnsWidth;
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._prediction;
 
-		float maximum = 0.0f;
-		float average = 0.0f;
+				float predictionError = std::fabs(chooseState - prediction);
 
-		int count = 0;
-
-		for (int dx = -inhibitionRadius; dx <= inhibitionRadius; dx++)
-		for (int dy = -inhibitionRadius; dy <= inhibitionRadius; dy++) {
-			int x = rx + dx;
-			int y = ry + dy;
-
-			if (x >= 0 && x < _columnsWidth && y >= 0 && y < _columnsHeight) {
-				int j = x + y * _columnsWidth;
-
-				maximum = std::max(maximum, _columns[j]._intent);
-
-				average += _columns[j]._intent;
-				count++;
+				_columns[i]._cells[ci]._perturbedPrediction = std::exp((minPredictionError - predictionError) * cellIntensity) * chooseState;
 			}
+
+			// Compute direction of ascent
+			float result = 0.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				result += _columns[i]._cells[ci]._perturbedPrediction * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
+			}
+
+			maxQ = result;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++)
+				bestCellStates[ci] = _columns[i]._cells[ci]._perturbedPrediction;
 		}
 
-		average /= count;
+		float perturbationMultiplier = 1.0f;
 
-		float divisor = maximum - average;
+		for (int t = 0; t < optimizationSteps; t++) {
+			float testState = std::min(1.0f, std::max(0.0f, chooseState + perturbationMultiplier * annealingPerurbationDist(generator)));
 
-		if (divisor == 0.0f)
-			_columns[i]._prediction = uniformDist(generator) < (1.0f / count) ? 1.0f : 0.0f;
-		else
-			_columns[i]._prediction = std::exp((_columns[i]._intent - maximum) / divisor * sparsity);
-	}*/
+			perturbationMultiplier *= annealingPerturbationDecay;
+
+			float minPredictionError = 1.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._prediction;
+
+				float predictionError = std::fabs(testState - prediction);
+
+				minPredictionError = std::min(minPredictionError, predictionError);
+			}
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._prediction;
+
+				float predictionError = std::fabs(testState - prediction);
+
+				_columns[i]._cells[ci]._perturbedPrediction = std::exp((minPredictionError - predictionError) * cellIntensity) * testState;
+			}
+
+			// Compute direction of ascent
+			float result = 0.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				result += _columns[i]._cells[ci]._perturbedPrediction * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
+			}
+
+			if (result > maxQ) {
+				maxQ = result;
+				chooseState = testState;
+
+				for (int ci = 0; ci < _cellsPerColumn; ci++)
+					bestCellStates[ci] = _columns[i]._cells[ci]._perturbedPrediction;
+			}
+		}
+
+		for (int ci = 0; ci < _cellsPerColumn; ci++)
+			_columns[i]._cells[ci]._perturbedPrediction = bestCellStates[ci];
+
+		_columns[i]._intent = _columns[i]._prediction + perturbationIntensity * (chooseState - _columns[i]._prediction);
+	}
 
 	if (output.size() != _outputNodes.size())
 		output.resize(_outputNodes.size());
@@ -635,7 +661,8 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 	for (int i = 0; i < action.size(); i++)
 		action[i] = _reconNodes[i]._bias._weight;
 
-	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
+	reconWeightCounters.clear();
+	reconWeightCounters.assign(_reconNodes.size(), 0);
 
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
@@ -643,10 +670,6 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 		float rxn = rx * rbfWidthInv;
 		float ryn = ry * rbfHeightInv;
-
-		float dist2 = 0.0f;
-
-		int wi = 0;
 
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
@@ -659,10 +682,10 @@ void CHTMRegion::getOutputAction(const std::vector<float> &input, std::vector<fl
 
 				int j = x + y * _inputWidth;
 
-				action[j] += _columns[i]._prediction * _reconNodes[j]._connections[reconWeightCounters[j]++]._weight;
-			}
+				action[j] += _reconNodes[j]._connections[reconWeightCounters[j]]._weight * _columns[i]._intent;
 
-			wi++;
+				reconWeightCounters[j]++;
+			}
 		}
 	}
 }
@@ -721,7 +744,9 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 
 				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
 			
-				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]++]._weight * _columns[i]._state;
+				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]]._weight * _columns[i]._state;
+
+				reconWeightCounters[j]++;
 			}
 
 			wi++;
@@ -744,7 +769,7 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 				int cy = ry + dy;
 
 				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
-					float connectionState = _columns[cx + cy * _columnsWidth]._cells[cio]._state;
+					float connectionState = _columns[cx + cy * _columnsWidth]._cells[cio]._statePrev;
 
 					_columns[i]._cells[ci]._connections[wi]._weight += cellAlpha * columnPredictionError * connectionState;
 				}
@@ -796,7 +821,7 @@ void CHTMRegion::learn(const std::vector<float> &input, const std::vector<float>
 	}
 }
 
-void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, float perturbationIntensity, const std::vector<float> &outputLambdas) {
+void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, float perturbationIntensity, const std::vector<float> &outputLambdas) {
 	// Update output node weights
 	for (int i = 0; i < _outputNodes.size(); i++) {
 		float alphaError = outputWeightAlphas[i] * error[i];
@@ -814,12 +839,6 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 		_outputNodes[i]._bias._eligibility *= outputLambdas[i];
 		_outputNodes[i]._bias._eligibility += 1.0f;
 	}
-
-	std::vector<float> reconNodeSums(_reconNodes.size());
-	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
-
-	for (int i = 0; i < _reconNodes.size(); i++)
-		reconNodeSums[i] = _reconNodes[i]._bias._weight;
 
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
@@ -856,8 +875,6 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 				float dist = std::fabs(delta);
 
 				_columns[i]._center[wi]._width = std::max(0.0f, _columns[i]._center[wi]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist) - _columns[i]._center[wi]._width));
-			
-				reconNodeSums[j] += _reconNodes[j]._connections[reconWeightCounters[j]++]._weight * _columns[i]._state;
 			}
 
 			wi++;
@@ -882,79 +899,38 @@ void CHTMRegion::learnTraces(const std::vector<float> &input, const std::vector<
 				if (cx >= 0 && cx < _columnsWidth && cy >= 0 && cy < _columnsHeight) {
 					int connectionIndex = cx + cy * _columnsWidth;
 
-					float connectionState = _columns[connectionIndex]._cells[cio]._state;
-
-					_columns[i]._cells[ci]._connections[wi]._weight += cellAlpha * columnPredictionError * connectionState;
+					_columns[i]._cells[ci]._connections[wi]._weight += cellAlpha * columnPredictionError * _columns[connectionIndex]._cells[cio]._statePrev;
 				}
 
 				wi++;
 			}
 		}
 	}
-
-	// Learn reconstruction
-	std::vector<float> reconErrors(_reconNodes.size());
-
-	for (int i = 0; i < _reconNodes.size(); i++) {
-		reconErrors[i] = input[i] - reconNodeSums[i];
-
-		_reconNodes[i]._bias._weight += reconAlpha * reconErrors[i];
-	}
-
-	reconWeightCounters.clear();
-	reconWeightCounters.assign(_reconNodes.size(), 0);
-
-	for (int rx = 0; rx < _columnsWidth; rx++)
-	for (int ry = 0; ry < _columnsHeight; ry++) {
-		int i = rx + ry * _columnsWidth;
-
-		float rxn = rx * rbfWidthInv;
-		float ryn = ry * rbfHeightInv;
-
-		int wi = 0;
-
-		float learnScalar = std::max(0.0f, _columns[i]._state - minLearningThreshold);
-
-		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
-		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
-			float xn = rxn + dx * inputWidthInv;
-			float yn = ryn + dy * inputHeightInv;
-
-			if (xn >= 0.0f && xn < 1.0f && yn >= 0.0f && yn < 1.0f) {
-				int x = xn * _inputWidth;
-				int y = yn * _inputHeight;
-
-				int j = x + y * _inputWidth;
-
-				_reconNodes[j]._connections[reconWeightCounters[j]++]._weight += reconAlpha * reconErrors[j] * _columns[i]._state;
-			}
-
-			wi++;
-		}
-	}
 }
 
-void CHTMRegion::findInputError(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, std::vector<float> &inputError) {
-	std::vector<float> outputError(_outputNodes.size());
+void CHTMRegion::findInput(const std::vector<float> &input, const std::vector<float> &output, std::vector<float> &newInput, float cellIntensity, int optimizationSteps, float optimizationAlpha, float annealingPerturbationStdDev, float annealingPerturbationDecay, std::mt19937 &generator) {
+	float averageWeightVariance = 0.0f;
+	int weightCount = 0;
 
-	for (int i = 0; i < _outputNodes.size(); i++)
-		outputError[i] = target[i] - output[i];
+	for (int i = 0; i < _outputNodes.size(); i++) {
+		weightCount += _outputNodes[i]._connections.size();
 
-	std::vector<float> cellErrorsFirstPass(_columns.size() * _cellsPerColumn);
-
-	for (int i = 0; i < _columns.size(); i++) {
-		for (int ci = 0; ci < _cellsPerColumn; ci++) {
-			float error = 0.0f;
-
-			for (int j = 0; j < _outputNodes.size(); j++)
-				error += outputError[j] * _outputNodes[j]._connections[ci + i * _cellsPerColumn]._weight;
-
-			cellErrorsFirstPass[ci + i * _cellsPerColumn] = error;
-		}
+		for (int j = 0; j < _columns.size(); j++)
+		for (int k = 0; k < _cellsPerColumn; k++)
+			averageWeightVariance += std::fabs(_outputNodes[i]._connections[k + j * _cellsPerColumn]._weight);
 	}
 
+	averageWeightVariance /= weightCount;
+
+	float averageWeightVarianceInv = 1.0f / averageWeightVariance;
+	
+	std::vector<float> cellErrorsFirstPass(_columns.size() * _cellsPerColumn);
+
+	std::vector<float> optimizationActivations(_cellsPerColumn, 0.0f);
+	std::vector<float> optimizationStates(_cellsPerColumn, 0.0f);
+
 	// Lateral error
-	std::vector<float> cellErrorsSecondPass(_columns.size() * _cellsPerColumn);
+	/*std::vector<float> cellErrorsSecondPass(_columns.size() * _cellsPerColumn);
 
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
@@ -983,18 +959,25 @@ void CHTMRegion::findInputError(const std::vector<float> &input, const std::vect
 			}
 
 			// Add on additional error
-			cellErrorsSecondPass[ci + i * _cellsPerColumn] = cellErrorsFirstPass[ci + i * _cellsPerColumn] + lateralError;
+			cellErrorsSecondPass[ci + i * _cellsPerColumn] = lateralError;
 		}
-	}
+	}*/
 
-	inputError.clear();
-	inputError.assign(_inputWidth * _inputHeight, 0.0f);
+	newInput.clear();
+	newInput.assign(_inputWidth * _inputHeight, 0.0f);
 
 	float inputWidthInv = 1.0f / _inputWidth;
 	float inputHeightInv = 1.0f / _inputHeight;
 
 	float rbfWidthInv = 1.0f / _columnsWidth;
 	float rbfHeightInv = 1.0f / _columnsHeight;
+
+	for (int i = 0; i < newInput.size(); i++)
+		newInput[i] = _reconNodes[i]._bias._weight;
+
+	std::vector<int> reconWeightCounters(_reconNodes.size(), 0);
+
+	std::normal_distribution<float> annealingPerurbationDist(0.0f, annealingPerturbationStdDev);
 
 	for (int rx = 0; rx < _columnsWidth; rx++)
 	for (int ry = 0; ry < _columnsHeight; ry++) {
@@ -1003,17 +986,82 @@ void CHTMRegion::findInputError(const std::vector<float> &input, const std::vect
 		float rxn = rx * rbfWidthInv;
 		float ryn = ry * rbfHeightInv;
 
-		float columnError = 0.0f;
+		// Simulate competition to find desirable (high output) states of cells
+		float chooseState = _columns[i]._state;
 
-		//for (int ci = 0; ci < _cellsPerColumn; ci++)
-		//	columnError += _columns[i]._cells[ci]._state * cellErrorsSecondPass[ci + i * _cellsPerColumn];
+		float maxQ;
 
-		for (int ci = 0; ci < _cellsPerColumn; ci++)
-			columnError += cellErrorsSecondPass[ci + i * _cellsPerColumn];
+		{
+			float minPredictionError = 1.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+				float predictionError = std::fabs(chooseState - prediction);
+
+				minPredictionError = std::min(minPredictionError, predictionError);
+			}
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+				float predictionError = std::fabs(chooseState - prediction);
+
+				optimizationStates[ci] = std::exp((minPredictionError - predictionError) * cellIntensity) * chooseState;
+			}
+
+			// Compute direction of ascent
+			float result = 0.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				result += optimizationStates[ci] * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
+			}
+
+			maxQ = result;
+		}
+
+		float perturbationMultiplier = 1.0f;
+
+		for (int t = 0; t < optimizationSteps; t++) {
+			float testState = std::min(1.0f, std::max(0.0f, chooseState + perturbationMultiplier * annealingPerurbationDist(generator)));
+
+			perturbationMultiplier *= annealingPerturbationDecay;
+
+			float minPredictionError = 1.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+				float predictionError = std::fabs(testState - prediction);
+
+				minPredictionError = std::min(minPredictionError, predictionError);
+			}
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				float prediction = _columns[i]._cells[ci]._predictionPrev;
+
+				float predictionError = std::fabs(testState - prediction);
+
+				optimizationStates[ci] = std::exp((minPredictionError - predictionError) * cellIntensity) * testState;
+			}
+
+			// Compute direction of ascent
+			float result = 0.0f;
+
+			for (int ci = 0; ci < _cellsPerColumn; ci++) {
+				result += optimizationStates[ci] * _outputNodes.front()._connections[ci + i * _cellsPerColumn]._weight * averageWeightVarianceInv;
+			}
+
+			if (result > maxQ) {
+				maxQ = result;
+				chooseState = testState;
+			}
+		}
+
+		float dist2 = 0.0f;
 
 		int wi = 0;
 
-		// Go through column connections
 		for (int dx = -_receptiveRadius; dx <= _receptiveRadius; dx++)
 		for (int dy = -_receptiveRadius; dy <= _receptiveRadius; dy++) {
 			float xn = rxn + dx * inputWidthInv;
@@ -1025,7 +1073,7 @@ void CHTMRegion::findInputError(const std::vector<float> &input, const std::vect
 
 				int j = x + y * _inputWidth;
 
-				inputError[j] += columnError * (_columns[i]._center[wi]._weight - input[j]);
+				newInput[j] += chooseState * _reconNodes[j]._connections[reconWeightCounters[j]++]._weight;
 			}
 
 			wi++;
