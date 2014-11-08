@@ -2160,7 +2160,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	} while (!quit);
 }*/
 
-/*int main() {
+int main() {
 	sf::RenderWindow window;
 
 	window.create(sf::VideoMode(800, 600), "Mountain Car");
@@ -2274,22 +2274,17 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		state[3] = prevState[3];
 
 		std::vector<float> action(4);
+		std::vector<bool> actionMask(4, false);
 
-		htm.step(fitness, state, action, 0.9f, 5, 32.0f, 16.0f, 16.0f, 0.0001f, 0.01f, 0.01f, 0.01f, 0.01f, 0.001f, 0.01f, 0.03f, 0.5f, 0.993f, 0.98f, 1.0f, generator);
+		actionMask[2] = true;
+		actionMask[3] = true;
+
+		htm.step(fitness, state, actionMask, action, 0.2f, 16, 0.02f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 8, 32.0f, 4.0f, 4.0f, 0.001f, 0.005f, 0.005f, 0.005f, 0.05f, 0.0001f, 0.0f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, 0.05f, 0.05f, generator);
 
 		float actionf;
 
-		std::normal_distribution<float> pertDist(0.0f, 0.05f);
-		std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
-
-		if (uniformDist(generator) < 0.05f) {
-			prevState[2] = uniformDist(generator) * 2.0f - 1.0f;
-			prevState[3] = uniformDist(generator) * 2.0f - 1.0f;
-		}
-		else {
-			prevState[2] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[2])) + pertDist(generator)));
-			prevState[3] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[3])) + pertDist(generator)));
-		}
+		prevState[2] = action[2];
+		prevState[3] = action[3];
 
 		actionf = (prevState[2]) * 1.0f;
 
@@ -2322,7 +2317,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 		for (int y = 0; y < 16; y++) {
 			sf::Color c;
 
-			c.r = htm.getRegion().getColumn(x, y)._prediction * 255.0f;
+			c.r = htm.getRegion().getColumn(x, y)._predictionState * 255.0f;
 			c.g = 0;
 			c.b = 0;
 
@@ -2349,7 +2344,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 
 		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
-}*/
+}
 
 /*const size_t entrySize = 30; // 31 if you include the weight
 
@@ -3428,7 +3423,7 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -3648,8 +3643,7 @@ int main() {
 		actionMask[4] = true;
 		actionMask[5] = true;
 
-		agent.step(reward, state, actionMask, action, 0.2f, 16, 0.2f, 0.9f, 0.0f, 0.2f, 16.0f, 1.0f, 8, 16.0f, 8.0f, 8.0f, 0.0001f, 0.005f, 0.005f, 0.005f, 0.005f, 0.0001f, 0.01f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, generator);
-
+		agent.step(reward, state, actionMask, action, 0.2f, 4, 0.05f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 8, 32.0f, 8.0f, 8.0f, 0.0001f, 0.005f, 0.005f, 0.005f, 0.005f, 0.0001f, 0.01f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, generator);
 
 		std::normal_distribution<float> pertDist(0.0f, 0.05f);
 		std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
@@ -3823,7 +3817,7 @@ int main() {
 
 		for (int x = 0; x < 32; x++)
 		for (int y = 0; y < 32; y++) {
-			float s = agent.getRegion().getColumn(x, y)._intent;
+			float s = agent.getRegion().getColumn(x, y)._prediction;
 
 			sf::Color c = sf::Color::Black;
 
@@ -3856,7 +3850,7 @@ int main() {
 	} while (!quit);
 
 	return 0;
-}
+}*/
 
 	/*deep::FERL ferl;
 

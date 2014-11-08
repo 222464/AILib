@@ -32,6 +32,8 @@ namespace chtm {
 
 		float _prevValue;
 
+		std::vector<float> _prevInput;
+
 	public:
 		CHTMRL()
 			: _prevValue(0.0f)
@@ -42,7 +44,7 @@ namespace chtm {
 			float minCellWeight, float maxCellWeight, float minOutputWeight, float maxOutputWeight, std::mt19937 &generator);
 
 		void step(float reward, const std::vector<float> &input, const std::vector<bool> &actionMask, std::vector<float> &action, float optimizationAlpha, int optimizationSteps, float optimizationPerturbationStdDev, float optimizationDecay, float indecisivnessIntensity, float perturbationIntensity, float intentSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar,
-			float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator);
+			float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, float actionBreakChance, float actionPerturbationStdDev, std::mt19937 &generator);
 
 		const CHTMRegion &getRegion() const {
 			return _region;

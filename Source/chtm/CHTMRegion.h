@@ -80,7 +80,9 @@ namespace chtm {
 			std::vector<InputConnection> _center;
 
 			float _activation;
+			float _predictionActivation;
 			float _state;
+			float _predictionState;
 			float _prediction;
 			float _predictionPrev;
 			float _perturbedPrediction;
@@ -92,7 +94,7 @@ namespace chtm {
 			std::vector<ColumnCell> _cells;
 
 			Column()
-				: _activation(0.0f), _state(0.0f), _prediction(0.0f), _predictionPrev(0.0f),
+				: _activation(0.0f), _predictionActivation(0.0f), _state(0.0f), _predictionState(0.0f), _prediction(0.0f), _predictionPrev(0.0f),
 				_perturbedPrediction(0.0f), _perturbedPredictionPrev(0.0f), _output(0.0f), _intent(0.0f), _action(0.0f)
 			{}
 		};
@@ -133,6 +135,8 @@ namespace chtm {
 
 		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
 	
+		void getNextOutput(const std::vector<float> &input, const std::vector<float> &nextInput, std::vector<float> &output, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
+
 		void getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float indecisivnessIntensity, float perturbationIntensity, float predictionSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, int optimizationSteps, float optimizationAlpha, float annealingPerturbationStdDev, float annealingPerturbationDecay, float reconAlpha, std::mt19937 &generator);
 
 		void learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha);

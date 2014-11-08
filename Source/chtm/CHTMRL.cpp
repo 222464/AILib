@@ -35,16 +35,61 @@ void CHTMRL::createRandom(int inputWidth, int inputHeight, int columnsWidth, int
 {
 	_region.createRandom(inputWidth, inputHeight, columnsWidth, columnsHeight, cellsPerColumn, receptiveRadius, cellRadius, 1,
 		minCenter, maxCenter, minWidth, maxWidth, minInputWeight, maxInputWeight, minReconWeight, maxReconWeight, minCellWeight, maxCellWeight, minOutputWeight, maxOutputWeight, generator);
+
+	_prevInput.clear();
+	_prevInput.assign(inputWidth * inputHeight, 0.0f);
 }
 
 void CHTMRL::step(float reward, const std::vector<float> &input, const std::vector<bool> &actionMask, std::vector<float> &action, float optimizationAlpha, int optimizationSteps, float optimizationPerturbationStdDev, float optimizationDecay, float indecisivnessIntensity, float perturbationIntensity, float intentSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, float weightAlphaQ, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar,
-	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, std::mt19937 &generator)
+	float minDistance, float minLearningThreshold, float cellAlpha, float qAlpha, float gamma, float lambda, float tauInv, float actionBreakChance, float actionPerturbationStdDev, std::mt19937 &generator)
 {
+	std::normal_distribution<float> pertDist(0.0f, actionPerturbationStdDev);
+	std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
+
 	_region.stepBegin();
 
 	std::vector<float> output(1);
 
-	_region.getOutputAction(input, output, action, indecisivnessIntensity, perturbationIntensity, intentSparsity, intentIntensity, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, optimizationSteps, optimizationAlpha, optimizationPerturbationStdDev, optimizationDecay, reconAlpha, generator);
+	action = input;
+
+	_region.getOutput(action, output, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
+
+	float maxValue = output[0];
+
+	float perturbationMultiplier = 1.0f;
+
+	std::normal_distribution<float> perturbationDist(0.0f, optimizationPerturbationStdDev);
+
+	for (int i = 0; i < optimizationSteps; i++) {
+		std::vector<float> testAction(action.size());
+
+		for (int i = 0; i < action.size(); i++)
+		if (actionMask[i])
+			testAction[i] = std::min(1.0f, std::max(-1.0f, action[i] + perturbationMultiplier * perturbationDist(generator)));
+		else
+			testAction[i] = input[i];
+
+		_region.getOutput(testAction, output, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
+
+		if (output[0] > maxValue) {
+			maxValue = output[0];
+
+			action = testAction;
+		}
+
+		perturbationMultiplier *= optimizationDecay;
+	}
+
+	// Perturb action (exploration)
+	for (int i = 0; i < action.size(); i++)
+	if (actionMask[i]) {
+		if (uniformDist(generator) < actionBreakChance)
+			action[i] = uniformDist(generator) * 2.0f - 1.0f;
+		else
+			action[i] = std::min(1.0f, std::max(-1.0f, action[i] + perturbationDist(generator)));
+	}
+
+	_region.getOutput(action, output, inhibitionRadius, sparsity, cellIntensity, predictionIntensity, generator);
 
 	float newAdv = _prevValue + (reward + gamma * output[0] - _prevValue) * tauInv;
 
@@ -58,7 +103,9 @@ void CHTMRL::step(float reward, const std::vector<float> &input, const std::vect
 
 	std::vector<float> weightAlphas(1, weightAlphaQ);
 
-	_region.learnTraces(input, output, error, weightAlphas, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, predictionIntensity, outputLambdas);
+	_region.learnTraces(action, output, error, weightAlphas, centerAlpha, widthAlpha, widthScalar, minDistance, minLearningThreshold, cellAlpha, predictionIntensity, outputLambdas);
 
-	std::cout << output[0] << " " << action[4] << std::endl;
+	_prevInput = action;
+
+	std::cout << maxValue << std::endl;
 }
