@@ -23,6 +23,7 @@ misrepresented as being the original software.
 
 #include <vector>
 #include <random>
+#include <algorithm>
 
 namespace rbf {
 	class SDRRBFNetwork {
@@ -34,6 +35,29 @@ namespace rbf {
 
 			float _activation;
 			float _output;
+
+			float _dutyCycle;
+			float _minDutyCycle;
+
+			RBFNode()
+				: _activation(0.0f), _output(0.0f), _dutyCycle(0.5f), _minDutyCycle(0.0f)
+			{}
+		};
+
+		struct LayerDesc {
+			int _rbfWidth, _rbfHeight;
+			int _receptiveRadius;
+			int _inhibitionRadius;
+
+			float _outputMultiplier;
+
+			LayerDesc()
+				: _rbfWidth(32), _rbfHeight(32), _receptiveRadius(3), _inhibitionRadius(5), _outputMultiplier(1.0f)
+			{}
+		};
+
+		struct Layer {
+			std::vector<RBFNode> _rbfNodes;	
 		};
 
 		struct Connection {
@@ -51,35 +75,30 @@ namespace rbf {
 			Connection _bias;
 		};
 
+		static float sigmoid(float x) {
+			return 1.0f / (1.0f + std::exp(-x));
+		}
+
+		static float boostFunction(float active, float minimum) {
+			return (1.0f - minimum) + std::max(0.0f, -(minimum - active));
+		}
+
 	private:
-		std::vector<RBFNode> _rbfNodes;
+		std::vector<Layer> _layers;
+		std::vector<LayerDesc> _layerDescs;
 		std::vector<OutputNode> _outputNodes;
 
 		int _inputWidth, _inputHeight;
-		int _rbfWidth, _rbfHeight;
-		int _receptiveRadius;
 
 	public:
-		void createRandom(int inputWidth, int inputHeight, int rbfWidth, int rbfHeight, int receptiveRadius, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator);
+		void createRandom(int inputWidth, int inputHeight, const std::vector<LayerDesc> &layerDescs, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, std::mt19937 &generator);
+		void getOutput(const std::vector<float> &input, std::vector<float> &output, float localActivity, float activationIntensity, float outputIntensity, float minDutyCycleRatio, float dutyCycleDecay, float randomFireChance, float randomFireStrength, std::mt19937 &generator);
 	
 		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold);
-	
-		int getNumInputs() const {
-			return _rbfNodes[0]._center.size();
-		}
 
 		int getNumOutputs() const {
 			return _outputNodes.size();
-		}
-
-		int getNumRBFNodes() const {
-			return _rbfNodes.size();
-		}
-
-		const RBFNode &getRBFNode(int x, int y) {
-			return _rbfNodes[x + y * _rbfWidth];
 		}
 	};
 }

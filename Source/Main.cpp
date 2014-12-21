@@ -2160,7 +2160,7 @@ float evaluateXOR(ctrnn::CTRNN &net, std::mt19937 &generator) {
 	} while (!quit);
 }*/
 
-int main() {
+/*int main() {
 	sf::RenderWindow window;
 
 	window.create(sf::VideoMode(800, 600), "Mountain Car");
@@ -2279,7 +2279,7 @@ int main() {
 		actionMask[2] = true;
 		actionMask[3] = true;
 
-		htm.step(fitness, state, actionMask, action, 0.2f, 16, 0.02f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 8, 32.0f, 4.0f, 4.0f, 0.001f, 0.005f, 0.005f, 0.005f, 0.05f, 0.0001f, 0.0f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, 0.05f, 0.05f, generator);
+		htm.step(fitness, state, actionMask, action, 0.5f, 16, 0.1f, 0.9f, 0.0f, 0.1f, 16.0f, 1.0f, 8, 16.0f, 16.0f, 16.0f, 0.0001f, 0.01f, 0.01f, 0.01f, 0.1f, 0.1f, 0.0f, 0.05f, 0.5f, 0.99f, 0.97f, 1.0f, 0.05f, 0.05f, generator);
 
 		float actionf;
 
@@ -2317,7 +2317,7 @@ int main() {
 		for (int y = 0; y < 16; y++) {
 			sf::Color c;
 
-			c.r = htm.getRegion().getColumn(x, y)._predictionState * 255.0f;
+			c.r = htm.getRegion().getColumn(x, y)._prediction * 255.0f;
 			c.g = 0;
 			c.b = 0;
 
@@ -2344,7 +2344,7 @@ int main() {
 
 		//dt = clock.getElapsedTime().asSeconds();
 	} while (!quit);
-}
+}*/
 
 /*const size_t entrySize = 30; // 31 if you include the weight
 
@@ -3423,7 +3423,7 @@ int main() {
 	return 0;
 }*/
 
-/*int main() {
+int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -3643,7 +3643,7 @@ int main() {
 		actionMask[4] = true;
 		actionMask[5] = true;
 
-		agent.step(reward, state, actionMask, action, 0.2f, 4, 0.05f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 8, 32.0f, 8.0f, 8.0f, 0.0001f, 0.005f, 0.005f, 0.005f, 0.005f, 0.0001f, 0.01f, 0.005f, 0.5f, 0.99f, 0.97f, 1.0f, generator);
+		agent.step(reward, state, actionMask, action, 0.2f, 1, 0.05f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 4, 2.0f, 0.5f, 2.0f, 2.0f, 0.0001f, 0.01f, 0.01f, 0.01f, 0.005f, 0.0001f, 0.01f, 0.05f, 0.5f, 0.99f, 0.97f, 1.0f, 0.05f, 0.05f, generator);
 
 		std::normal_distribution<float> pertDist(0.0f, 0.05f);
 		std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
@@ -3850,7 +3850,7 @@ int main() {
 	} while (!quit);
 
 	return 0;
-}*/
+}
 
 	/*deep::FERL ferl;
 
@@ -3991,4 +3991,222 @@ int main() {
 	}
 
 	std::cout << successes << " " << failures << std::endl;
+}*/
+
+/*struct Image {
+	std::vector<unsigned char> _image;
+};
+
+int reverseInt(int i) {
+	unsigned char c1, c2, c3, c4;
+
+	c1 = i & 255;
+	c2 = (i >> 8) & 255;
+	c3 = (i >> 16) & 255;
+	c4 = (i >> 24) & 255;
+
+	return ((int)c1 << 24) + ((int)c2 << 16) + ((int)c3 << 8) + c4;
+}
+
+void getMNISTImages(std::vector<Image> &images, const std::string &filename, int numUse) {
+	std::ifstream file(filename, std::ios::binary);
+
+	if (file.is_open()) {
+		int magicNumber = 0;
+		int nImages = 0;
+		int nRows = 0;
+		int nCols = 0;
+
+		file.read((char*)&magicNumber, sizeof(int));
+		magicNumber = reverseInt(magicNumber);
+		file.read((char*)&nImages, sizeof(int));
+		nImages = reverseInt(nImages);
+		file.read((char*)&nRows, sizeof(int));
+		nRows = reverseInt(nRows);
+		file.read((char*)&nCols, sizeof(int));
+		nCols = reverseInt(nCols);
+
+		assert(numUse <= nImages);
+
+		images.resize(numUse);
+
+		for (int i = 0; i < numUse; i++) {
+			assert(file.good());
+
+			images[i]._image.resize(nRows * nCols);
+
+			file.read((char*)&(images[i]._image[0]), sizeof(unsigned char) * images[i]._image.size());
+		}
+	}
+
+	file.close();
+}
+
+void getMNISTLabels(std::vector<unsigned char> &labels, const std::string &filename, int numUse) {
+	std::ifstream file(filename, std::ios::binary);
+
+	if (file.is_open()) {
+		int magicNumber = 0;
+		int nLabels = 0;
+		int nRows = 0;
+		int nCols = 0;
+
+		file.read((char*)&magicNumber, sizeof(magicNumber));
+		magicNumber = reverseInt(magicNumber);
+		file.read((char*)&nLabels, sizeof(nLabels));
+		nLabels = reverseInt(nLabels);
+
+		assert(numUse <= nLabels);
+
+		labels.resize(numUse);
+
+		for (int i = 0; i < numUse; i++) {
+			unsigned char temp = 0;
+			file.read((char*)&temp, sizeof(unsigned char));
+
+			labels[i] = temp;
+		}
+	}
+
+	file.close();
+}
+
+int main() {
+	std::vector<Image> trainingImages;
+	std::vector<unsigned char> trainingLabels;
+
+	getMNISTImages(trainingImages, "MNIST/train-images.idx3-ubyte", 60000);
+	getMNISTLabels(trainingLabels, "MNIST/train-labels.idx1-ubyte", 60000);
+
+	std::vector<Image> testImages;
+	std::vector<unsigned char> testLabels;
+
+	getMNISTImages(testImages, "MNIST/t10k-images.idx3-ubyte", 10000);
+	getMNISTLabels(testLabels, "MNIST/t10k-labels.idx1-ubyte", 10000);
+
+	// Get list of odd and even examples
+	std::vector<int> oddIndices;
+	std::vector<int> evenIndices;
+
+	for (int i = 0; i < trainingLabels.size(); i++) {
+		if (trainingLabels[i] % 2 == 0)
+			evenIndices.push_back(i);
+		else
+			oddIndices.push_back(i);
+	}
+
+	rbf::SDRRBFNetwork sdrrbfnet;
+
+	std::mt19937 generator(time(nullptr));
+
+	std::vector<rbf::SDRRBFNetwork::LayerDesc> layerDescs(4);
+
+	layerDescs[0]._rbfWidth = 60;
+	layerDescs[0]._rbfHeight = 60;
+	layerDescs[0]._receptiveRadius = 2;
+	layerDescs[0]._inhibitionRadius = 3;
+	layerDescs[0]._outputMultiplier = 0.4f;
+
+	layerDescs[1]._rbfWidth = 50;
+	layerDescs[1]._rbfHeight = 50;
+	layerDescs[1]._receptiveRadius = 2;
+	layerDescs[1]._inhibitionRadius = 3;
+	layerDescs[1]._outputMultiplier = 0.6f;
+
+	layerDescs[2]._rbfWidth = 40;
+	layerDescs[2]._rbfHeight = 40;
+	layerDescs[2]._receptiveRadius = 2;
+	layerDescs[2]._inhibitionRadius = 3;
+	layerDescs[2]._outputMultiplier = 0.8f;
+
+	layerDescs[3]._rbfWidth = 30;
+	layerDescs[3]._rbfHeight = 30;
+	layerDescs[3]._receptiveRadius = 2;
+	layerDescs[3]._inhibitionRadius = 3;
+	layerDescs[3]._outputMultiplier = 1.0f;
+
+	sdrrbfnet.createRandom(28, 28, layerDescs, 10, 0.05f, 0.4f, 0.1f, 0.3f, -0.02f, 0.02f, generator);
+
+	std::vector<float> inputf(28 * 28);
+	std::vector<float> outputf(10);
+
+	std::uniform_int_distribution<int> selectionDist(0, trainingImages.size() - 1);
+	std::uniform_int_distribution<int> selectionDistEven(0, evenIndices.size() - 1);
+	std::uniform_int_distribution<int> selectionDistOdd(0, oddIndices.size() - 1);
+
+	int totalIter = 60000;
+
+	// Train on odds
+	for (int i = 0; i < totalIter; i++) {
+		int trainIndex = oddIndices[selectionDistOdd(generator)];
+
+		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
+			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
+
+		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.0f, 0.0f, generator);
+
+		std::vector<float> target(10, 0.0f);
+
+		target[trainingLabels[trainIndex]] = 1.0f;
+
+		sdrrbfnet.update(inputf, outputf, target, 0.003f, 0.1f, 0.1f, 0.5f, 0.0001f, 0.05f);
+
+		if (i % 100 == 0)
+			std::cout << "Iter: " << i << " / " << totalIter << std::endl;
+	}
+
+	// Train on evens
+	for (int i = 0; i < totalIter; i++) {
+		int trainIndex = evenIndices[selectionDistOdd(generator)];
+
+		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
+			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
+
+		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.01f, 0.25f, generator);
+
+		std::vector<float> target(10, 0.0f);
+
+		target[trainingLabels[trainIndex]] = 1.0f;
+
+		sdrrbfnet.update(inputf, outputf, target, 0.003f, 0.1f, 0.1f, 0.5f, 0.0001f, 0.05f);
+
+		if (i % 100 == 0)
+			std::cout << "Iter: " << i << " / " << totalIter << std::endl;
+	}
+
+	int wrongs = 0;
+	int oddWrongs = 0;
+	int totalOdds = 0;
+
+	for (int i = 0; i < testImages.size(); i++) {
+		int trainIndex = i;
+
+		for (int j = 0; j < testImages[trainIndex]._image.size(); j++)
+			inputf[j] = testImages[trainIndex]._image[j] / 255.0f;
+
+		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.005f, 0.1f, generator);
+
+		int maxIndex = 0;
+
+		for (int j = 0; j < outputf.size(); j++)
+		if (outputf[j] > outputf[maxIndex])
+			maxIndex = j;
+
+		if (maxIndex != testLabels[trainIndex])
+			wrongs++;
+
+		if (testLabels[trainIndex] % 2 == 1) {
+			totalOdds++;
+
+			if (maxIndex != testLabels[trainIndex])
+				oddWrongs++;
+		}
+
+		std::cout << "Result: " << maxIndex << " Actual: " << static_cast<int>(testLabels[trainIndex]) << std::endl;
+	}
+
+	std::cout << "Total Error: " << (static_cast<float>(wrongs) / static_cast<float>(testImages.size())) * 100.0f << std::endl;
+	std::cout << "Odd Error: " << (static_cast<float>(oddWrongs) / static_cast<float>(totalOdds)) * 100.0f << std::endl;
+
+	return 0;
 }*/

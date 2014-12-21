@@ -133,17 +133,11 @@ namespace chtm {
 
 		void stepBegin();
 
-		void getOutput(const std::vector<float> &input, std::vector<float> &output, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
+		void getOutput(const std::vector<float> &input, std::vector<float> &output, CHTMRegion* pNextRegion, int inhibitionRadius, float localActivity, float columnIntensity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
 	
-		void getNextOutput(const std::vector<float> &input, const std::vector<float> &nextInput, std::vector<float> &output, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, std::mt19937 &generator);
+		void getPrediction(std::vector<float> &prediction);
 
-		void getOutputAction(const std::vector<float> &input, std::vector<float> &output, std::vector<float> &action, float indecisivnessIntensity, float perturbationIntensity, float predictionSparsity, float intentIntensity, int inhibitionRadius, float sparsity, float cellIntensity, float predictionIntensity, int optimizationSteps, float optimizationAlpha, float annealingPerturbationStdDev, float annealingPerturbationDecay, float reconAlpha, std::mt19937 &generator);
-
-		void learn(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha);
-
-		void learnTraces(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, float perturbationIntensity, const std::vector<float> &outputLambdas);
-
-		void findInput(const std::vector<float> &input, const std::vector<float> &output, std::vector<float> &newInput, float cellIntensity, int optimizationSteps, float optimizationAlpha, float annealingPerturbationStdDev, float annealingPerturbationDecay, std::mt19937 &generator);
+		void learnTraces(const std::vector<float> &input, const std::vector<float> &output, CHTMRegion* pNextRegion, const std::vector<float> &error, const std::vector<float> &outputWeightAlphas, float reconAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold, float cellAlpha, float perturbationIntensity, const std::vector<float> &outputLambdas);
 
 		int getNumOutputs() const {
 			return _outputNodes.size();
