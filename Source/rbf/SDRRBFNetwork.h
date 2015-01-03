@@ -25,22 +25,37 @@ misrepresented as being the original software.
 #include <random>
 #include <algorithm>
 
+#include <SFML/Graphics.hpp>
+
 namespace rbf {
 	class SDRRBFNetwork {
 	public:
+		struct BackConnection {
+			int _nodeIndex;
+			int _weightIndex;
+		};
+
 		struct RBFNode {
 			std::vector<float> _center;
+			std::vector<float> _weights;
+			float _bias;
+
+			std::vector<BackConnection> _backConnections;
 
 			float _width;
 
-			float _activation;
+			float _rbfActivation;
+			float _rbfOutput;
+
 			float _output;
+			float _sig;
 
 			float _dutyCycle;
-			float _minDutyCycle;
+
+			float _error;
 
 			RBFNode()
-				: _activation(0.0f), _output(0.0f), _dutyCycle(0.5f), _minDutyCycle(0.0f)
+				: _rbfActivation(0.0f), _rbfOutput(0.0f), _dutyCycle(1.0f), _output(0.0f), _sig(0.0f), _error(0.0f)
 			{}
 		};
 
@@ -51,8 +66,21 @@ namespace rbf {
 
 			float _outputMultiplier;
 
+			float _localActivity;
+			float _outputIntensity;
+
+			float _uniquenessPower;
+
+			float _learnIntensity;
+			float _minLearn;
+
+			float _activationRangeDecayIntensity;
+
+			float _weightAlpha;
+
 			LayerDesc()
-				: _rbfWidth(32), _rbfHeight(32), _receptiveRadius(3), _inhibitionRadius(5), _outputMultiplier(1.0f)
+				: _rbfWidth(32), _rbfHeight(32), _receptiveRadius(3), _inhibitionRadius(5), _outputMultiplier(1.0f), _localActivity(8.0f), _outputIntensity(0.01f), _uniquenessPower(4.0f),
+				_learnIntensity(4.0f), _minLearn(0.0f), _activationRangeDecayIntensity(0.1f), _weightAlpha(0.25f)
 			{}
 		};
 
@@ -62,17 +90,14 @@ namespace rbf {
 
 		struct Connection {
 			float _weight;
-			float _eligibility;
-
-			Connection()
-				: _eligibility(0.0f)
-			{}
 		};
 
 		struct OutputNode {
 			std::vector<Connection> _connections;
 
 			Connection _bias;
+
+			float _error;
 		};
 
 		static float sigmoid(float x) {
@@ -80,7 +105,7 @@ namespace rbf {
 		}
 
 		static float boostFunction(float active, float minimum) {
-			return (1.0f - minimum) + std::max(0.0f, -(minimum - active));
+			return std::max(0.0f, minimum - active) / minimum;
 		}
 
 	private:
@@ -93,9 +118,12 @@ namespace rbf {
 	public:
 		void createRandom(int inputWidth, int inputHeight, const std::vector<LayerDesc> &layerDescs, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator);
 
-		void getOutput(const std::vector<float> &input, std::vector<float> &output, float localActivity, float activationIntensity, float outputIntensity, float minDutyCycleRatio, float dutyCycleDecay, float randomFireChance, float randomFireStrength, std::mt19937 &generator);
+		void getOutput(const std::vector<float> &input, std::vector<float> &output, float activationIntensity, float dutyCycleDecay, float randomFireChance, float randomFireStrength, float minDistance, float minDutyCycle, std::mt19937 &generator);
 	
-		void update(const std::vector<float> &input, std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minLearningThreshold);
+		void updateUnsupervised(const std::vector<float> &input, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle);
+		void updateSupervised(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle);
+
+		void getImages(std::vector<sf::Image> &images);
 
 		int getNumOutputs() const {
 			return _outputNodes.size();

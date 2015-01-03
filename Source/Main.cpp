@@ -90,6 +90,8 @@ misrepresented as being the original software.
 #include <fstream>
 #include <sstream>
 
+#include <dirent.h>
+
 /*int main() {
 	std::mt19937 generator(time(nullptr));*/
 	
@@ -3423,7 +3425,7 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	float reward = 0.0f;
@@ -3850,7 +3852,7 @@ int main() {
 	} while (!quit);
 
 	return 0;
-}
+}*/
 
 	/*deep::FERL ferl;
 
