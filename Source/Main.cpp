@@ -3995,7 +3995,7 @@ int main() {
 	std::cout << successes << " " << failures << std::endl;
 }*/
 
-/*struct Image {
+struct Image {
 	std::vector<unsigned char> _image;
 };
 
@@ -4101,33 +4101,33 @@ int main() {
 
 	std::mt19937 generator(time(nullptr));
 
-	std::vector<rbf::SDRRBFNetwork::LayerDesc> layerDescs(4);
+	std::vector<rbf::SDRRBFNetwork::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._rbfWidth = 60;
-	layerDescs[0]._rbfHeight = 60;
-	layerDescs[0]._receptiveRadius = 2;
+	layerDescs[0]._rbfWidth = 56;
+	layerDescs[0]._rbfHeight = 56;
+	layerDescs[0]._receptiveRadius = 4;
 	layerDescs[0]._inhibitionRadius = 3;
-	layerDescs[0]._outputMultiplier = 0.4f;
+	layerDescs[0]._localActivity = 4.0f;
+	layerDescs[0]._outputIntensity = 0.05f;
+	layerDescs[0]._outputMultiplier = 0.0f;
 
-	layerDescs[1]._rbfWidth = 50;
-	layerDescs[1]._rbfHeight = 50;
-	layerDescs[1]._receptiveRadius = 2;
+	layerDescs[1]._rbfWidth = 40;
+	layerDescs[1]._rbfHeight = 40;
+	layerDescs[1]._receptiveRadius = 4;
 	layerDescs[1]._inhibitionRadius = 3;
-	layerDescs[1]._outputMultiplier = 0.6f;
+	layerDescs[1]._localActivity = 4.0f;
+	layerDescs[1]._outputIntensity = 0.05f;
+	layerDescs[1]._outputMultiplier = 0.5f;
 
-	layerDescs[2]._rbfWidth = 40;
-	layerDescs[2]._rbfHeight = 40;
-	layerDescs[2]._receptiveRadius = 2;
+	layerDescs[2]._rbfWidth = 24;
+	layerDescs[2]._rbfHeight = 24;
+	layerDescs[2]._receptiveRadius = 4;
 	layerDescs[2]._inhibitionRadius = 3;
-	layerDescs[2]._outputMultiplier = 0.8f;
+	layerDescs[2]._localActivity = 4.0f;
+	layerDescs[2]._outputIntensity = 0.05f;
+	layerDescs[2]._outputMultiplier = 0.5f;
 
-	layerDescs[3]._rbfWidth = 30;
-	layerDescs[3]._rbfHeight = 30;
-	layerDescs[3]._receptiveRadius = 2;
-	layerDescs[3]._inhibitionRadius = 3;
-	layerDescs[3]._outputMultiplier = 1.0f;
-
-	sdrrbfnet.createRandom(28, 28, layerDescs, 10, 0.05f, 0.4f, 0.1f, 0.3f, -0.02f, 0.02f, generator);
+	sdrrbfnet.createRandom(28, 28, layerDescs, 10, 0.05f, 0.95f, 0.1f, 0.3f, -0.5f, 0.5f, generator);
 
 	std::vector<float> inputf(28 * 28);
 	std::vector<float> outputf(10);
@@ -4136,57 +4136,60 @@ int main() {
 	std::uniform_int_distribution<int> selectionDistEven(0, evenIndices.size() - 1);
 	std::uniform_int_distribution<int> selectionDistOdd(0, oddIndices.size() - 1);
 
-	int totalIter = 60000;
+	int totalIterUnsupervised = 50000;
+	int totalIterSupervised = 50000;
 
-	// Train on odds
-	for (int i = 0; i < totalIter; i++) {
-		int trainIndex = oddIndices[selectionDistOdd(generator)];
+	for (int i = 0; i < totalIterUnsupervised; i++) {
+		int trainIndex = selectionDist(generator);
 
 		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
 			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
 
-		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.0f, 0.0f, generator);
+		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
 
 		std::vector<float> target(10, 0.0f);
 
 		target[trainingLabels[trainIndex]] = 1.0f;
 
-		sdrrbfnet.update(inputf, outputf, target, 0.003f, 0.1f, 0.1f, 0.5f, 0.0001f, 0.05f);
+		sdrrbfnet.updateUnsupervised(inputf, 0.05f, 0.2f, 0.2f, 1.0f, 0.0001f, 0.01f);
 
 		if (i % 100 == 0)
-			std::cout << "Iter: " << i << " / " << totalIter << std::endl;
+			std::cout << "Iter Unsupervised: " << i << " / " << totalIterUnsupervised << std::endl;
 	}
 
-	// Train on evens
-	for (int i = 0; i < totalIter; i++) {
-		int trainIndex = evenIndices[selectionDistOdd(generator)];
+	for (int i = 0; i < totalIterSupervised; i++) {
+		int trainIndex = selectionDist(generator);
 
 		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
 			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
 
-		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.01f, 0.25f, generator);
+		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
 
 		std::vector<float> target(10, 0.0f);
 
 		target[trainingLabels[trainIndex]] = 1.0f;
 
-		sdrrbfnet.update(inputf, outputf, target, 0.003f, 0.1f, 0.1f, 0.5f, 0.0001f, 0.05f);
+		sdrrbfnet.updateSupervised(inputf, outputf, target, 0.05f, 0.1f, 0.1f, 1.0f, 0.0001f, 0.01f);
 
 		if (i % 100 == 0)
-			std::cout << "Iter: " << i << " / " << totalIter << std::endl;
+			std::cout << "Supervised Iter: " << i << " / " << totalIterSupervised << std::endl;
 	}
 
 	int wrongs = 0;
 	int oddWrongs = 0;
 	int totalOdds = 0;
 
-	for (int i = 0; i < testImages.size(); i++) {
+	std::uniform_int_distribution<int> testDist(0, testImages.size() - 1);
+
+	int totalIterTest = 500;
+
+	for (int i = 0; i < totalIterTest; i++) {
 		int trainIndex = i;
 
 		for (int j = 0; j < testImages[trainIndex]._image.size(); j++)
 			inputf[j] = testImages[trainIndex]._image[j] / 255.0f;
 
-		sdrrbfnet.getOutput(inputf, outputf, 2.0f, 8.0f, 8.0f, 0.001f, 0.005f, 0.005f, 0.1f, generator);
+		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
 
 		int maxIndex = 0;
 
@@ -4207,8 +4210,8 @@ int main() {
 		std::cout << "Result: " << maxIndex << " Actual: " << static_cast<int>(testLabels[trainIndex]) << std::endl;
 	}
 
-	std::cout << "Total Error: " << (static_cast<float>(wrongs) / static_cast<float>(testImages.size())) * 100.0f << std::endl;
+	std::cout << "Total Error: " << (static_cast<float>(wrongs) / static_cast<float>(totalIterTest)) * 100.0f << std::endl;
 	std::cout << "Odd Error: " << (static_cast<float>(oddWrongs) / static_cast<float>(totalOdds)) * 100.0f << std::endl;
 
 	return 0;
-}*/
+}
