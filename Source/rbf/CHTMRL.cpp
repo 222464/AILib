@@ -18,8 +18,8 @@ appreciated but is not required.
 misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 */
-
-#include <rbf/SDRRBFNetwork.h>
+/*
+#include <rbf/CHTMRL.h>
 
 #include <algorithm>
 
@@ -29,10 +29,10 @@ misrepresented as being the original software.
 
 using namespace rbf;
 
-void SDRRBFNetwork::createRandom(int inputWidth, int inputHeight, const std::vector<LayerDesc> &layerDescs, int numOutputs, float minCenter, float maxCenter, float minWidth, float maxWidth, float minWeight, float maxWeight, std::mt19937 &generator) {
+void CHTMRL::createRandom(int inputWidth, int inputHeight, const std::vector<LayerDesc> &layerDescs, int numOutputs, float minCenter, float maxCenter, float minContextWeight, float maxContextWeight, float minFFNNWeight, float maxFFNNWeight, std::mt19937 &generator) {
 	std::uniform_real_distribution<float> centerDist(minCenter, maxCenter);
-	std::uniform_real_distribution<float> widthDist(minWidth, maxWidth);
-	std::uniform_real_distribution<float> weightDist(minWeight, maxWeight);
+	std::uniform_real_distribution<float> weightContextDist(minContextWeight, maxContextWeight);
+	std::uniform_real_distribution<float> weightFFNNDist(minFFNNWeight, maxFFNNWeight);
 
 	_inputWidth = inputWidth;
 	_inputHeight = inputHeight;
@@ -43,89 +43,107 @@ void SDRRBFNetwork::createRandom(int inputWidth, int inputHeight, const std::vec
 
 	_layers.resize(_layerDescs.size());
 
+	// For keeping track of previous layer dimensions
 	int prevLayerWidth = _inputWidth;
 	int prevLayerHeight = _inputHeight;
+	int prevLayerContextSize = 1;
 
+	// Create layers
 	for (int l = 0; l < _layers.size(); l++) {
 		int numRBF = _layerDescs[l]._rbfWidth * _layerDescs[l]._rbfHeight;
-		int numRBFWeights = std::pow(_layerDescs[l]._receptiveRadius * 2 + 1, 2);
+
+		// Pre-calculate weight array sizes
+		int rbfCenterSize = std::pow(_layerDescs[l]._rbfReceptiveRadius * 2 + 1, 2);
+		int ffnnWeightsSize = std::pow(_layerDescs[l]._ffnnReceptiveRadius * 2 + 1, 2) * prevLayerContextSize;
+		int contextWeightsSize = std::pow(_layerDescs[l]._contextReceptiveRadius * 2 + 1, 2) * _layerDescs[l]._numContextNodes;
 
 		_layers[l]._rbfNodes.resize(numRBF);
 
+		// Invert values for normalizing coordinates
 		float rbfWidthInv = 1.0f / _layerDescs[l]._rbfWidth;
 		float rbfHeightInv = 1.0f / _layerDescs[l]._rbfHeight;
 
+		// Create RBF nodes
 		for (int rx = 0; rx < _layerDescs[l]._rbfWidth; rx++)
 		for (int ry = 0; ry < _layerDescs[l]._rbfHeight; ry++) {
 			int i = rx + ry * _layerDescs[l]._rbfWidth;
 
-			_layers[l]._rbfNodes[i]._center.resize(numRBFWeights);
-			_layers[l]._rbfNodes[i]._weights.resize(numRBFWeights);
+			_layers[l]._rbfNodes[i]._center.resize(rbfCenterSize);
 
-			_layers[l]._rbfNodes[i]._bias._weight = weightDist(generator);
-
-			for (int j = 0; j < numRBFWeights; j++) {
+			for (int j = 0; j < rbfCenterSize; j++)
 				_layers[l]._rbfNodes[i]._center[j] = centerDist(generator);
 
-				_layers[l]._rbfNodes[i]._weights[j]._weight = weightDist(generator);
-			}
+			_layers[l]._rbfNodes[i]._contextNodes.resize(_layerDescs[l]._numContextNodes);
 
-			// If not first layer, add back connections to previous layer
-			if (l > 0) {
-				float rxn = rx * rbfWidthInv;
-				float ryn = ry * rbfHeightInv;
+			// Create context nodes
+			for (int j = 0; j < _layerDescs[l]._numContextNodes; j++) {
+				ContextNode &cn = _layers[l]._rbfNodes[i]._contextNodes[j];
 
-				int x = std::round(rxn * prevLayerWidth);
-				int y = std::round(ryn * prevLayerHeight);
+				cn._contextBias = weightContextDist(generator);
 
-				int weightIndex = 0;
+				cn._contextWeights.resize(contextWeightsSize);
 
-				for (int dx = -_layerDescs[l]._receptiveRadius; dx <= _layerDescs[l]._receptiveRadius; dx++)
-				for (int dy = -_layerDescs[l]._receptiveRadius; dy <= _layerDescs[l]._receptiveRadius; dy++) {
-					int xn = x + dx;
-					int yn = y + dy;
+				for (int k = 0; k < contextWeightsSize; k++)
+					cn._contextWeights[k] = weightContextDist(generator);
 
-					if (xn >= 0 && xn < prevLayerWidth && yn >= 0 && yn < prevLayerHeight) {
-						int j = xn + yn * prevLayerWidth;
+				cn._ffnnBias._weight = weightContextDist(generator);
 
-						BackConnection bc;
-						bc._nodeIndex = i;
-						bc._weightIndex = weightIndex;
+				cn._ffnnConnections.resize(ffnnWeightsSize);
 
-						_layers[l - 1]._rbfNodes[j]._backConnections.push_back(bc);
+				for (int k = 0; k < contextWeightsSize; k++)
+					cn._contextWeights[k] = weightContextDist(generator);
+
+				// If not first layer, add back connections to previous layer
+				if (l > 0) {
+					float rxn = rx * rbfWidthInv;
+					float ryn = ry * rbfHeightInv;
+
+					int x = std::round(rxn * prevLayerWidth);
+					int y = std::round(ryn * prevLayerHeight);
+
+					int weightIndex = 0;
+
+					for (int dx = -_layerDescs[l]._contextReceptiveRadius; dx <= _layerDescs[l]._contextReceptiveRadius; dx++)
+					for (int dy = -_layerDescs[l]._contextReceptiveRadius; dy <= _layerDescs[l]._contextReceptiveRadius; dy++) {
+						int xn = x + dx;
+						int yn = y + dy;
+
+						if (xn >= 0 && xn < prevLayerWidth && yn >= 0 && yn < prevLayerHeight) {
+							int iPrev = xn + yn * prevLayerWidth;
+
+							for (int k = 0; k < prevLayerContextSize; k++) {
+								BackConnection bc;
+								bc._nodeIndex = i;
+								bc._contextIndex = j;
+								bc._weightIndex = weightIndex;
+
+								_layers[l - 1]._rbfNodes[iPrev]._contextNodes[k]._backConnections.push_back(bc);
+							}
+						}
+
+						weightIndex++;
 					}
-
-					weightIndex++;
 				}
 			}
-
-			_layers[l]._rbfNodes[i]._width = widthDist(generator);
 		}
 
 		prevLayerWidth = _layerDescs[l]._rbfWidth;
 		prevLayerHeight = _layerDescs[l]._rbfHeight;
+		prevLayerContextSize = _layerDescs[l]._numContextNodes;
 	}
 
-	_outputNodes.resize(numOutputs);
+	// Set up Q output node
+	_qOutput._connections.resize(_layerDescs.back()._rbfWidth * _layerDescs.back()._rbfHeight);
 
-	for (int i = 0; i < _outputNodes.size(); i++) {
-		_outputNodes[i]._connections.resize(_layerDescs.back()._rbfWidth * _layerDescs.back()._rbfHeight);
+	for (int j = 0; j < _qOutput._connections.size(); j++)
+		_qOutput._connections[j]._weight = weightFFNNDist(generator);
 
-		for (int j = 0; j < _outputNodes[i]._connections.size(); j++)
-			_outputNodes[i]._connections[j]._weight = weightDist(generator);
-
-		_outputNodes[i]._bias._weight = weightDist(generator);
-	}
+	_qOutput._bias._weight = weightFFNNDist(generator);
 }
 
-void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float> &output, float activationIntensity, float dutyCycleDecay, float randomFireChance, float randomFireStrength, float minDistance, float minDutyCycle, std::mt19937 &generator) {
+void CHTMRL::getOutput(const std::vector<float> &input, std::vector<float> &output, float activationIntensity, float dutyCycleDecay, float randomFireChance, float randomFireStrength, float minDistance, float minDutyCycle, std::mt19937 &generator) {
 	int prevLayerWidth = _inputWidth;
 	int prevLayerHeight = _inputHeight;
-
-	// Update prevs
-	for (int l = 0; l < _layers.size(); l++)
-	for (int i = 0; i < _layers[l]._rbfNodes.size(); i++)
-		_layers[l]._rbfNodes[i]._dutyCyclePrev = _layers[l]._rbfNodes[i]._dutyCycle;
 
 	std::vector<float> prevLayerOutput = input;
 
@@ -180,9 +198,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 
 			float numHigher = 0.0f;
 
-			float highest = _layers[l]._rbfNodes[i]._rbfActivation;
-
-			float minNeighborhoodDutyCycle = 1.0f;
+			//float maxNeighborhoodDutyCycle = 0.0f;
 
 			for (int dx = -_layerDescs[l]._inhibitionRadius; dx <= _layerDescs[l]._inhibitionRadius; dx++)
 			for (int dy = -_layerDescs[l]._inhibitionRadius; dy <= _layerDescs[l]._inhibitionRadius; dy++) {
@@ -192,21 +208,14 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 				if (x >= 0 && x < _layerDescs[l]._rbfWidth && y >= 0 && y < _layerDescs[l]._rbfHeight) {
 					int j = x + y * _layerDescs[l]._rbfWidth;
 
-					if (_layers[l]._rbfNodes[j]._rbfActivation > _layers[l]._rbfNodes[i]._rbfActivation)
+					if (_layers[l]._rbfNodes[j]._rbfActivation >= _layers[l]._rbfNodes[i]._rbfActivation)
 						numHigher += 1.0f;
-
-					highest = std::max(highest, _layers[l]._rbfNodes[j]._rbfActivation);
-
-					if (_layers[l]._rbfNodes[j]._dutyCyclePrev < minNeighborhoodDutyCycle)
-						minNeighborhoodDutyCycle = _layers[l]._rbfNodes[j]._dutyCyclePrev;
 				}
 			}
 
-			float out = _layers[l]._rbfNodes[i]._rbfOutput = numHigher < _layerDescs[l]._localActivity ? 1.0f : 0.0f;// sigmoid((_layerDescs[l]._localActivity - numHigher) * _layerDescs[l]._outputIntensity);
+			float out = _layers[l]._rbfNodes[i]._rbfOutput = std::exp(-numHigher * _layerDescs[l]._outputIntensity);// sigmoid((_layerDescs[l]._localActivity - numHigher) * _layerDescs[l]._outputIntensity);
 
 			_layers[l]._rbfNodes[i]._dutyCycle = (1.0f - dutyCycleDecay) * (1.0f - out) * _layers[l]._rbfNodes[i]._dutyCycle + out;
-
-			_layers[l]._rbfNodes[i]._learn = _layers[l]._rbfNodes[i]._dutyCyclePrev == minNeighborhoodDutyCycle && highest < -_layerDescs[l]._tolerance ? 1.0f : 0.0f;
 		}
 
 		prevLayerOutput.resize(_layers[l]._rbfNodes.size());
@@ -238,7 +247,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 			int x = std::round(rxn * prevLayerWidth);
 			int y = std::round(ryn * prevLayerHeight);
 
-			float sum = _layers[l]._rbfNodes[i]._bias._weight;
+			float sum = _layers[l]._rbfNodes[i]._bias;
 
 			int weightIndex = 0;
 			int usedWeightCount = 0;
@@ -251,7 +260,7 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 				if (xn >= 0 && xn < prevLayerWidth && yn >= 0 && yn < prevLayerHeight) {
 					int j = xn + yn * prevLayerWidth;
 
-					sum += _layers[l]._rbfNodes[i]._weights[weightIndex]._weight * prevLayerOutput[j];
+					sum += _layers[l]._rbfNodes[i]._weights[weightIndex] * prevLayerOutput[j];
 				}
 
 				weightIndex++;
@@ -283,11 +292,11 @@ void SDRRBFNetwork::getOutput(const std::vector<float> &input, std::vector<float
 			sum += _layers.back()._rbfNodes[j]._output * _outputNodes[i]._connections[j]._weight;
 		}
 
-		output[i] = sum;
+		output[i] = sigmoid(sum);
 	}
 }
 
-void SDRRBFNetwork::updateUnsupervised(const std::vector<float> &input, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle, float momentum) {
+void CHTMRL::updateUnsupervised(const std::vector<float> &input, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle) {
 	int prevLayerWidth = _inputWidth;
 	int prevLayerHeight = _inputHeight;
 
@@ -307,9 +316,9 @@ void SDRRBFNetwork::updateUnsupervised(const std::vector<float> &input, float we
 			int x = std::round(rxn * prevLayerWidth);
 			int y = std::round(ryn * prevLayerHeight);
 
-			float boost = _layers[l]._rbfNodes[i]._dutyCycle < minDutyCycle ? _layers[l]._rbfNodes[i]._learn : 0.0f;
+			float boost = boostFunction(_layers[l]._rbfNodes[i]._dutyCycle, minDutyCycle);
 
-			float learnScalar = boost;
+			float learnScalar = _layers[l]._rbfNodes[i]._rbfOutput * (1.0f - boost) + boost;
 
 			int weightIndex = 0;
 
@@ -340,7 +349,7 @@ void SDRRBFNetwork::updateUnsupervised(const std::vector<float> &input, float we
 	}
 }
 
-void SDRRBFNetwork::updateSupervised(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle, float momentum) {
+void CHTMRL::updateSupervised(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle) {
 	for (int i = 0; i < _outputNodes.size(); i++)
 		_outputNodes[i]._error = target[i] - output[i];
 
@@ -371,10 +380,10 @@ void SDRRBFNetwork::updateSupervised(const std::vector<float> &input, const std:
 				int ni = _layers[l]._rbfNodes[i]._backConnections[j]._nodeIndex;
 				int wi = _layers[l]._rbfNodes[i]._backConnections[j]._weightIndex;
 
-				sum += _layers[nl]._rbfNodes[ni]._weights[wi]._weight * _layers[nl]._rbfNodes[ni]._error;
+				sum += _layers[nl]._rbfNodes[ni]._weights[wi] * _layers[nl]._rbfNodes[ni]._error;
 			}
 
-			_layers[l]._rbfNodes[i]._error = sum *  _layers[l]._rbfNodes[i]._sig * (1.0f - _layers[l]._rbfNodes[i]._sig) * _layers[l]._rbfNodes[i]._rbfOutput;
+			_layers[l]._rbfNodes[i]._error = sum * _layers[l]._rbfNodes[i]._sig * (1.0f - _layers[l]._rbfNodes[i]._sig) * _layers[l]._rbfNodes[i]._rbfOutput;
 		}
 	}
 
@@ -421,21 +430,13 @@ void SDRRBFNetwork::updateSupervised(const std::vector<float> &input, const std:
 				if (xn >= 0 && xn < prevLayerWidth && yn >= 0 && yn < prevLayerHeight) {
 					int j = xn + yn * prevLayerWidth;
 
-					float prevWeight = _layers[l]._rbfNodes[i]._weights[weightIndex]._weight;
-
-					_layers[l]._rbfNodes[i]._weights[weightIndex]._weight += _layers[l]._rbfNodes[i]._weights[weightIndex]._prevDWeight * momentum + _layerDescs[l]._weightAlpha * _layers[l]._rbfNodes[i]._error * prevLayerOutput[j];
-				
-					_layers[l]._rbfNodes[i]._weights[weightIndex]._prevDWeight = _layers[l]._rbfNodes[i]._weights[weightIndex]._weight - prevWeight;
+					_layers[l]._rbfNodes[i]._weights[weightIndex] += _layerDescs[l]._weightAlpha * _layers[l]._rbfNodes[i]._error * prevLayerOutput[j];
 				}
 
 				weightIndex++;
 			}
 
-			float prevWeight = _layers[l]._rbfNodes[i]._bias._weight;
-
-			_layers[l]._rbfNodes[i]._bias._weight += _layers[l]._rbfNodes[i]._bias._prevDWeight * momentum + weightAlpha * _layers[l]._rbfNodes[i]._error;
-
-			_layers[l]._rbfNodes[i]._bias._prevDWeight = _layers[l]._rbfNodes[i]._bias._weight - prevWeight;
+			_layers[l]._rbfNodes[i]._bias += weightAlpha * _layers[l]._rbfNodes[i]._error;
 
 			//_layers[l]._rbfNodes[i]._width = std::max(0.0f, _layers[l]._rbfNodes[i]._width + widthAlpha * learnScalar * (widthScalar / std::max(minDistance, dist2) - _layers[l]._rbfNodes[i]._width));
 		}
@@ -450,7 +451,7 @@ void SDRRBFNetwork::updateSupervised(const std::vector<float> &input, const std:
 	}
 }
 
-void SDRRBFNetwork::getImages(std::vector<sf::Image> &images) {
+void CHTMRL::getImages(std::vector<sf::Image> &images) {
 	images.clear();
 	images.reserve(_layers.size());
 
@@ -470,4 +471,4 @@ void SDRRBFNetwork::getImages(std::vector<sf::Image> &images) {
 
 		images.push_back(img);
 	}
-}
+}*/

@@ -35,10 +35,19 @@ namespace rbf {
 			int _weightIndex;
 		};
 
+		struct Weight {
+			float _weight;
+			float _prevDWeight;
+
+			Weight()
+				: _prevDWeight(0.0f)
+			{}
+		};
+
 		struct RBFNode {
 			std::vector<float> _center;
-			std::vector<float> _weights;
-			float _bias;
+			std::vector<Weight> _weights;
+			Weight _bias;
 
 			std::vector<BackConnection> _backConnections;
 
@@ -51,11 +60,14 @@ namespace rbf {
 			float _sig;
 
 			float _dutyCycle;
+			float _dutyCyclePrev;
 
 			float _error;
 
+			float _learn;
+
 			RBFNode()
-				: _rbfActivation(0.0f), _rbfOutput(0.0f), _dutyCycle(1.0f), _output(0.0f), _sig(0.0f), _error(0.0f)
+				: _rbfActivation(0.0f), _rbfOutput(0.0f), _dutyCycle(1.0f), _dutyCyclePrev(1.0f), _output(0.0f), _sig(0.0f), _error(0.0f), _learn(0.0f)
 			{}
 		};
 
@@ -78,9 +90,11 @@ namespace rbf {
 
 			float _weightAlpha;
 
+			float _tolerance;
+
 			LayerDesc()
-				: _rbfWidth(32), _rbfHeight(32), _receptiveRadius(3), _inhibitionRadius(5), _outputMultiplier(1.0f), _localActivity(8.0f), _outputIntensity(0.01f), _uniquenessPower(4.0f),
-				_learnIntensity(4.0f), _minLearn(0.0f), _activationRangeDecayIntensity(0.1f), _weightAlpha(0.25f)
+				: _rbfWidth(32), _rbfHeight(32), _receptiveRadius(2), _inhibitionRadius(2), _outputMultiplier(1.0f), _localActivity(8.0f), _outputIntensity(4.0f), _uniquenessPower(4.0f),
+				_learnIntensity(4.0f), _minLearn(0.0f), _activationRangeDecayIntensity(0.1f), _weightAlpha(0.005f), _tolerance(0.05f)
 			{}
 		};
 
@@ -108,6 +122,14 @@ namespace rbf {
 			return std::max(0.0f, minimum - active) / minimum;
 		}
 
+		static float relu(float x) {
+			return std::max(0.0f, x);
+		}
+
+		static float reluPrime(float x) {
+			return x > 0.0f ? 1.0f : 0.01f;
+		}
+
 	private:
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
@@ -120,8 +142,8 @@ namespace rbf {
 
 		void getOutput(const std::vector<float> &input, std::vector<float> &output, float activationIntensity, float dutyCycleDecay, float randomFireChance, float randomFireStrength, float minDistance, float minDutyCycle, std::mt19937 &generator);
 	
-		void updateUnsupervised(const std::vector<float> &input, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle);
-		void updateSupervised(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle);
+		void updateUnsupervised(const std::vector<float> &input, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle, float momentum);
+		void updateSupervised(const std::vector<float> &input, const std::vector<float> &output, const std::vector<float> &target, float weightAlpha, float centerAlpha, float widthAlpha, float widthScalar, float minDistance, float minDutyCycle, float momentum);
 
 		void getImages(std::vector<sf::Image> &images);
 

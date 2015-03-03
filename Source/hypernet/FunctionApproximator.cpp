@@ -424,6 +424,52 @@ void FunctionApproximator::backpropagate(const std::vector<float> &inputs, const
 	}
 }
 
+void FunctionApproximator::getInputError(const std::vector<float> &inputs, const std::vector<std::vector<float>> &layerOutputs, const std::vector<float> &targetOutputs, std::vector<float> &inputErrors) {
+	if (inputErrors.size() != inputs.size())
+		inputErrors.resize(inputs.size());
+
+	// Output layer error
+	std::vector<std::vector<float>> errors = layerOutputs;
+
+	for (size_t n = 0; n < _outputLayer.size(); n++)
+		errors.back()[n] = targetOutputs[n] - layerOutputs.back()[n];
+
+	// Last hidden layer
+	if (!_hiddenLayers.empty())  {
+		for (size_t n = 0; n < _hiddenLayers.back().size(); n++) {
+			float sum = 0.0f;
+
+			for (size_t w = 0; w < _outputLayer.size(); w++)
+				sum += errors.back()[w] * _outputLayer[w]._weights[n];
+
+			errors[errors.size() - 2][n] = sum * layerOutputs[layerOutputs.size() - 2][n] * (1.0f - layerOutputs[layerOutputs.size() - 2][n]);
+		}
+
+		for (int l = static_cast<int>(_hiddenLayers.size()) - 2; l >= 0; l--) {
+			for (size_t n = 0; n < _hiddenLayers[l].size(); n++) {
+				float sum = 0.0f;
+
+				for (size_t w = 0; w < _hiddenLayers[l + 1].size(); w++)
+					sum += errors[l + 1][w] * _hiddenLayers[l + 1][w]._weights[n];
+
+				errors[l][n] = sum * layerOutputs[l][n] * (1.0f - layerOutputs[l][n]);
+			}
+		}
+
+		// Input layer
+		for (size_t n = 0; n < inputs.size(); n++) {
+			float sum = 0.0f;
+
+			for (size_t w = 0; w < _hiddenLayers.front().size(); w++)
+				sum += errors.front()[w] * _hiddenLayers.front()[w]._weights[n];
+
+			inputErrors[n] = sum;
+		}
+	}
+	else
+		inputErrors = errors.back();
+}
+
 void FunctionApproximator::writeToStream(std::ostream &os) const {
 	os << getNumInputs() << " " << getNumOutputs() << " " << getNumHiddenLayers() << " " << getNumNeuronsPerHiddenLayer() << std::endl;
 

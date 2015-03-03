@@ -40,6 +40,8 @@ misrepresented as being the original software.
 
 #include <deep/FERL.h>
 
+#include <deep/RecurrentSparseAutoencoder.h>
+
 #include <rbf/SDRRBFNetwork.h>
 
 #include <convrl/ConvRL.h>
@@ -80,8 +82,11 @@ misrepresented as being the original software.
 #include <deep/DBN.h>
 #include <deep/ConvNet2D.h>
 #include <deep/SharpFA.h>
+#include <deep/SRBMFA.h>
 
 #include <raahn/AutoEncoder.h>
+
+#include <featureExtraction/AudioFeatureMFCC.h>
 
 #include <time.h>
 #include <iostream>
@@ -93,16 +98,16 @@ misrepresented as being the original software.
 #include <dirent.h>
 
 /*int main() {
-	std::mt19937 generator(time(nullptr));*/
+	std::mt19937 generator(time(nullptr));
 	
-	/*hn::FunctionApproximator approx;
+	hn::FunctionApproximator approx;
 	approx.createRandom(2, 1, 1, 4, -0.2f, 0.2f, generator);
 
 	float inputs[4][2] {
 		{ 0.0f, 0.0f },
-		{ 0.0f, 10.0f },
-		{ 10.0f, 0.0f },
-		{ 10.0f, 10.0f }
+		{ 0.0f, 1.0f },
+		{ 1.0f, 0.0f },
+		{ 1.0f, 1.0f }
 	};
 
 	float outputs[4] {
@@ -119,7 +124,7 @@ misrepresented as being the original software.
 	std::vector<float> inputBuffer(2);
 	std::vector<float> outputBuffer(1);
 
-	for (size_t i = 0; i < 1000; i++) {
+	for (size_t i = 0; i < 10000; i++) {
 		float newReward = 1.0f;
 
 		for (size_t j = 0; j < 4; j++) {
@@ -128,7 +133,7 @@ misrepresented as being the original software.
 
 			std::vector<std::vector<float>> layerOutputs;
 
-			approx.process(inputBuffer, layerOutputs);
+			approx.process(inputBuffer, layerOutputs, 1.0f);
 
 			newReward -= std::abs(outputs[j] - layerOutputs.back()[0]) * 0.25f;
 
@@ -145,12 +150,39 @@ misrepresented as being the original software.
 		inputBuffer[0] = (inputs[j][0]);
 		inputBuffer[1] = (inputs[j][1]);
 
-		approx.process(inputBuffer, outputBuffer);
+		approx.process(inputBuffer, outputBuffer, 1.0f);
 
 		std::cout << outputBuffer[0] << std::endl;
 	}
 
-	system("pause");*/
+	// Initialize input to something random
+	inputBuffer[0] = 0.2f;
+	inputBuffer[1] = 0.6f;
+
+	float target = 1.0f;
+
+	for (int i = 0; i < 1000; i++) {
+		std::vector<std::vector<float>> layerOutputs;
+
+		approx.process(inputBuffer, layerOutputs, 1.0f);
+
+		std::vector<float> inputErrors;
+
+		approx.getInputError(inputBuffer, layerOutputs, std::vector<float>(1, target), inputErrors);
+
+		for (int j = 0; j < inputBuffer.size(); j++) {
+			inputBuffer[j] = std::min(1.0f, std::max(0.0f, inputBuffer[j] + 0.1f * inputErrors[j]));
+
+			std::cout << inputBuffer[j] << " ";
+		}
+		
+		std::cout << layerOutputs.back().front() << std::endl;
+
+		system("pause");
+	}
+
+	system("pause");
+}*/
 
 	/*hn::EvolutionaryTrainer trainer;
 	hn::Config config;
@@ -3995,7 +4027,7 @@ int main() {
 	std::cout << successes << " " << failures << std::endl;
 }*/
 
-struct Image {
+/*struct Image {
 	std::vector<unsigned char> _image;
 };
 
@@ -4136,8 +4168,8 @@ int main() {
 	std::uniform_int_distribution<int> selectionDistEven(0, evenIndices.size() - 1);
 	std::uniform_int_distribution<int> selectionDistOdd(0, oddIndices.size() - 1);
 
-	int totalIterUnsupervised = 50000;
-	int totalIterSupervised = 50000;
+	int totalIterUnsupervised = 1000;
+	int totalIterSupervised = 1000;
 
 	for (int i = 0; i < totalIterUnsupervised; i++) {
 		int trainIndex = selectionDist(generator);
@@ -4145,13 +4177,13 @@ int main() {
 		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
 			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
 
-		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.5f, generator);
 
 		std::vector<float> target(10, 0.0f);
 
 		target[trainingLabels[trainIndex]] = 1.0f;
 
-		sdrrbfnet.updateUnsupervised(inputf, 0.05f, 0.2f, 0.2f, 1.0f, 0.0001f, 0.01f);
+		sdrrbfnet.updateUnsupervised(inputf, 0.05f, 0.9f, 0.2f, 1.0f, 0.0001f, 0.01f);
 
 		if (i % 100 == 0)
 			std::cout << "Iter Unsupervised: " << i << " / " << totalIterUnsupervised << std::endl;
@@ -4163,7 +4195,7 @@ int main() {
 		for (int j = 0; j < trainingImages[trainIndex]._image.size(); j++)
 			inputf[j] = trainingImages[trainIndex]._image[j] / 255.0f;
 
-		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+		sdrrbfnet.getOutput(inputf, outputf, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.5f, generator);
 
 		std::vector<float> target(10, 0.0f);
 
@@ -4212,6 +4244,653 @@ int main() {
 
 	std::cout << "Total Error: " << (static_cast<float>(wrongs) / static_cast<float>(totalIterTest)) * 100.0f << std::endl;
 	std::cout << "Odd Error: " << (static_cast<float>(oddWrongs) / static_cast<float>(totalOdds)) * 100.0f << std::endl;
+
+	return 0;
+}*/
+
+/*struct Sample {
+	float Dens_Lab;
+	float FREQ;
+	float BW;
+	float AMP;
+};
+
+void loadSamples(const std::string &fileName, std::vector<Sample> &samples) {
+	std::ifstream fromFile(fileName);
+
+	samples.clear();
+
+	std::string temp;
+
+	// Read away header
+	fromFile >> temp >> temp >> temp >> temp;
+
+	while (fromFile.good() && !fromFile.eof()) {
+		Sample s;
+		
+		fromFile >> s.Dens_Lab >> s.FREQ >> s.BW >> s.AMP;
+
+		samples.push_back(s);
+	}
+}
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	std::vector<Sample> samples;
+	std::vector<float> valuePossibilities;
+
+	const float valueTolerance = 0.001f;
+	const float sparsity = 0.1f;
+
+	loadSamples("Resources/hilmar_train/train.txt", samples);
+
+	Sample minSamples = samples[0];
+	Sample maxSamples = samples[0];
+
+	for (int si = 1; si < samples.size(); si++) {
+		minSamples.Dens_Lab = std::min(minSamples.Dens_Lab, samples[si].Dens_Lab);
+		minSamples.FREQ = std::min(minSamples.FREQ, samples[si].FREQ);
+		minSamples.BW = std::min(minSamples.BW, samples[si].BW);
+		minSamples.AMP = std::min(minSamples.AMP, samples[si].AMP);
+
+		maxSamples.Dens_Lab = std::max(maxSamples.Dens_Lab, samples[si].Dens_Lab);
+		maxSamples.FREQ = std::max(maxSamples.FREQ, samples[si].FREQ);
+		maxSamples.BW = std::max(maxSamples.BW, samples[si].BW);
+		maxSamples.AMP = std::max(maxSamples.AMP, samples[si].AMP);
+
+		// Search for similar values
+		bool found = false;
+
+		for (int i = 0; i < valuePossibilities.size(); i++) {
+			if (std::abs(valuePossibilities[i] - samples[si].Dens_Lab) < valueTolerance) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			valuePossibilities.push_back(samples[si].Dens_Lab);
+	}
+
+	std::vector<int> randomizedSampleIndicies(samples.size());
+
+	for (int i = 0; i < randomizedSampleIndicies.size(); i++)
+		randomizedSampleIndicies[i] = i;
+
+	std::shuffle(randomizedSampleIndicies.begin(), randomizedSampleIndicies.end(), generator);
+
+	int testSize = 10;
+
+	int testStart = randomizedSampleIndicies.size() - testSize;
+
+	deep::SRBMFA fa;
+
+	std::vector<deep::SRBMFA::LayerDesc> layerDescs(2);
+
+	layerDescs[0]._numHiddenUnits = 200;
+	
+	layerDescs[1]._numHiddenUnits = 80;
+
+	fa.createRandom(3, layerDescs, 1, 0.05f, generator);
+
+	std::uniform_int_distribution<int> sampleDist(0, testStart - 1);
+
+	int unsupervisedIterations = 80000;
+
+	for (int t = 0; t < unsupervisedIterations; t++) {
+		int si = sampleDist(generator);
+
+		Sample &s = samples[randomizedSampleIndicies[si]];
+
+		fa.setInput(0, (s.FREQ - minSamples.FREQ) / (maxSamples.FREQ - minSamples.FREQ));
+		fa.setInput(1, (s.BW - minSamples.BW) / (maxSamples.BW - minSamples.BW));
+		fa.setInput(2, (s.AMP - minSamples.AMP) / (maxSamples.AMP - minSamples.AMP));
+
+		for (int l = 0; l < layerDescs.size(); l++) {
+			fa.activate(sparsity, l);
+
+			fa.learnRBM(l, 0.01f, 0.01f, 0.3f, 0.04f, sparsity, 1, generator);
+		}
+
+		if (t % 1000 == 0)
+			std::cout << (static_cast<float>(t) / unsupervisedIterations * 100.0f) << "%" << std::endl;;
+	}
+
+	int supervisedIterations = 80000;
+
+	for (int t = 0; t < supervisedIterations; t++) {
+		int si = sampleDist(generator);
+
+		Sample &s = samples[randomizedSampleIndicies[si]];
+
+		fa.setInput(0, (s.FREQ - minSamples.FREQ) / (maxSamples.FREQ - minSamples.FREQ));
+		fa.setInput(1, (s.BW - minSamples.BW) / (maxSamples.BW - minSamples.BW));
+		fa.setInput(2, (s.AMP - minSamples.AMP) / (maxSamples.AMP - minSamples.AMP));
+
+		fa.activate(sparsity);
+
+		fa.setOutputUnitTarget(0, s.Dens_Lab);
+
+		fa.learnFFNN(0.01f, 0.3f);
+
+		//std::cout << fa << std::endl;
+
+		if (t % 1000 == 0)
+			std::cout << (static_cast<float>(t) / supervisedIterations * 100.0f) << "%" << std::endl;
+	}
+
+	float errorSum = 0.0f;
+
+	for (int i = 0; i < testSize; i++) {
+		int si = testStart + i;
+
+		Sample &s = samples[randomizedSampleIndicies[si]];
+
+		fa.setInput(0, (s.FREQ - minSamples.FREQ) / (maxSamples.FREQ - minSamples.FREQ));
+		fa.setInput(1, (s.BW - minSamples.BW) / (maxSamples.BW - minSamples.BW));
+		fa.setInput(2, (s.AMP - minSamples.AMP) / (maxSamples.AMP - minSamples.AMP));
+
+		fa.activate(sparsity);
+
+		int closestIndex = 0;
+		float minDistance = 999999.0f;
+
+		float find = fa.getOutputUnitOutput(0);
+
+		for (int i = 0; i < valuePossibilities.size(); i++) {
+			if (std::abs(valuePossibilities[i] - find) < minDistance) {
+				minDistance = std::abs(valuePossibilities[i] - find);
+				closestIndex = i;
+			}
+		}
+
+		float out = valuePossibilities[closestIndex];// minDistance < 0.1f ? valuePossibilities[closestIndex] : find;
+
+		float error = std::abs((s.Dens_Lab - out) / s.Dens_Lab);
+
+		errorSum += error;
+
+		std::cout << "Output: " << out << " Actual: " << s.Dens_Lab << std::endl;
+	}
+
+	errorSum /= testSize;
+
+	std::cout << "Average Error: " << errorSum * 100.0f << std::endl;
+
+	system("pause");
+
+	return 0;
+}*/
+
+/*struct Sample {
+	float _class;
+	std::vector<float> _parameters;
+};
+
+void loadSamples(const std::string &fileName, std::vector<Sample> &samples, int parameters) {
+	std::ifstream fromFile(fileName);
+
+	samples.clear();
+
+	std::string temp;
+
+	// Read away header
+	std::string line;
+	std::getline(fromFile, line);
+
+	while (fromFile.good() && !fromFile.eof()) {
+		Sample s;
+
+		s._parameters.resize(parameters);
+
+		fromFile >> s._class;
+
+		for (int i = 0; i < parameters; i++)
+			fromFile >> s._parameters[i];
+
+		samples.push_back(s);
+	}
+}
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	std::vector<Sample> samples;
+	std::vector<float> valuePossibilities;
+
+	const float valueTolerance = 0.001f;
+	const int parameters = 4;
+
+	loadSamples("Resources/hilmar_train/train.txt", samples, parameters);
+
+	Sample minSamples = samples[0];
+	Sample maxSamples = samples[0];
+
+	for (int si = 1; si < samples.size(); si++) {
+		minSamples._class = std::min(minSamples._class, samples[si]._class);
+
+		for (int i = 0; i < parameters; i++)
+			minSamples._parameters[i] = std::min(minSamples._parameters[i], samples[si]._parameters[i]);
+
+		for (int i = 0; i < parameters; i++)
+			maxSamples._parameters[i] = std::max(maxSamples._parameters[i], samples[si]._parameters[i]);
+
+		// Search for similar values
+		bool found = false;
+
+		for (int i = 0; i < valuePossibilities.size(); i++) {
+			if (std::abs(valuePossibilities[i] - samples[si]._class) < valueTolerance) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			valuePossibilities.push_back(samples[si]._class);
+	}
+
+	std::vector<int> randomizedSampleIndicies(samples.size());
+
+	for (int i = 0; i < randomizedSampleIndicies.size(); i++)
+		randomizedSampleIndicies[i] = i;
+
+	std::shuffle(randomizedSampleIndicies.begin(), randomizedSampleIndicies.end(), generator);
+
+	int testSize = 300;
+
+	int testStart = randomizedSampleIndicies.size() - testSize;
+
+	float errorSum = 0.0f;
+
+	for (int i = 0; i < testSize; i++) {
+		int si = testStart + i;
+
+		Sample &s = samples[randomizedSampleIndicies[si]];
+
+		std::vector<float> weights(testStart);
+
+		for (int j = 0; j < weights.size(); j++) {
+			float dist2 = 0.0f;
+			
+			for (int k = 0; k < parameters; k++)
+				dist2 += std::pow(s._parameters[k] - samples[randomizedSampleIndicies[j]]._parameters[k], 2);
+				
+			weights[j] = dist2;
+		}
+
+		int minIndex = 0;
+
+		for (int j = 1; j < weights.size(); j++)
+			if (weights[j] < weights[minIndex])
+				minIndex = j;
+
+		float out = samples[randomizedSampleIndicies[minIndex]]._class;// minDistance < 0.1f ? valuePossibilities[closestIndex] : find;
+
+		float error = std::abs((s._class - out) / s._class);
+
+		errorSum += error;
+
+		std::cout << "Output: " << out << " Actual: " << s._class << std::endl;
+	}
+
+	errorSum /= testSize;
+
+	std::cout << "Average Error: " << errorSum * 100.0f << std::endl;
+
+	system("pause");
+
+	return 0;
+}*/
+
+/*int main() {
+	std::mt19937 generator(time(nullptr));
+
+	deep::RecurrentSparseAutoencoder rsa;
+
+	const float sequence[6][4] = {
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f }
+	};
+
+	float sparsity = 1.01f / 32.0f;
+	float dutyCycleDecay = 0.01f;
+
+	rsa.createRandom(4, 64, sparsity, -0.1f, 0.1f, generator);
+
+	for (int i = 0; i < 50; i++) {
+		for (int j = 0; j < 6; j++) {
+			rsa.setVisibleNodeState(0, sequence[j][0]);
+			rsa.setVisibleNodeState(1, sequence[j][1]);
+			rsa.setVisibleNodeState(2, sequence[j][2]);
+			rsa.setVisibleNodeState(3, sequence[j][3]);
+
+			rsa.learn(sparsity, 0.1f, 0.3f, 0.1f, 0.5f);
+
+			rsa.activate(sparsity, dutyCycleDecay);
+
+			rsa.stepEnd();
+		}
+	}
+
+	for (int i = 0; i < 1; i++) {
+		for (int j = 0; j < 6; j++) {
+			rsa.setVisibleNodeState(0, sequence[j][0]);
+			rsa.setVisibleNodeState(1, sequence[j][1]);
+			rsa.setVisibleNodeState(2, sequence[j][2]);
+			rsa.setVisibleNodeState(3, sequence[j][3]);
+
+			rsa.activate(sparsity, dutyCycleDecay);
+
+			std::cout << "-----------------------------------" << std::endl;
+
+			std::cout << (sequence[j][0]) << std::endl;
+			std::cout << (sequence[j][1]) << std::endl;
+			std::cout << (sequence[j][2]) << std::endl;
+			std::cout << (sequence[j][3]) << std::endl;
+
+			std::cout << (rsa.getVisibleNodeReconstruction(0) > 0.5f ? 1.0f : 0.0f) << std::endl;
+			std::cout << (rsa.getVisibleNodeReconstruction(1) > 0.5f ? 1.0f : 0.0f) << std::endl;
+			std::cout << (rsa.getVisibleNodeReconstruction(2) > 0.5f ? 1.0f : 0.0f) << std::endl;
+			std::cout << (rsa.getVisibleNodeReconstruction(3) > 0.5f ? 1.0f : 0.0f) << std::endl;
+
+			std::cout << std::endl;
+
+			rsa.stepEnd();
+		}
+	}
+
+	system("pause");
+
+	return 0;
+}*/
+
+struct BufferAndLabel {
+	sf::SoundBuffer _buffer;
+	int _classLabel;
+	std::vector<mfcc::AudioFeatureMFCC> _features;
+	std::vector<float> _sdr;
+};
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	// ------------------------------ Learner Initialization ------------------------------
+
+	int numHidden = 120;
+	float sparsity = 10.01f / numHidden;
+	float dutyCycleDecay = 0.01f;
+
+	deep::RecurrentSparseAutoencoder rsa;
+
+	rsa.createRandom(26, numHidden, sparsity, -0.1f, 0.1f, generator);
+
+	std::uniform_real_distribution<float> weightDist(-0.1f, 0.1f);
+
+	int classes = 2;
+
+	nn::FeedForwardNeuralNetwork ffnn;
+
+	ffnn.createRandom(numHidden, classes, 1, 60, -0.01f, 0.01f, generator);
+
+	// ---------------------------------- Sound Loading ----------------------------------
+
+	std::vector<BufferAndLabel> testSounds(44);
+
+	for (int i = 0; i < testSounds.size(); i++) {
+		testSounds[i]._buffer.loadFromFile("Resources/testSound" + std::to_string(i + 1) + ".wav");
+		testSounds[i]._classLabel = i % 2;
+	}
+
+	int soundCount = testSounds.size() + 1;
+
+	// --------------------------------- Extract Features --------------------------------
+
+	int featureSamplesLength = 400;
+	int featureSamplesStep = 200;
+
+	mfcc::MelFilterBank bank;
+	bank.create(26, featureSamplesLength, 300.0f, 8000.0f, 8000.0f);
+
+	for (int t = 0; t < testSounds.size(); t++) {
+		int numFeatures = (testSounds[t]._buffer.getSampleCount() - featureSamplesLength + 1) / featureSamplesStep;
+
+		int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
+
+		std::vector<short> samples(numSamplesUse, 0);
+
+		for (int s = 0; s < testSounds[t]._buffer.getSampleCount(); s++)
+			samples[s] = testSounds[t]._buffer.getSamples()[s];
+
+		testSounds[t]._features.resize(numFeatures);
+
+		int start = 0;
+
+		for (int f = 0; f < numFeatures; f++) {
+			testSounds[t]._features[f].extract(samples, start, featureSamplesLength, bank);
+
+			start += featureSamplesStep;
+		}
+	}
+
+	// ----------------------------------- Training -----------------------------------
+
+	std::uniform_int_distribution<int> sampleDist(0, testSounds.size() - 1);
+
+	for (int t = 0; t < 1000; t++) {
+		int i = sampleDist(generator);
+
+		rsa.clearMemory();
+
+		for (int f = 0; f < testSounds[i]._features.size(); f++) {
+			for (int s = 0; s < 26; s++)
+				rsa.setVisibleNodeState(s, testSounds[i]._features[f].getCoeff(s) * 0.01f);
+
+			rsa.learn(sparsity, 0.004f, 0.002f, 0.01f, 0.3f);
+
+			rsa.activate(sparsity, dutyCycleDecay);
+
+			rsa.stepEnd();
+		}
+
+		if (t % 10 == 0)
+			std::cout << "Unsupervised: " << t << std::endl;
+	}
+
+	for (int t = 0; t < testSounds.size(); t++) {
+		rsa.clearMemory();
+
+		for (int f = 0; f < testSounds[t]._features.size(); f++) {
+			for (int s = 0; s < 26; s++)
+				rsa.setVisibleNodeState(s, testSounds[t]._features[f].getCoeff(s) * 0.01f);
+
+			rsa.activate(sparsity, dutyCycleDecay);
+
+			rsa.stepEnd();
+		}
+
+		testSounds[t]._sdr.resize(numHidden);
+
+		for (int i = 0; i < numHidden; i++)
+			testSounds[t]._sdr[i] = rsa.getHiddenNodeState(i);
+	}
+
+	for (int t = 0; t < 500000; t++) {
+		int i = sampleDist(generator);
+
+		// Classifier
+		for (int p = 0; p < numHidden; p++) {
+			ffnn.setInput(p, testSounds[i]._sdr[p]);
+		}
+
+		ffnn.activate();
+
+		int maxIndex = 0;
+
+		for (int c = 1; c < classes; c++) {
+			if (ffnn.getOutput(c) > ffnn.getOutput(maxIndex))
+				maxIndex = c;
+		}
+
+		std::vector<float> targets(classes, 0.0f);
+
+		targets[testSounds[i]._classLabel] = 1.0f;
+
+		nn::FeedForwardNeuralNetwork::Gradient grad;
+
+		ffnn.getGradient(targets, grad);
+
+		ffnn.moveAlongGradientMomentum(grad, 0.01f, 0.3f);
+
+		ffnn.decayWeights(0.001f);
+
+		if (t % 100 == 0)
+			std::cout << "Training: " << t << " Prediction: " << maxIndex << " Actual: " << testSounds[i]._classLabel << std::endl;
+	}
+
+	// ----------------------------------- Windowing ----------------------------------
+
+	if (!sf::SoundBufferRecorder::isAvailable())
+		std::cerr << "No recording device available!" << std::endl;
+
+	sf::RenderWindow window;
+
+	sf::SoundBufferRecorder recorder;
+
+	sf::Clock clock;
+
+	window.create(sf::VideoMode(800, 600), "Speech Recognition", sf::Style::Default);
+
+	float dt = 0.017f;
+
+	bool quit = false;
+
+	bool recording = false;
+
+	do {
+		clock.restart();
+
+		// ----------------------------- Input -----------------------------
+
+		sf::Event windowEvent;
+
+		while (window.pollEvent(windowEvent))
+		{
+			switch (windowEvent.type)
+			{
+			case sf::Event::Closed:
+				quit = true;
+				break;
+
+			case sf::Event::KeyReleased:
+				if (windowEvent.key.code == sf::Keyboard::R) {
+					if (recording) {
+						recorder.stop();
+
+						const sf::SoundBuffer &buffer = recorder.getBuffer();
+
+						buffer.saveToFile("testSound" + std::to_string(soundCount) + ".wav");
+
+						soundCount++;
+
+						sf::Sound sound;
+
+						sound.setBuffer(buffer);
+
+						sound.play();
+
+						int numFeatures = (buffer.getSampleCount() - featureSamplesLength + 1) / featureSamplesStep;
+
+						int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
+
+						std::vector<short> samples(numSamplesUse, 0);
+
+						for (int s = 0; s < buffer.getSampleCount(); s++)
+							samples[s] = buffer.getSamples()[s];
+
+						std::vector<mfcc::AudioFeatureMFCC> features(numFeatures);
+
+						int start = 0;
+
+						for (int f = 0; f < numFeatures; f++) {
+							features[f].extract(samples, start, featureSamplesLength, bank);
+
+							start += featureSamplesStep;
+						}
+
+						// Classify recording
+						rsa.clearMemory();
+
+						for (int f = 0; f < features.size(); f++) {
+							for (int s = 0; s < 26; s++)
+								rsa.setVisibleNodeState(s, features[f].getCoeff(s) * 0.01f);
+
+							rsa.activate(sparsity, dutyCycleDecay);
+
+							rsa.stepEnd();
+						}
+
+						// Classifier
+						std::cout << "SDR: " << std::endl;
+
+						for (int p = 0; p < numHidden; p++) {
+							if (rsa.getHiddenNodeState(p) > 0.5f)
+								std::cout << "X";
+							else
+								std::cout << "_";
+
+							ffnn.setInput(p, rsa.getHiddenNodeState(p));
+						}
+
+						ffnn.activate();
+
+						int maxIndex = 0;
+
+						for (int c = 0; c < classes; c++) {
+							if (ffnn.getOutput(c) > ffnn.getOutput(maxIndex))
+								maxIndex = c;
+						}
+
+						std::cout << "Class: " << maxIndex << std::endl;
+
+						/*std::cout << "Enter actual label: ";
+
+						int label;
+
+						std::cin >> label;
+
+						std::vector<float> targets(classes, 0.0f);
+
+						targets[label] = 1.0f;
+
+						nn::FeedForwardNeuralNetwork::Gradient grad;
+
+						ffnn.getGradient(targets, grad);
+
+						ffnn.moveAlongGradientMomentum(grad, 0.01f, 0.3f);*/
+
+						recording = false;
+					}
+					else {
+						recorder.start();
+
+						recording = true;
+					}
+				}
+			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			quit = true;
+
+		window.display();
+
+		float dt = clock.getElapsedTime().asSeconds();
+	} while (!quit);
 
 	return 0;
 }

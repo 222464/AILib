@@ -486,7 +486,7 @@ void FeedForwardNeuralNetwork::getGradient(const std::vector<float> &targets, Gr
 	std::vector<float> error(targets.size());
 
 	for (size_t n = 0; n < getNumOutputs(); n++)
-		error[n] = (targets[n] - _outputs[n]._output) * _outputs[n]._output * (1.0f - _outputs[n]._output);
+		error[n] = targets[n] - _outputs[n]._output;
 
 	getGradientFromError(error, grad);
 }

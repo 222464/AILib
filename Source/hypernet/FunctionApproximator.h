@@ -51,6 +51,7 @@ namespace hn {
 		void process(const std::vector<float> &inputs, std::vector<float> &outputs, float activationMultiplier);
 		void process(const std::vector<float> &inputs, std::vector<std::vector<float>> &layerOutputs, float activationMultiplier);
 		void backpropagate(const std::vector<float> &inputs, const std::vector<std::vector<float>> &layerOutputs, const std::vector<float> &targetOutputs, float alpha);
+		void getInputError(const std::vector<float> &inputs, const std::vector<std::vector<float>> &layerOutputs, const std::vector<float> &targetOutputs, std::vector<float> &inputErrors);
 
 		void writeToStream(std::ostream &os) const;
 		void readFromStream(std::istream &is);
