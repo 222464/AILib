@@ -4557,32 +4557,44 @@ int main() {
 		{ 0.0f, 1.0f, 0.0f, 1.0f }
 	};
 
-	float sparsity = 1.01f / 32.0f;
+	float sparsity = 3.01f / 32.0f;
 	float dutyCycleDecay = 0.01f;
 
-	rsa.createRandom(4, 64, sparsity, -0.1f, 0.1f, generator);
+	rsa.createRandom(4, 32, sparsity, -0.1f, 0.1f, generator);
 
-	for (int i = 0; i < 50; i++) {
+	for (int i = 0; i < 100; i++) {
 		for (int j = 0; j < 6; j++) {
+			rsa.stepBegin();
+
 			rsa.setVisibleNodeState(0, sequence[j][0]);
 			rsa.setVisibleNodeState(1, sequence[j][1]);
 			rsa.setVisibleNodeState(2, sequence[j][2]);
 			rsa.setVisibleNodeState(3, sequence[j][3]);
 
-			rsa.learn(sparsity, 0.1f, 0.3f, 0.1f, 0.5f);
+			rsa.learn(sparsity, 0.03f, 0.03f, 0.0f, 0.5f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
-
-			rsa.stepEnd();
 		}
 	}
 
+	float correctCount = 0.0f;
+	float totalCount = 0.0f;
+
+	rsa.clearMemory();
+
 	for (int i = 0; i < 1; i++) {
 		for (int j = 0; j < 6; j++) {
+			rsa.stepBegin();
+
 			rsa.setVisibleNodeState(0, sequence[j][0]);
 			rsa.setVisibleNodeState(1, sequence[j][1]);
 			rsa.setVisibleNodeState(2, sequence[j][2]);
 			rsa.setVisibleNodeState(3, sequence[j][3]);
+
+			float b0 = rsa.getVisibleNodeReconstruction(0) > 0.5f ? 1.0f : 0.0f;
+			float b1 = rsa.getVisibleNodeReconstruction(1) > 0.5f ? 1.0f : 0.0f;
+			float b2 = rsa.getVisibleNodeReconstruction(2) > 0.5f ? 1.0f : 0.0f;
+			float b3 = rsa.getVisibleNodeReconstruction(3) > 0.5f ? 1.0f : 0.0f;
 
 			rsa.activate(sparsity, dutyCycleDecay);
 
@@ -4593,16 +4605,23 @@ int main() {
 			std::cout << (sequence[j][2]) << std::endl;
 			std::cout << (sequence[j][3]) << std::endl;
 
-			std::cout << (rsa.getVisibleNodeReconstruction(0) > 0.5f ? 1.0f : 0.0f) << std::endl;
-			std::cout << (rsa.getVisibleNodeReconstruction(1) > 0.5f ? 1.0f : 0.0f) << std::endl;
-			std::cout << (rsa.getVisibleNodeReconstruction(2) > 0.5f ? 1.0f : 0.0f) << std::endl;
-			std::cout << (rsa.getVisibleNodeReconstruction(3) > 0.5f ? 1.0f : 0.0f) << std::endl;
+			std::cout << b0 << std::endl;
+			std::cout << b1 << std::endl;
+			std::cout << b2 << std::endl;
+			std::cout << b3 << std::endl;
 
 			std::cout << std::endl;
 
-			rsa.stepEnd();
+			correctCount += 4.0f - (std::abs(sequence[j][0] - b0) +
+				std::abs(sequence[j][1] - b1) +
+				std::abs(sequence[j][2] - b2) +
+				std::abs(sequence[j][3] - b3));
+
+			totalCount += 4.0f;
 		}
 	}
+
+	std::cout << "% correct: " << (correctCount / totalCount) * 100.0f << std::endl;
 
 	system("pause");
 

@@ -83,7 +83,7 @@ namespace deep {
 
 		void learn(float sparsity, float alpha, float beta, float gamma, float momentum);
 
-		void stepEnd();
+		void stepBegin();
 
 		void clearMemory();
 

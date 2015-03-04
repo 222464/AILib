@@ -67,7 +67,7 @@ void RecurrentSparseAutoencoder::activate(float sparsity, float dutyCycleDecay) 
 		for (int ho = 0; ho < _hiddenNodes.size(); ho++)
 			sum += _hiddenNodes[h]._hiddenHiddenConnections[ho]._weight * _hiddenNodes[ho]._statePrev;
 
-		_hiddenNodes[h]._activation = sum;
+		_hiddenNodes[h]._activation = sigmoid(sum);
 	}
 
 	// Sparsify
@@ -97,9 +97,23 @@ void RecurrentSparseAutoencoder::activate(float sparsity, float dutyCycleDecay) 
 void RecurrentSparseAutoencoder::learn(float sparsity, float alpha, float beta, float gamma, float momentum) {
 	std::vector<float> reconstructionError(_visibleNodes.size());
 
-	for (int v = 0; v < _visibleNodes.size(); v++) {
+	std::vector<float> hiddenErrors(_hiddenNodes.size());
+
+	for (int v = 0; v < _visibleNodes.size(); v++)
 		reconstructionError[v] = _visibleNodes[v]._state - _visibleNodes[v]._reconstruction;
-		
+
+	for (int h = 0; h < _hiddenNodes.size(); h++) {
+		float error = 0.0f;
+
+		for (int v = 0; v < _visibleNodes.size(); v++)
+			error += _visibleNodes[v]._hiddenVisibleConnections[h]._weight * reconstructionError[v];
+
+		error *= _hiddenNodes[h]._statePrev * _hiddenNodes[h]._activationPrev * (1.0f - _hiddenNodes[h]._activationPrev);
+
+		hiddenErrors[h] = error;
+	}
+
+	for (int v = 0; v < _visibleNodes.size(); v++) {
 		for (int h = 0; h < _hiddenNodes.size(); h++) {
 			float delta = _visibleNodes[v]._hiddenVisibleConnections[h]._prevWeightDelta * momentum + alpha * reconstructionError[v] * _hiddenNodes[h]._statePrev;
 			_visibleNodes[v]._hiddenVisibleConnections[h]._weight += delta;
@@ -109,20 +123,6 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float alpha, float beta, 
 		float delta = _visibleNodes[v]._bias._prevWeightDelta * momentum + alpha * reconstructionError[v];
 		_visibleNodes[v]._bias._weight += delta;
 		_visibleNodes[v]._bias._prevWeightDelta = delta;
-	}
-
-	std::vector<float> hiddenErrors(_hiddenNodes.size());
-
-	for (int h = 0; h < _hiddenNodes.size(); h++) {
-		float error = 0.0f;
-
-		for (int v = 0; v < _visibleNodes.size(); v++)
-			error += _visibleNodes[v]._hiddenVisibleConnections[h]._weight * reconstructionError[v];
-
-		error /= _visibleNodes.size();
-		error *= _hiddenNodes[h]._state;
-
-		hiddenErrors[h] = error;
 	}
 
 	for (int h = 0; h < _hiddenNodes.size(); h++) {
@@ -144,9 +144,10 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float alpha, float beta, 
 	}
 }
 
-void RecurrentSparseAutoencoder::stepEnd() {
+void RecurrentSparseAutoencoder::stepBegin() {
 	for (int h = 0; h < _hiddenNodes.size(); h++) {
 		_hiddenNodes[h]._activationPrev = _hiddenNodes[h]._activation;
+
 		_hiddenNodes[h]._statePrevPrev = _hiddenNodes[h]._statePrev;
 		_hiddenNodes[h]._statePrev = _hiddenNodes[h]._state;
 	}
