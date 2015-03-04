@@ -42,6 +42,7 @@ namespace deep {
 
 		struct HiddenNode {
 			float _activation;
+			float _activationPrev;
 			float _state;
 			float _statePrev;
 			float _statePrevPrev;
@@ -52,8 +53,6 @@ namespace deep {
 			std::vector<Connection> _visibleHiddenConnections;
 
 			std::vector<Connection> _hiddenHiddenConnections;
-
-			std::vector<Connection> _hiddenVisibleConnections;
 
 			HiddenNode()
 				: _activation(0.0f), _state(0.0f), _statePrev(0.0f), _statePrevPrev(0.0f)

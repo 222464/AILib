@@ -4543,7 +4543,7 @@ int main() {
 	return 0;
 }*/
 
-/*int main() {
+int main() {
 	std::mt19937 generator(time(nullptr));
 
 	deep::RecurrentSparseAutoencoder rsa;
@@ -4607,12 +4607,12 @@ int main() {
 	system("pause");
 
 	return 0;
-}*/
+}
 
-struct BufferAndLabel {
+/*struct BufferAndLabel {
 	sf::SoundBuffer _buffer;
 	int _classLabel;
-	std::vector<mfcc::AudioFeatureMFCC> _features;
+	std::vector<std::vector<double>> _features;
 	std::vector<float> _sdr;
 };
 
@@ -4621,8 +4621,8 @@ int main() {
 
 	// ------------------------------ Learner Initialization ------------------------------
 
-	int numHidden = 120;
-	float sparsity = 10.01f / numHidden;
+	int numHidden = 60;
+	float sparsity = 6.01f / numHidden;
 	float dutyCycleDecay = 0.01f;
 
 	deep::RecurrentSparseAutoencoder rsa;
@@ -4635,14 +4635,19 @@ int main() {
 
 	nn::FeedForwardNeuralNetwork ffnn;
 
-	ffnn.createRandom(numHidden, classes, 1, 60, -0.01f, 0.01f, generator);
+	ffnn.createRandom(numHidden, classes, 1, 40, -0.01f, 0.01f, generator);
 
 	// ---------------------------------- Sound Loading ----------------------------------
 
 	std::vector<BufferAndLabel> testSounds(44);
 
+	int maxInputSize = 0;
+
 	for (int i = 0; i < testSounds.size(); i++) {
-		testSounds[i]._buffer.loadFromFile("Resources/testSound" + std::to_string(i + 1) + ".wav");
+		std::string fn = "Resources/testSound" + std::to_string(i + 1) + ".wav";
+
+		testSounds[i]._buffer.loadFromFile(fn);
+
 		testSounds[i]._classLabel = i % 2;
 	}
 
@@ -4653,27 +4658,24 @@ int main() {
 	int featureSamplesLength = 400;
 	int featureSamplesStep = 200;
 
-	mfcc::MelFilterBank bank;
-	bank.create(26, featureSamplesLength, 300.0f, 8000.0f, 8000.0f);
-
 	for (int t = 0; t < testSounds.size(); t++) {
 		int numFeatures = (testSounds[t]._buffer.getSampleCount() - featureSamplesLength + 1) / featureSamplesStep;
 
 		int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
 
-		std::vector<short> samples(numSamplesUse, 0);
-
-		for (int s = 0; s < testSounds[t]._buffer.getSampleCount(); s++)
-			samples[s] = testSounds[t]._buffer.getSamples()[s];
-
 		testSounds[t]._features.resize(numFeatures);
+		
+		int steps = 0;
 
-		int start = 0;
+		for (int i = 0; i < numFeatures; i++) {
+			int l = std::min<int>(featureSamplesLength, testSounds[t]._wav->getSamplesCount() - steps);
+			
+			testSounds[t]._features[i] = mfcc.calculate(Aquila::SignalSource(&testSounds[t]._wav->toArray()[steps], l, testSounds[t]._wav->getSampleFrequency()));
 
-		for (int f = 0; f < numFeatures; f++) {
-			testSounds[t]._features[f].extract(samples, start, featureSamplesLength, bank);
+			if (testSounds[t]._features[i].size() < 26)
+				testSounds[t]._features[i].assign(26 - testSounds[t]._features[i].size(), 0.0f);
 
-			start += featureSamplesStep;
+			steps += featureSamplesStep;
 		}
 	}
 
@@ -4688,7 +4690,7 @@ int main() {
 
 		for (int f = 0; f < testSounds[i]._features.size(); f++) {
 			for (int s = 0; s < 26; s++)
-				rsa.setVisibleNodeState(s, testSounds[i]._features[f].getCoeff(s) * 0.01f);
+				rsa.setVisibleNodeState(s, testSounds[i]._features[f][s] * 0.01f);
 
 			rsa.learn(sparsity, 0.004f, 0.002f, 0.01f, 0.3f);
 
@@ -4706,7 +4708,7 @@ int main() {
 
 		for (int f = 0; f < testSounds[t]._features.size(); f++) {
 			for (int s = 0; s < 26; s++)
-				rsa.setVisibleNodeState(s, testSounds[t]._features[f].getCoeff(s) * 0.01f);
+				rsa.setVisibleNodeState(s, testSounds[t]._features[f][s] * 0.01f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
 
@@ -4744,11 +4746,11 @@ int main() {
 
 		ffnn.getGradient(targets, grad);
 
-		ffnn.moveAlongGradientMomentum(grad, 0.01f, 0.3f);
+		ffnn.moveAlongGradientMomentum(grad, 0.004f, 0.3f);
 
-		ffnn.decayWeights(0.001f);
+		ffnn.decayWeights(0.0001f);
 
-		if (t % 100 == 0)
+		if (t % 1000 == 0)
 			std::cout << "Training: " << t << " Prediction: " << maxIndex << " Actual: " << testSounds[i]._classLabel << std::endl;
 	}
 
@@ -4807,19 +4809,19 @@ int main() {
 
 						int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
 
-						std::vector<short> samples(numSamplesUse, 0);
+						std::vector<std::vector<double>> features(numFeatures);
 
-						for (int s = 0; s < buffer.getSampleCount(); s++)
-							samples[s] = buffer.getSamples()[s];
+						int steps = 0;
 
-						std::vector<mfcc::AudioFeatureMFCC> features(numFeatures);
+						for (int i = 0; i < numFeatures; i++) {
+							int l = std::min<int>(featureSamplesLength, buffer.getSampleCount() - steps);
 
-						int start = 0;
+							features[i] = mfcc.calculate(Aquila::SignalSource(&buffer.getSamples()[steps], l));
 
-						for (int f = 0; f < numFeatures; f++) {
-							features[f].extract(samples, start, featureSamplesLength, bank);
+							if (features[i].size() < 26)
+								features[i].assign(26 - features[i].size(), 0.0f);
 
-							start += featureSamplesStep;
+							steps += featureSamplesStep;
 						}
 
 						// Classify recording
@@ -4827,7 +4829,7 @@ int main() {
 
 						for (int f = 0; f < features.size(); f++) {
 							for (int s = 0; s < 26; s++)
-								rsa.setVisibleNodeState(s, features[f].getCoeff(s) * 0.01f);
+								rsa.setVisibleNodeState(s, features[f][s] * 0.01f);
 
 							rsa.activate(sparsity, dutyCycleDecay);
 
@@ -4857,22 +4859,6 @@ int main() {
 
 						std::cout << "Class: " << maxIndex << std::endl;
 
-						/*std::cout << "Enter actual label: ";
-
-						int label;
-
-						std::cin >> label;
-
-						std::vector<float> targets(classes, 0.0f);
-
-						targets[label] = 1.0f;
-
-						nn::FeedForwardNeuralNetwork::Gradient grad;
-
-						ffnn.getGradient(targets, grad);
-
-						ffnn.moveAlongGradientMomentum(grad, 0.01f, 0.3f);*/
-
 						recording = false;
 					}
 					else {
@@ -4893,4 +4879,4 @@ int main() {
 	} while (!quit);
 
 	return 0;
-}
+}*/

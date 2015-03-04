@@ -117,7 +117,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float alpha, float beta, 
 		float error = 0.0f;
 
 		for (int v = 0; v < _visibleNodes.size(); v++)
-			error += _hiddenNodes[h]._visibleHiddenConnections[v]._weight * reconstructionError[v];
+			error += _visibleNodes[v]._hiddenVisibleConnections[h]._weight * reconstructionError[v];
 
 		error /= _visibleNodes.size();
 		error *= _hiddenNodes[h]._state;
@@ -146,6 +146,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float alpha, float beta, 
 
 void RecurrentSparseAutoencoder::stepEnd() {
 	for (int h = 0; h < _hiddenNodes.size(); h++) {
+		_hiddenNodes[h]._activationPrev = _hiddenNodes[h]._activation;
 		_hiddenNodes[h]._statePrevPrev = _hiddenNodes[h]._statePrev;
 		_hiddenNodes[h]._statePrev = _hiddenNodes[h]._state;
 	}
