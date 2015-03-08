@@ -26,6 +26,14 @@ misrepresented as being the original software.
 
 namespace deep {
 	class RecurrentSparseAutoencoder {
+	public:
+		struct Experience {
+			std::vector<float> _visibleStates;
+			std::vector<float> _visibleStatesPrev;
+			std::vector<float> _hiddenStatesPrev;
+			std::vector<float> _hiddenStatesPrevPrev;
+		};
+
 	private:
 		static float sigmoid(float x) {
 			return 1.0f / (1.0f + std::exp(-x));
@@ -33,10 +41,11 @@ namespace deep {
 
 		struct Connection {
 			float _weight;
+			float _trace;
 			float _prevWeightDelta;
 
 			Connection()
-				: _prevWeightDelta(0.0f)
+				: _trace(0.0f), _prevWeightDelta(0.0f)
 			{}
 		};
 
@@ -63,13 +72,14 @@ namespace deep {
 			float _state;
 			float _statePrev;
 			float _reconstruction;
+			float _reconstructionPrev;
 
 			Connection _bias;
 
 			std::vector<Connection> _hiddenVisibleConnections;
 
 			VisibleNode()
-				: _state(0.0f), _statePrev(0.0f), _reconstruction(0.0f)
+				: _state(0.0f), _statePrev(0.0f), _reconstruction(0.0f), _reconstructionPrev(0.0f)
 			{}
 		};
 
@@ -77,18 +87,25 @@ namespace deep {
 		std::vector<VisibleNode> _visibleNodes;
 
 	public:
-		void createRandom(int numVisibleNodes, int numHiddenNodes, float sparsity, float minInitWeight, float maxInitWeight, std::mt19937 &generator);
-		
+		void createRandom(int numVisibleNodes, int numHiddenNodes, float sparsity, float minInitWeight, float maxInitWeight, float recurrentScalar, std::mt19937 &generator);
+
 		void activate(float sparsity, float dutyCycleDecay);
 
-		void learn(float sparsity, float alpha, float beta, float gamma, float momentum);
+		void learn(float sparsity, float stateLeak, float alpha, float beta, float gamma, float epsilon, float momentum, float traceDecay, float temperature);
+		void learnExperience(const Experience &experience, float sparsity, float stateLeak, float alpha, float beta, float gamma, float epsilon, float momentum, float traceDecay, float temperature);
 
 		void stepBegin();
 
 		void clearMemory();
 
+		void getCurrentExperience(Experience &experience) const;
+
 		void setVisibleNodeState(int index, float value) {
 			_visibleNodes[index]._state = value;
+		}
+
+		float getVisibleNodeState(int index) {
+			return _visibleNodes[index]._state;
 		}
 
 		float getVisibleNodeReconstruction(int index) const {
@@ -99,6 +116,10 @@ namespace deep {
 			return _hiddenNodes[index]._state;
 		}
 
+		void setHiddenNodeState(int index, float value) {
+			_hiddenNodes[index]._state = value;
+		}
+
 		int getNumVisibleNodes() const {
 			return _visibleNodes.size();
 		}
@@ -106,5 +127,7 @@ namespace deep {
 		int getNumHiddenNodes() const {
 			return _hiddenNodes.size();
 		}
+
+		friend class RSARL;
 	};
 }

@@ -83,6 +83,7 @@ misrepresented as being the original software.
 #include <deep/ConvNet2D.h>
 #include <deep/SharpFA.h>
 #include <deep/SRBMFA.h>
+#include <deep/RSARL.h>
 
 #include <raahn/AutoEncoder.h>
 
@@ -94,6 +95,8 @@ misrepresented as being the original software.
 #include <array>
 #include <fstream>
 #include <sstream>
+
+#include <text/Word2SDR.h>
 
 #include <dirent.h>
 
@@ -3570,29 +3573,6 @@ int main() {
 
 	rt.create(800, 600);
 
-	sf::plot::Plot plot;
-
-	plot.setSize(sf::Vector2f(rt.getSize().x, rt.getSize().y));
-	plot.setTitle("Avg. Reward");
-	plot.setFont("Resources/arial.ttf");
-	plot.setXLabel("Time (seconds)");
-	plot.setYLabel("Avg. Reward");
-	plot.setBackgroundColor(sf::Color::White);
-	plot.setTitleColor(sf::Color::Black);
-	plot.setPosition(sf::Vector2f(0.0f, 0.0f));
-
-	sf::plot::Curve &cAverage = plot.createCurve("Avg. Reward", sf::Color::Red);
-
-	cAverage.setFill(false);
-
-	plot.prepare();
-
-	float plotMin = 99999.0f;
-	float plotMax = -99999.0f;
-
-	rt.draw(plot);
-	rt.display();
-
 	float avgReward = 0.0f;
 	float avgRewardDecay = 0.003f;
 
@@ -3600,9 +3580,9 @@ int main() {
 
 	float plotUpdateTimer = 0.0f;
 
-	chtm::CHTMRL agent;
+	deep::RSARL agent;
 
-	agent.createRandom(2, 3, 32, 32, 3, 2, 3, -0.75f, 0.75f, 0.02f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, 0.1f, generator);
+	agent.createRandom(4, 1, 64, 5.01f / 64.0f, -0.1f, 0.1f, generator);
 
 	std::vector<float> prevInput(6, 0.0f);
 
@@ -3649,7 +3629,7 @@ int main() {
 
 		//reward = dFitness * 5.0f;
 
-		reward = fitness * 0.2f;
+		reward = fitness * 0.5f;
 
 		if (totalTime == 0.0f)
 			avgReward = reward;
@@ -3658,46 +3638,16 @@ int main() {
 
 		sf::Image img = inputRT.getTexture().copyToImage();
 
-		std::vector<float> state(6);
+		agent.setInput(0, cartX * 0.25f);
+		agent.setInput(1, cartVelX * 0.1f);
+		agent.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) * 0.1f);
+		agent.setInput(3, poleAngleVel * 0.1f);
 
-		//lstmAC.setInput(0, cartX * 0.25f);
-		//lstmAC.setInput(1, cartVelX);
-		//lstmAC.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)));
-		//lstmAC.setInput(3, poleAngleVel);
+		agent.step(reward, 10, 40, 0.0f, 0.1f, 0.01f, 0.0f, 0.5f, 0.01f, 0.0f, 0.01f, 1.0f, 0.01f, 0.5f, 0.05f, 0.992f, 0.05f, generator);
 
-		state[0] = cartX * 0.25f;
-		state[1] = cartVelX * 0.4f;
-		state[2] = std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) / (2.0f * static_cast<float>(PI)) * 2.0f - 1.0f;
-		state[3] = poleAngleVel * 0.2f;
-		state[4] = prevInput[4];
-		state[5] = prevInput[5];
-
-		std::vector<float> action(6);
-		std::vector<bool> actionMask(6, false);
-		actionMask[4] = true;
-		actionMask[5] = true;
-
-		agent.step(reward, state, actionMask, action, 0.2f, 1, 0.05f, 0.8f, 0.0f, 0.1f, 32.0f, 1.0f, 4, 2.0f, 0.5f, 2.0f, 2.0f, 0.0001f, 0.01f, 0.01f, 0.01f, 0.005f, 0.0001f, 0.01f, 0.05f, 0.5f, 0.99f, 0.97f, 1.0f, 0.05f, 0.05f, generator);
-
-		std::normal_distribution<float> pertDist(0.0f, 0.05f);
-		std::uniform_real_distribution<float> uniformDist(0.0f, 1.0f);
-
-		if (uniformDist(generator) < 0.05f) {
-			prevInput[4] = uniformDist(generator) * 2.0f - 1.0f;
-			prevInput[5] = uniformDist(generator) * 2.0f - 1.0f;
-		}
-		else {
-			prevInput[4] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[4])) + pertDist(generator)));
-			prevInput[5] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, action[5])) + pertDist(generator)));
-		}
-
-		float dir = prevInput[4];
-
-		//dir = 1.4f * (dir * 2.0f - 1.0f);
+		float dir = agent.getOutput(0);
 
 		float agentForce = 4000.0f * dir;
-		//}
-		//float agentForce = 4000.0f * agent.getOutput(0);
 
 		prevFitness = fitness;
 
@@ -3727,14 +3677,6 @@ int main() {
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 				force = 4000.0f;
 		}
-
-		//if (trainMode) {
-		//	en.calculateGradient(std::vector<float>(1, force / 4000.0f));
-
-		//	en.moveAlongGradient(0.01f);
-		//}
-
-		//en.updateContext();
 
 		if (cartX < -cartMoveRadius) {
 			cartX = -cartMoveRadius;
@@ -3797,81 +3739,45 @@ int main() {
 
 		window.draw(poleSprite);
 
-		if (plotUpdateTimer >= 1.0f) {
-			plotUpdateTimer -= 1.0f;
+		// Draw hidden states
+		sf::Vector2f hiddenCenter(1200.0f, 300.0f);
 
-			plotMin = std::min<float>(avgReward, plotMin);
-			plotMax = std::max<float>(avgReward, plotMax);
+		float sScalar = 1.5f;
 
-			cAverage.addValue(avgReward);
+		int rowSize = 8;
 
-			plot.prepare();
+		int rCount = 0;
+		int row = -4;
 
-			cAverage.prepare(sf::Vector2f(0.0f, totalTime), sf::Vector2f(plotMin, plotMax));
+		while (rCount < agent.getRSA().getNumHiddenNodes()) {
+			for (int i = 0; i < rowSize; i++) {
+				sf::CircleShape circle;
 
-			rt.draw(plot);
+				circle.setPosition(hiddenCenter + sf::Vector2f((i - rowSize / 2) * 18.0f * sScalar, row * 18.0f * sScalar));
 
-			rt.display();
+				circle.setRadius(8.0f * sScalar);
+
+				circle.setFillColor(sf::Color::White);
+
+				circle.setOrigin(8.0f * sScalar, 8.0f * sScalar);
+
+				window.draw(circle);
+
+				circle.setRadius(7.0f * sScalar);
+
+				circle.setOrigin(7.0f * sScalar, 7.0f * sScalar);
+
+				int s = (agent.getRSA().getHiddenNodeState(rCount)) * 255;
+
+				circle.setFillColor(sf::Color(s, s, s, 255));
+
+				window.draw(circle);
+
+				rCount++;
+			}
+
+			row++;
 		}
-
-		sf::Sprite plotSprite;
-
-		plotSprite.setPosition(800.0f, 0.0f);
-
-		plotSprite.setTexture(rt.getTexture());
-
-		window.draw(plotSprite);
-
-		if (trainMode) {
-			sf::Text text;
-
-			text.setFont(font);
-
-			text.setString("Train");
-
-			text.setPosition(10.0f, 10.0f);
-
-			text.setColor(sf::Color::Blue);
-
-			window.draw(text);
-		}
-
-		sf::Sprite inputSprite;
-
-		inputSprite.setTexture(inputRT.getTexture());
-
-		inputSprite.setPosition(0, 0);
-		inputSprite.setScale(4.0f, 4.0f);
-
-		window.draw(inputSprite);
-
-		sf::Image regionImage;
-
-		regionImage.create(32, 32);
-
-		for (int x = 0; x < 32; x++)
-		for (int y = 0; y < 32; y++) {
-			float s = agent.getRegion().getColumn(x, y)._prediction;
-
-			sf::Color c = sf::Color::Black;
-
-			c.r = 255.0f * s;
-
-			regionImage.setPixel(x, y, c);
-		}
-
-		sf::Texture regionTex;
-		regionTex.loadFromImage(regionImage);
-
-		float pw = 4.0f;
-
-		sf::Sprite regionSprite;
-		regionSprite.setPosition(800.0f - 32 * pw, 0.0f);
-		regionSprite.setScale(pw, pw);
-
-		regionSprite.setTexture(regionTex);
-
-		window.draw(regionSprite);
 
 		// -------------------------------------------------------------------
 
@@ -4543,27 +4449,117 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	deep::RecurrentSparseAutoencoder rsa;
 
-	const float sequence[6][4] = {
+	const float sequence[96][4] = {
 		{ 0.0f, 1.0f, 1.0f, 0.0f },
 		{ 1.0f, 0.0f, 0.0f, 1.0f },
 		{ 1.0f, 1.0f, 1.0f, 0.0f },
 		{ 1.0f, 1.0f, 1.0f, 0.0f },
 		{ 1.0f, 1.0f, 1.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f, 1.0f }
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 1.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 0.0f, 1.0f, 1.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 1.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f, 0.0f }
 	};
 
-	float sparsity = 3.01f / 32.0f;
+	float sparsity = 5.01f / 64.0f;
 	float dutyCycleDecay = 0.01f;
 
-	rsa.createRandom(4, 32, sparsity, -0.1f, 0.1f, generator);
+	rsa.createRandom(4, 64, sparsity, -0.1f, 0.1f, generator);
 
 	for (int i = 0; i < 100; i++) {
-		for (int j = 0; j < 6; j++) {
+		for (int j = 0; j < 16; j++) {
 			rsa.stepBegin();
 
 			rsa.setVisibleNodeState(0, sequence[j][0]);
@@ -4571,7 +4567,7 @@ int main() {
 			rsa.setVisibleNodeState(2, sequence[j][2]);
 			rsa.setVisibleNodeState(3, sequence[j][3]);
 
-			rsa.learn(sparsity, 0.03f, 0.03f, 0.0f, 0.5f);
+			rsa.learn(sparsity, 0.0f, 0.05f, 0.05f, 0.0f, 1.0f, 0.8f, 1.0f, 1.0f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
 		}
@@ -4583,7 +4579,7 @@ int main() {
 	rsa.clearMemory();
 
 	for (int i = 0; i < 1; i++) {
-		for (int j = 0; j < 6; j++) {
+		for (int j = 0; j < 16; j++) {
 			rsa.stepBegin();
 
 			rsa.setVisibleNodeState(0, sequence[j][0]);
@@ -4626,12 +4622,12 @@ int main() {
 	system("pause");
 
 	return 0;
-}
+}*/
 
 /*struct BufferAndLabel {
 	sf::SoundBuffer _buffer;
 	int _classLabel;
-	std::vector<std::vector<double>> _features;
+	std::vector<mfcc::AudioFeatureMFCC> _features;
 	std::vector<float> _sdr;
 };
 
@@ -4640,8 +4636,8 @@ int main() {
 
 	// ------------------------------ Learner Initialization ------------------------------
 
-	int numHidden = 60;
-	float sparsity = 6.01f / numHidden;
+	int numHidden = 80;
+	float sparsity = 8.01f / numHidden;
 	float dutyCycleDecay = 0.01f;
 
 	deep::RecurrentSparseAutoencoder rsa;
@@ -4677,61 +4673,76 @@ int main() {
 	int featureSamplesLength = 400;
 	int featureSamplesStep = 200;
 
+	mfcc::MelFilterBank bank;
+	bank.create(26, featureSamplesLength, 300.0f, 8000.0f, 8000.0f);
+
 	for (int t = 0; t < testSounds.size(); t++) {
 		int numFeatures = (testSounds[t]._buffer.getSampleCount() - featureSamplesLength + 1) / featureSamplesStep;
 
 		int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
 
+		std::vector<short> samples(numSamplesUse, 0);
+
+		for (int s = 0; s < testSounds[t]._buffer.getSampleCount(); s++)
+			samples[s] = testSounds[t]._buffer.getSamples()[s];
+
 		testSounds[t]._features.resize(numFeatures);
 		
-		int steps = 0;
+		int start = 0;
 
-		for (int i = 0; i < numFeatures; i++) {
-			int l = std::min<int>(featureSamplesLength, testSounds[t]._wav->getSamplesCount() - steps);
-			
-			testSounds[t]._features[i] = mfcc.calculate(Aquila::SignalSource(&testSounds[t]._wav->toArray()[steps], l, testSounds[t]._wav->getSampleFrequency()));
+		for (int f = 0; f < numFeatures; f++) {
+			testSounds[t]._features[f].extract(samples, start, featureSamplesLength, bank);
 
-			if (testSounds[t]._features[i].size() < 26)
-				testSounds[t]._features[i].assign(26 - testSounds[t]._features[i].size(), 0.0f);
-
-			steps += featureSamplesStep;
+			start += featureSamplesStep;
 		}
+
+		std::cout << "Features extracted from sound " << t << std::endl;
 	}
 
 	// ----------------------------------- Training -----------------------------------
 
 	std::uniform_int_distribution<int> sampleDist(0, testSounds.size() - 1);
 
-	for (int t = 0; t < 1000; t++) {
+	for (int t = 0; t < 500; t++) {
 		int i = sampleDist(generator);
 
 		rsa.clearMemory();
 
 		for (int f = 0; f < testSounds[i]._features.size(); f++) {
-			for (int s = 0; s < 26; s++)
-				rsa.setVisibleNodeState(s, testSounds[i]._features[f][s] * 0.01f);
+			rsa.stepBegin();
 
-			rsa.learn(sparsity, 0.004f, 0.002f, 0.01f, 0.3f);
+			for (int s = 0; s < 26; s++)
+				rsa.setVisibleNodeState(s, testSounds[i]._features[f].getCoeff(s) * 0.01f);
+
+			rsa.learn(sparsity, 0.0f, 0.2f, 0.1f, 0.0f, 1.0f, 0.5f, 1.0f, 1.0f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
-
-			rsa.stepEnd();
 		}
 
-		if (t % 10 == 0)
+		if (t % 10 == 0) {
 			std::cout << "Unsupervised: " << t << std::endl;
+
+			std::cout << "SDR: " << std::endl;
+
+			for (int p = 0; p < numHidden; p++) {
+				if (rsa.getHiddenNodeState(p) > 0.001f)
+					std::cout << "X";
+				else
+					std::cout << "_";
+			}
+		}
 	}
 
 	for (int t = 0; t < testSounds.size(); t++) {
 		rsa.clearMemory();
 
 		for (int f = 0; f < testSounds[t]._features.size(); f++) {
+			rsa.stepBegin();
+
 			for (int s = 0; s < 26; s++)
-				rsa.setVisibleNodeState(s, testSounds[t]._features[f][s] * 0.01f);
+				rsa.setVisibleNodeState(s, testSounds[t]._features[f].getCoeff(s) * 0.01f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
-
-			rsa.stepEnd();
 		}
 
 		testSounds[t]._sdr.resize(numHidden);
@@ -4828,38 +4839,40 @@ int main() {
 
 						int numSamplesUse = featureSamplesStep * (numFeatures + 1) + featureSamplesLength;
 
-						std::vector<std::vector<double>> features(numFeatures);
+						std::vector<mfcc::AudioFeatureMFCC> features(numFeatures);
 
-						int steps = 0;
+						std::vector<short> samples(numSamplesUse, 0);
 
-						for (int i = 0; i < numFeatures; i++) {
-							int l = std::min<int>(featureSamplesLength, buffer.getSampleCount() - steps);
+						for (int s = 0; s < buffer.getSampleCount(); s++)
+							samples[s] = buffer.getSamples()[s];
 
-							features[i] = mfcc.calculate(Aquila::SignalSource(&buffer.getSamples()[steps], l));
+						features.resize(numFeatures);
 
-							if (features[i].size() < 26)
-								features[i].assign(26 - features[i].size(), 0.0f);
+						int start = 0;
 
-							steps += featureSamplesStep;
+						for (int f = 0; f < numFeatures; f++) {
+							features[f].extract(samples, start, featureSamplesLength, bank);
+
+							start += featureSamplesStep;
 						}
 
 						// Classify recording
 						rsa.clearMemory();
 
 						for (int f = 0; f < features.size(); f++) {
+							rsa.stepBegin();
+
 							for (int s = 0; s < 26; s++)
-								rsa.setVisibleNodeState(s, features[f][s] * 0.01f);
+								rsa.setVisibleNodeState(s, features[f].getCoeff(s) * 0.01f);
 
 							rsa.activate(sparsity, dutyCycleDecay);
-
-							rsa.stepEnd();
 						}
 
 						// Classifier
 						std::cout << "SDR: " << std::endl;
 
 						for (int p = 0; p < numHidden; p++) {
-							if (rsa.getHiddenNodeState(p) > 0.5f)
+							if (rsa.getHiddenNodeState(p) > 0.001f)
 								std::cout << "X";
 							else
 								std::cout << "_";
@@ -4899,3 +4912,64 @@ int main() {
 
 	return 0;
 }*/
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	text::Word2SDR w2sdr;
+	text::Word2SDR::Settings settings;
+
+	w2sdr.createRandom(64, settings, -0.1f, 0.1f, 0.5f, generator);
+
+	for (int i = 0; i < 100; i++) {
+		w2sdr.clearMemory();
+
+		std::ifstream fromFile("Resources/corpus.txt");
+
+		w2sdr.read(fromFile);
+
+		std::cout << "Corpus Iteration " << i << std::endl;
+	}
+
+	/*w2sdr.clearMemory();
+
+	std::ifstream fromFile("Resources/corpus.txt");
+
+	std::string firstWord;
+	fromFile >> firstWord;
+
+	w2sdr.show(firstWord);
+
+	std::cout << firstWord << " ";
+
+	for (int i = 0; i < 100; i++) {
+		std::cout << w2sdr.getPrediction() << " ";
+
+		w2sdr.show(w2sdr.getPrediction());
+	}*/
+
+	w2sdr.clearMemory();
+
+	const std::string escapeWord = "!EXIT";
+	const std::string clearMemoryWord = "!MEM";
+
+	std::cout << "Ready" << std::endl;
+
+	std::string word = "";
+
+	while (word != escapeWord) {
+		std::cin >> word;
+
+		if (word == clearMemoryWord)
+			w2sdr.clearMemory();
+		else {
+			w2sdr.show(word);
+
+			std::cout << "Prediction: " << w2sdr.getPrediction() << std::endl;
+		}
+	}
+
+	system("pause");
+
+	return 0;
+}
