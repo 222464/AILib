@@ -115,7 +115,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float stateLeak, float al
 		//error /= _visibleNodes.size();
 		//error *= std::max(stateLeak, _hiddenNodes[h]._statePrev) * s * (1.0f - s);
 
-		hiddenErrors[h] = _hiddenNodes[h]._statePrev * (1.0f - _hiddenNodes[h]._statePrev) * error;// / _visibleNodes.size(); //hiddenErrors[h] = _hiddenNodes[h]._statePrev * (error > 0.0f ? (1.0f - _hiddenNodes[h]._activationPrev) : (0.0f - _hiddenNodes[h]._activationPrev));
+		hiddenErrors[h] = std::max(stateLeak, _hiddenNodes[h]._statePrev) * (1.0f - _hiddenNodes[h]._statePrev) * error;// +gamma * (0.0f - _hiddenNodes[h]._statePrev);// / _visibleNodes.size(); //hiddenErrors[h] = _hiddenNodes[h]._statePrev * (error > 0.0f ? (1.0f - _hiddenNodes[h]._activationPrev) : (0.0f - _hiddenNodes[h]._activationPrev));
 	}
 
 	for (int v = 0; v < _visibleNodes.size(); v++) {
@@ -148,7 +148,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float stateLeak, float al
 
 			float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._visibleHiddenConnections[v]._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._visibleHiddenConnections[v]._trace * temperature)) * eligibility;
 
-			float delta = _hiddenNodes[h]._visibleHiddenConnections[v]._prevWeightDelta * momentum + alpha * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _visibleNodes[v]._statePrev;
+			float delta = _hiddenNodes[h]._visibleHiddenConnections[v]._prevWeightDelta * momentum + alpha * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _visibleNodes[v]._statePrev;
 			
 			_hiddenNodes[h]._visibleHiddenConnections[v]._weight += delta;
 			_hiddenNodes[h]._visibleHiddenConnections[v]._trace = newTrace;
@@ -160,7 +160,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float stateLeak, float al
 
 			float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._hiddenHiddenConnections[ho]._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._hiddenHiddenConnections[ho]._trace * temperature)) * eligibility;
 
-			float delta = _hiddenNodes[h]._hiddenHiddenConnections[ho]._prevWeightDelta * momentum + beta * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _hiddenNodes[ho]._statePrevPrev;
+			float delta = _hiddenNodes[h]._hiddenHiddenConnections[ho]._prevWeightDelta * momentum + beta * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _hiddenNodes[ho]._statePrevPrev;
 			
 			_hiddenNodes[h]._hiddenHiddenConnections[ho]._weight += delta;
 			_hiddenNodes[h]._hiddenHiddenConnections[ho]._trace = newTrace;
@@ -171,7 +171,7 @@ void RecurrentSparseAutoencoder::learn(float sparsity, float stateLeak, float al
 
 		float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._bias._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._bias._trace * temperature)) * eligibility;
 
-		float delta = _hiddenNodes[h]._bias._prevWeightDelta * momentum + alpha * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle);
+		float delta = _hiddenNodes[h]._bias._prevWeightDelta * momentum + alpha * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle);
 
 		_hiddenNodes[h]._bias._weight += delta;
 		_hiddenNodes[h]._bias._trace = newTrace;
@@ -193,7 +193,7 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 		for (int ho = 0; ho < _hiddenNodes.size(); ho++)
 			sum += _hiddenNodes[h]._hiddenHiddenConnections[ho]._weight * experience._hiddenStatesPrevPrev[ho];
 
-		_hiddenNodes[h]._activation = sigmoid(sum);
+		_hiddenNodes[h]._activationPrev = sigmoid(sum);
 	}
 
 	// Sparsify
@@ -201,10 +201,10 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 		float numHigher = 0.0f;
 
 		for (int ho = 0; ho < _hiddenNodes.size(); ho++)
-			if (_hiddenNodes[ho]._activation > _hiddenNodes[h]._activation)
+			if (_hiddenNodes[ho]._activationPrev > _hiddenNodes[h]._activationPrev)
 				numHigher++;
 
-		_hiddenNodes[h]._state = numHigher < localActivity ? _hiddenNodes[h]._activation : 0.0f;
+		_hiddenNodes[h]._statePrev = numHigher < localActivity ? _hiddenNodes[h]._activationPrev : 0.0f;
 	}
 
 	// Reconstruct
@@ -212,7 +212,7 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 		float sum = _visibleNodes[v]._bias._weight;
 
 		for (int h = 0; h < _hiddenNodes.size(); h++)
-			sum += _visibleNodes[v]._hiddenVisibleConnections[h]._weight * _hiddenNodes[h]._state;
+			sum += _visibleNodes[v]._hiddenVisibleConnections[h]._weight * _hiddenNodes[h]._statePrev;
 
 		_visibleNodes[v]._reconstruction = sum;
 	}
@@ -237,12 +237,12 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 		//error /= _visibleNodes.size();
 		//error *= std::max(stateLeak, _hiddenNodes[h]._statePrev) * s * (1.0f - s);
 
-		hiddenErrors[h] = _hiddenNodes[h]._statePrev * (1.0f - _hiddenNodes[h]._statePrev) * error;// / _visibleNodes.size();
+		hiddenErrors[h] = std::max(stateLeak, _hiddenNodes[h]._statePrev) * (1.0f - _hiddenNodes[h]._statePrev) * error;// +gamma * (0.0f - _hiddenNodes[h]._statePrev);// / _visibleNodes.size(); //hiddenErrors[h] = _hiddenNodes[h]._statePrev * (error > 0.0f ? (1.0f - _hiddenNodes[h]._activationPrev) : (0.0f - _hiddenNodes[h]._activationPrev));
 	}
 
 	for (int v = 0; v < _visibleNodes.size(); v++) {
 		for (int h = 0; h < _hiddenNodes.size(); h++) {
-			float eligibility = reconstructionError[v] * experience._hiddenStatesPrev[h];
+			float eligibility = reconstructionError[v] * _hiddenNodes[h]._statePrev;
 
 			float newTrace = (1.0f - traceDecay) * _visibleNodes[v]._hiddenVisibleConnections[h]._trace + epsilon * std::exp(-std::abs(_visibleNodes[v]._hiddenVisibleConnections[h]._trace * temperature)) * eligibility;
 
@@ -270,7 +270,7 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 
 			float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._visibleHiddenConnections[v]._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._visibleHiddenConnections[v]._trace * temperature)) * eligibility;
 
-			float delta = _hiddenNodes[h]._visibleHiddenConnections[v]._prevWeightDelta * momentum + alpha * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _visibleNodes[v]._statePrev;
+			float delta = _hiddenNodes[h]._visibleHiddenConnections[v]._prevWeightDelta * momentum + alpha * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _visibleNodes[v]._statePrev;
 
 			_hiddenNodes[h]._visibleHiddenConnections[v]._weight += delta;
 			_hiddenNodes[h]._visibleHiddenConnections[v]._trace = newTrace;
@@ -282,7 +282,7 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 
 			float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._hiddenHiddenConnections[ho]._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._hiddenHiddenConnections[ho]._trace * temperature)) * eligibility;
 
-			float delta = _hiddenNodes[h]._hiddenHiddenConnections[ho]._prevWeightDelta * momentum + beta * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _hiddenNodes[ho]._statePrevPrev;
+			float delta = _hiddenNodes[h]._hiddenHiddenConnections[ho]._prevWeightDelta * momentum + beta * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle) * _hiddenNodes[ho]._statePrevPrev;
 
 			_hiddenNodes[h]._hiddenHiddenConnections[ho]._weight += delta;
 			_hiddenNodes[h]._hiddenHiddenConnections[ho]._trace = newTrace;
@@ -293,7 +293,7 @@ void RecurrentSparseAutoencoder::learnExperience(const Experience &experience, f
 
 		float newTrace = (1.0f - traceDecay) * _hiddenNodes[h]._bias._trace + epsilon * std::exp(-std::abs(_hiddenNodes[h]._bias._trace * temperature)) * eligibility;
 
-		float delta = _hiddenNodes[h]._bias._prevWeightDelta * momentum + alpha * newTrace + gamma * (sparsity - _hiddenNodes[h]._dutyCycle);
+		float delta = _hiddenNodes[h]._bias._prevWeightDelta * momentum + alpha * newTrace;// +gamma * (sparsity - _hiddenNodes[h]._dutyCycle);
 
 		_hiddenNodes[h]._bias._weight += delta;
 		_hiddenNodes[h]._bias._trace = newTrace;

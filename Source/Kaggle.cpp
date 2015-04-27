@@ -1,6 +1,6 @@
 /*#include <SFML/Graphics.hpp>
 
-#include <rbf/SDRRBFNetwork.h>
+#include <rbf/SDRNetwork.h>
 
 #include <time.h>
 #include <iostream>
@@ -31,7 +31,7 @@ int main() {
 
 	int totalImages = 0;
 
-	int numReadFromEachDir = 100000;
+	int numReadFromEachDir = 5;
 
 	if ((dir = opendir("Resources/train")) != nullptr) {
 		readdir(dir);
@@ -68,40 +68,31 @@ int main() {
 		return 0;
 	}
 
-	rbf::SDRRBFNetwork sdrrbfnet;
+	sdr::SDRNetwork sdrnet;
 
 	std::mt19937 generator(time(nullptr));
 
-	std::vector<rbf::SDRRBFNetwork::LayerDesc> layerDescs(3);
+	std::vector<sdr::SDRNetwork::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._rbfWidth = 64;
-	layerDescs[0]._rbfHeight = 64;
-	layerDescs[0]._receptiveRadius = 6;
-	layerDescs[0]._inhibitionRadius = 5;
-	layerDescs[0]._localActivity = 4.0f;
-	layerDescs[0]._outputIntensity = 0.05f;
-	layerDescs[0]._outputMultiplier = 0.0f;
+	layerDescs[0]._width = 64;
+	layerDescs[0]._height = 64;
+	layerDescs[0]._receptiveRadius = 9;
+	layerDescs[0]._inhibitionRadius = 6;
 
-	layerDescs[1]._rbfWidth = 48;
-	layerDescs[1]._rbfHeight = 48;
-	layerDescs[1]._receptiveRadius = 6;
-	layerDescs[1]._inhibitionRadius = 5;
-	layerDescs[1]._localActivity = 4.0f;
-	layerDescs[1]._outputIntensity = 0.05f;
-	layerDescs[1]._outputMultiplier = 0.5f;
+	layerDescs[1]._width = 48;
+	layerDescs[1]._height = 48;
+	layerDescs[1]._receptiveRadius = 9;
+	layerDescs[1]._inhibitionRadius = 6;
 
-	layerDescs[2]._rbfWidth = 32;
-	layerDescs[2]._rbfHeight = 32;
-	layerDescs[2]._receptiveRadius = 6;
-	layerDescs[2]._inhibitionRadius = 5;
-	layerDescs[2]._localActivity = 4.0f;
-	layerDescs[2]._outputIntensity = 0.05f;
-	layerDescs[2]._outputMultiplier = 0.5f;
+	layerDescs[2]._width = 32;
+	layerDescs[2]._height = 32;
+	layerDescs[2]._receptiveRadius = 9;
+	layerDescs[2]._inhibitionRadius = 6;
 
 	const int inputWidth = 64;
 	const int inputHeight = 64;
 
-	sdrrbfnet.createRandom(inputWidth, inputHeight, layerDescs, labels.size(), 0.05f, 0.95f, 0.1f, 0.3f, -0.5f, 0.5f, generator);
+	sdrnet.createRandom(inputWidth, inputHeight, layerDescs, labels.size(), -0.01f, 0.01f, 0.0f, 0.05f, -0.01f, 0.01f, generator);
 
 	sf::RenderTexture resizeTexture;
 	resizeTexture.create(inputWidth, inputHeight);
@@ -115,8 +106,8 @@ int main() {
 
 	const float byteInv = 1.0f / 255.0f;
 
-	int unsupervisedIterations = 50000;
-	int supervisedIterations = 50000;
+	int unsupervisedIterations = 1500;
+	int supervisedIterations = 1000;
 
 	for (int i = 0; i < unsupervisedIterations; i++) {
 		resizeTexture.draw(clearRect);
@@ -177,13 +168,19 @@ int main() {
 
 		std::vector<float> output;
 
-		sdrrbfnet.getOutput(input, output, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+		sdrnet.getOutput(input, output, generator);
 
-		sdrrbfnet.updateUnsupervised(input, 0.01f, 0.2f, 0.2f, 1.0f, 0.0001f, 0.01f);
+		sdrnet.updateUnsupervised(input, 0.001f, 0.01f, 0.005f);
 
 		if (i % 25 == 0)
 			std::cout << i / static_cast<float>(unsupervisedIterations) * 100.0f << "%" << std::endl;
 	}
+
+	sf::Image rfImage;
+
+	sdrnet.getReceptiveFields(0, rfImage);
+
+	rfImage.saveToFile("rfsnet.png");
 
 	for (int i = 0; i < supervisedIterations; i++) {
 		resizeTexture.draw(clearRect);
@@ -244,13 +241,14 @@ int main() {
 
 		std::vector<float> output;
 
-		sdrrbfnet.getOutput(input, output, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+		sdrnet.getOutput(input, output, generator);
 
 		int givenLabel = 0;
 
-		for (int l = 1; l < output.size(); l++)
-		if (output[l] > output[givenLabel])
-			givenLabel = l;
+		for (int l = 1; l < output.size(); l++)	 {
+			if (output[l] > output[givenLabel])
+				givenLabel = l;
+		}
 
 		std::vector<float> target(output.size(), 0.0f);
 
@@ -259,7 +257,7 @@ int main() {
 		if (li == givenLabel)
 			std::cout << "g";
 
-		sdrrbfnet.updateSupervised(input, output, target, 0.05f, 0.1f, 0.1f, 1.0f, 0.0001f, 0.01f);
+		sdrnet.updateSupervised(input, output, target, 0.005f, 0.001f, 0.3f);
 
 		if (i % 25 == 0)
 			std::cout << i / static_cast<float>(supervisedIterations) * 100.0f << "%" << std::endl;
@@ -332,7 +330,7 @@ int main() {
 
 			std::vector<float> output;
 
-			sdrrbfnet.getOutput(input, output, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+			sdrnet.getOutput(input, output, generator);
 
 			for (int i = 0; i < output.size(); i++)
 			if (i == output.size() - 1)
@@ -461,7 +459,7 @@ int main() {
 
 			std::vector<float> output;
 
-			sdrrbfnet.getOutput(input, output, 1.0f, 0.01f, 0.0f, 0.0f, 0.001f, 0.01f, generator);
+			sdrnet.getOutput(input, output, generator);
 
 			int givenLabel = 0;
 
@@ -482,7 +480,7 @@ int main() {
 			currentMi = mi;
 			currentGiven = givenLabel;
 
-			sdrrbfnet.getImages(rbfImages);
+			sdrnet.getImages(rbfImages);
 		}
 
 		first = false;

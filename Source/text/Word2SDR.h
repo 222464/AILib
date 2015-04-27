@@ -40,8 +40,8 @@ namespace text {
 			float _momentum;
 
 			Settings()
-				: _sparsity(33.0f / 256.0f),
-				_hiddenSize(256),
+				: _sparsity(3.0f / 128.0f),
+				_hiddenSize(128),
 				_dutyCycleDecay(0.01f),
 				_stateLeak(0.0f),
 				_alpha(0.1f),

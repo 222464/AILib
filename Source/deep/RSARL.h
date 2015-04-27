@@ -5,27 +5,25 @@
 namespace deep {
 	class RSARL {
 	private:
-		struct QNode {
+		/*struct QNode {
 			float _q;
 			float _trace;
 
 			QNode()
 				: _q(0.0f), _trace(0.0f)
 			{}
-		};
+		};*/
 
 		struct Experience {
 			std::vector<float> _hiddenStates;
 			std::vector<float> _maxVisibleStates;
 			std::vector<float> _visibleStates;
-
-			float _originalQ;
-			float _q;
+			
+			//float _originalQ;
+			//float _q;
 		};
 
 		deep::RecurrentSparseAutoencoder _rsa;
-
-		std::vector<QNode> _qNodes;
 
 		float _prevValue;
 
@@ -44,7 +42,7 @@ namespace deep {
 		int _experienceBufferLength;
 
 		RSARL()
-			: _experienceBufferLength(300)
+			: _experienceBufferLength(120)
 		{}
 
 		void createRandom(int numInputs, int numOutputs, int numHidden, float sparsity, float minWeight, float maxWeight, float recurrentScalar, std::mt19937 &generator);

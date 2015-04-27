@@ -11,9 +11,9 @@ void RSARL::createRandom(int numInputs, int numOutputs, int numHidden, float spa
 
 	_sparsity = sparsity;
 
-	_rsa.createRandom(numInputs + numOutputs, numHidden, sparsity, minInitWeight, maxInitWeight, recurrentScalar, generator);
+	_rsa.createRandom(numInputs + numOutputs + 1, numHidden, sparsity, minInitWeight, maxInitWeight, recurrentScalar, generator);
 
-	_qNodes.resize(numHidden);
+	//_qNodes.resize(numHidden);
 
 	_prevValue = 0.0f;
 
@@ -55,10 +55,28 @@ void RSARL::step(float reward, int actionSamples, int experienceSamples, float r
 		maxInput[_numInputs + i] = _maxOutputs[i];
 	}
 
+	//input[_outputs.size()] = _prevValue;
+	maxInput[_outputs.size()] = _prevValue;
+
 	for (int i = 0; i < _outputs.size(); i++)
 		_rsa.setVisibleNodeState(_numInputs + i, _outputs[i]);
 
 	_rsa.activate(_sparsity, rsaDutyCycleDecay);
+
+	std::vector<float> hiddenStates(_rsa.getNumHiddenNodes());
+
+	for (int h = 0; h < hiddenStates.size(); h++)
+		hiddenStates[h] = _rsa.getHiddenNodeState(h);
+
+	std::vector<float> visibleStates(_rsa.getNumVisibleNodes());
+
+	for (int v = 0; v < visibleStates.size(); v++)
+		visibleStates[v] = _rsa.getVisibleNodeState(v);
+
+	std::vector<float> reconstructions(_rsa.getNumVisibleNodes());
+
+	for (int v = 0; v < reconstructions.size(); v++)
+		reconstructions[v] = _rsa.getVisibleNodeReconstruction(v);
 
 	/*for (int i = 0; i < actionSamples; i++) {
 		_rsa.activate(_sparsity, rsaDutyCycleDecay);
@@ -89,20 +107,25 @@ void RSARL::step(float reward, int actionSamples, int experienceSamples, float r
 			_outputs[i] = _maxOutputs[i];
 	}
 
-	float nextQ = 0.0f;
+	//float nextQ = 0.0f;
 
-	for (int h = 0; h < _rsa.getNumHiddenNodes(); h++)
-		nextQ += _rsa.getHiddenNodeState(h) * _qNodes[h]._q;
+	//for (int h = 0; h < _rsa.getNumHiddenNodes(); h++)
+	//	nextQ += _rsa.getHiddenNodeState(h) * _qNodes[h]._q;
+
+	float nextQ = _rsa.getVisibleNodeReconstruction(_numInputs + _outputs.size());
 
 	float tdError = reward + qGamma * nextQ - _prevValue;
 
 	float newQ = _prevValue + qAlpha * tdError;
 
+	input[_numInputs + _outputs.size()] = newQ;
+	maxInput[_numInputs + _outputs.size()] = _prevValue;
+
 	// Propagate Q down chain
 	float g = qGamma;
 
 	for (std::list<Experience>::iterator it = _experiences.begin(); it != _experiences.end(); it++) {
-		it->_q += qAlpha * tdError * g;
+		it->_visibleStates[_numInputs + _outputs.size()] += qAlpha * tdError * g;
 
 		g *= qGamma;
 	}
@@ -116,8 +139,6 @@ void RSARL::step(float reward, int actionSamples, int experienceSamples, float r
 
 	experience._maxVisibleStates = maxInput;
 	experience._visibleStates = input;
-	experience._originalQ = _prevValue;
-	experience._q = newQ;
 
 	_experiences.push_front(experience);
 
@@ -134,36 +155,36 @@ void RSARL::step(float reward, int actionSamples, int experienceSamples, float r
 	for (std::list<Experience>::iterator it = _experiences.begin(); it != _experiences.end(); it++)
 		expIters[index++] = it;
 
-	if (expIters.size() > 1) {
-		std::uniform_int_distribution<int> sampleDist(0, std::max(0, static_cast<int>(expIters.size()) - 2));
+	if (expIters.size() > 2) {
+		std::uniform_int_distribution<int> sampleDist(0, std::max(0, static_cast<int>(expIters.size()) - 3));
 
 		for (int i = 0; i < experienceSamples; i++) {
 			int j = sampleDist(generator);
 
 			RecurrentSparseAutoencoder::Experience rsaExp;
 
-			if (j >= static_cast<int>(expIters.size()) - 2)
+			if (j >= static_cast<int>(expIters.size()) - 3)
 				rsaExp._hiddenStatesPrevPrev.assign(_rsa.getNumHiddenNodes(), 0.0f);
 			else {
 				rsaExp._hiddenStatesPrevPrev.resize(_rsa.getNumHiddenNodes());
 
 				for (int k = 0; k < _rsa.getNumHiddenNodes(); k++)
-					rsaExp._hiddenStatesPrevPrev[k] = expIters[j + 2]->_hiddenStates[k];
+					rsaExp._hiddenStatesPrevPrev[k] = expIters[j + 3]->_hiddenStates[k];
 			}
 
 			rsaExp._visibleStatesPrev.resize(_rsa.getNumVisibleNodes());
 
 			for (int k = 0; k < _rsa.getNumVisibleNodes(); k++)
-				rsaExp._visibleStatesPrev[k] = expIters[j + 1]->_maxVisibleStates[k];
+				rsaExp._visibleStatesPrev[k] = expIters[j + 2]->_maxVisibleStates[k];
 
 			rsaExp._hiddenStatesPrev.resize(_rsa.getNumHiddenNodes());
 
 			for (int k = 0; k < _rsa.getNumHiddenNodes(); k++)
-				rsaExp._hiddenStatesPrev[k] = expIters[j + 1]->_hiddenStates[k];
+				rsaExp._hiddenStatesPrev[k] = expIters[j + 2]->_hiddenStates[k];
 
 			rsaExp._visibleStates.resize(_rsa.getNumVisibleNodes());
 
-			if (expIters[j + 1]->_q > expIters[j + 1]->_originalQ) {
+			if (expIters[j + 1]->_visibleStates[_numInputs + _outputs.size()] > expIters[j + 1]->_maxVisibleStates[_numInputs + _outputs.size()]) {
 				for (int k = 0; k < _rsa.getNumVisibleNodes(); k++)
 					rsaExp._visibleStates[k] = expIters[j]->_visibleStates[k];
 			}
@@ -172,24 +193,19 @@ void RSARL::step(float reward, int actionSamples, int experienceSamples, float r
 					rsaExp._visibleStates[k] = expIters[j]->_maxVisibleStates[k];
 			}
 
-			_rsa.learnExperience(rsaExp, _sparsity, rsaStateLeak, rsaAlpha, rsaBeta, rsaGamma, rsaEpsilon, rsaMomentum, 1.0f, rsaTemperature);
-
-			float expQ = 0.0f;
-
-			for (int h = 0; h < _rsa.getNumHiddenNodes(); h++)
-				expQ += _rsa.getHiddenNodeState(h) * _qNodes[h]._q;
-
-			float error = qUpdateAlpha * (expIters[j + 1]->_q - expQ);
-
-			for (int h = 0; h < _rsa.getNumHiddenNodes(); h++)
-				_qNodes[h]._q += error * _rsa.getHiddenNodeState(h);
+			_rsa.learnExperience(rsaExp, _sparsity, rsaStateLeak, rsaAlpha, rsaBeta, rsaGamma, rsaEpsilon, rsaMomentum, 1.0f, 1.0f);
 		}
 	}
 
 	// Reactivate into correct state
-	for (int h = 0; h < _rsa.getNumHiddenNodes(); h++)
-		_rsa.setHiddenNodeState(h, experience._hiddenStates[h]);
-	//_rsa.activate(_sparsity, rsaDutyCycleDecay);
+	for (int h = 0; h < hiddenStates.size(); h++)
+		_rsa.setHiddenNodeState(h, hiddenStates[h]);
+
+	for (int v = 0; v < visibleStates.size(); v++)
+		_rsa.setVisibleNodeState(v, visibleStates[v]);
+
+	for (int v = 0; v < reconstructions.size(); v++)
+		_rsa._visibleNodes[v]._reconstruction = reconstructions[v];
 
 	std::cout << nextQ << " " << tdError << std::endl;
 

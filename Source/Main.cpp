@@ -42,8 +42,6 @@ misrepresented as being the original software.
 
 #include <deep/RecurrentSparseAutoencoder.h>
 
-#include <rbf/SDRRBFNetwork.h>
-
 #include <convrl/ConvRL.h>
 
 #include <hypernet/BayesianOptimizerTrainer.h>
@@ -88,6 +86,8 @@ misrepresented as being the original software.
 #include <raahn/AutoEncoder.h>
 
 #include <featureExtraction/AudioFeatureMFCC.h>
+
+#include <deep/SparseCoder.h>
 
 #include <time.h>
 #include <iostream>
@@ -3582,7 +3582,7 @@ int main() {
 
 	deep::RSARL agent;
 
-	agent.createRandom(4, 1, 64, 5.01f / 64.0f, -0.1f, 0.1f, generator);
+	agent.createRandom(4, 1, 64, 5.01f / 64.0f, -0.1f, 0.1f, 0.1f, generator);
 
 	std::vector<float> prevInput(6, 0.0f);
 
@@ -3643,7 +3643,7 @@ int main() {
 		agent.setInput(2, std::fmod(poleAngle + static_cast<float>(PI), 2.0f * static_cast<float>(PI)) * 0.1f);
 		agent.setInput(3, poleAngleVel * 0.1f);
 
-		agent.step(reward, 10, 40, 0.0f, 0.1f, 0.01f, 0.0f, 0.5f, 0.01f, 0.0f, 0.01f, 1.0f, 0.01f, 0.5f, 0.05f, 0.992f, 0.05f, generator);
+		agent.step(reward, 10, 20, 0.0f, 0.01f, 0.005f, 0.0f, 0.3f, 0.01f, 0.5f, 1.0f, 1.0f, 1.0f, 0.1f, 0.7f, 0.992f, 0.1f, generator);
 
 		float dir = agent.getOutput(0);
 
@@ -4556,7 +4556,7 @@ int main() {
 	float sparsity = 5.01f / 64.0f;
 	float dutyCycleDecay = 0.01f;
 
-	rsa.createRandom(4, 64, sparsity, -0.1f, 0.1f, generator);
+	rsa.createRandom(4, 64, sparsity, -0.1f, 0.1f, 0.5f, generator);
 
 	for (int i = 0; i < 100; i++) {
 		for (int j = 0; j < 16; j++) {
@@ -4567,7 +4567,7 @@ int main() {
 			rsa.setVisibleNodeState(2, sequence[j][2]);
 			rsa.setVisibleNodeState(3, sequence[j][3]);
 
-			rsa.learn(sparsity, 0.0f, 0.05f, 0.05f, 0.0f, 1.0f, 0.8f, 1.0f, 1.0f);
+			rsa.learn(sparsity, 0.0f, 0.1f, 0.1f, 0.0f, 1.0f, 0.8f, 1.0f, 1.0f);
 
 			rsa.activate(sparsity, dutyCycleDecay);
 		}
@@ -4913,7 +4913,7 @@ int main() {
 	return 0;
 }*/
 
-int main() {
+/*int main() {
 	std::mt19937 generator(time(nullptr));
 
 	text::Word2SDR w2sdr;
@@ -4921,7 +4921,7 @@ int main() {
 
 	w2sdr.createRandom(64, settings, -0.1f, 0.1f, 0.5f, generator);
 
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 10; i++) {
 		w2sdr.clearMemory();
 
 		std::ifstream fromFile("Resources/corpus.txt");
@@ -4931,7 +4931,7 @@ int main() {
 		std::cout << "Corpus Iteration " << i << std::endl;
 	}
 
-	/*w2sdr.clearMemory();
+	w2sdr.clearMemory();
 
 	std::ifstream fromFile("Resources/corpus.txt");
 
@@ -4942,11 +4942,11 @@ int main() {
 
 	std::cout << firstWord << " ";
 
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 200; i++) {
 		std::cout << w2sdr.getPrediction() << " ";
 
 		w2sdr.show(w2sdr.getPrediction());
-	}*/
+	}
 
 	w2sdr.clearMemory();
 
@@ -4970,6 +4970,169 @@ int main() {
 	}
 
 	system("pause");
+
+	return 0;
+}*/
+
+float sigmoid(float x) {
+	return 1.0f / (1.0f + std::exp(-x));
+}
+
+int main() {
+	std::mt19937 generator(time(nullptr));
+
+	sf::Image img;
+
+	img.loadFromFile("testImage.png");
+
+	deep::SparseCoder sc;
+
+	int winWidth = 16;
+	int winHeight = 16;
+	int sdrWidth = 18;
+	int sdrHeight = 18;
+
+	float sparsity = 12.0f / (sdrWidth * sdrHeight);
+
+	sc.createRandom(winWidth * winHeight, sdrWidth * sdrHeight, generator);
+
+	std::uniform_int_distribution<int> widthDist(0, img.getSize().x - winWidth);
+	std::uniform_int_distribution<int> heightDist(0, img.getSize().y - winHeight);
+
+	sf::RenderWindow window;
+
+	sf::SoundBufferRecorder recorder;
+
+	sf::Clock clock;
+
+	window.create(sf::VideoMode(800, 800), "SDRs", sf::Style::Default);
+
+	for (int iter = 0; iter < 100000; iter++) {
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			break;
+
+		int wx = widthDist(generator);
+		int wy = heightDist(generator);
+
+		int inputIndex = 0;
+
+		for (int x = 0; x < winWidth; x++)
+			for (int y = 0; y < winHeight; y++) {
+				int tx = wx + x;
+				int ty = wy + y;
+
+				sc.setVisibleInput(inputIndex++, img.getPixel(tx, ty).r / 255.0f);
+			}
+
+		for (int i = 0; i < 40; i++) {
+			sc.activate(sparsity, 20.0f, 0.05f);
+
+			sc.stepEnd();
+		}
+
+		sc.reconstruct();
+
+		sc.learn(0.02f, 0.01f, 0.02f, sparsity);
+
+		if (iter % 10 == 0) {
+			std::cout << "Iteration " << iter << std::endl;
+
+			float minWeight = 9999.0f;
+			float maxWeight = -9999.0f;
+
+			for (int sx = 0; sx < sdrWidth; sx++)
+				for (int sy = 0; sy < sdrHeight; sy++) {
+					for (int x = 0; x < winWidth; x++)
+						for (int y = 0; y < winHeight; y++) {
+							float w = sc.getVHWeight(sx + sy * sdrWidth, x + y * winWidth);
+
+							minWeight = std::min(minWeight, w);
+							maxWeight = std::max(maxWeight, w);
+						}
+				}
+
+			sf::Image rfs;
+			rfs.create(sdrWidth * winWidth, sdrHeight * winHeight);
+
+			float scalar = 1.0f / (maxWeight - minWeight);
+
+			for (int sx = 0; sx < sdrWidth; sx++)
+				for (int sy = 0; sy < sdrHeight; sy++) {
+					for (int x = 0; x < winWidth; x++)
+						for (int y = 0; y < winHeight; y++) {
+							sf::Color color;
+
+							color.r = color.b = color.g = 255 * scalar * (sc.getVHWeight(sx + sy * sdrWidth, x + y * winWidth) - minWeight);
+							color.a = 255;
+
+							rfs.setPixel(sx * winWidth + x, sy * winHeight + y, color);
+						}
+				}
+
+			sf::Texture t;
+			t.loadFromImage(rfs);
+
+			sf::Sprite s;
+			s.setTexture(t);
+
+			s.setScale(2.0f, 2.0f);
+
+			window.clear();
+			window.draw(s);
+
+			for (int sx = 0; sx < sdrWidth; sx++)
+				for (int sy = 0; sy < sdrHeight; sy++) {
+					if (sc.getHiddenState(sx + sy * sdrWidth) > 0.0f) {
+						sf::RectangleShape rs;
+
+						rs.setPosition(sx * winWidth * 2.0f, sy * winHeight * 2.0f);
+						rs.setOutlineColor(sf::Color::Red);
+						rs.setFillColor(sf::Color::Transparent);
+						rs.setOutlineThickness(2.0f);
+
+						rs.setSize(sf::Vector2f(winWidth * 2.0f, winHeight * 2.0f));
+
+						window.draw(rs);
+					}
+				}
+
+			window.display();
+		}
+	}
+
+	float minWeight = 9999.0f;
+	float maxWeight = -9999.0f;
+
+	for (int sx = 0; sx < sdrWidth; sx++)
+		for (int sy = 0; sy < sdrHeight; sy++) {
+			for (int x = 0; x < winWidth; x++)
+				for (int y = 0; y < winHeight; y++) {
+					float w = sc.getVHWeight(sx + sy * sdrWidth, x + y * winWidth);
+					
+					minWeight = std::min(minWeight, w);
+					maxWeight = std::max(maxWeight, w);
+				}
+		}
+
+	sf::Image rfs;
+	rfs.create(sdrWidth * winWidth, sdrHeight * winHeight);
+
+	float scalar = 1.0f / (maxWeight - minWeight);
+
+	for (int sx = 0; sx < sdrWidth; sx++)
+		for (int sy = 0; sy < sdrHeight; sy++) {
+			for (int x = 0; x < winWidth; x++)
+				for (int y = 0; y < winHeight; y++) {
+					sf::Color color;
+
+					color.r = color.b = color.g = 255 * scalar * (sc.getVHWeight(sx + sy * sdrWidth, x + y * winWidth) - minWeight);
+					color.a = 255;
+
+					rfs.setPixel(sx * winWidth + x, sy * winHeight + y, color);
+				}
+		}
+
+	rfs.saveToFile("rfs.png");
 
 	return 0;
 }
