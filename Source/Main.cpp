@@ -4989,10 +4989,11 @@ int main() {
 
 	int winWidth = 16;
 	int winHeight = 16;
-	int sdrWidth = 18;
-	int sdrHeight = 18;
+	int sdrWidth = 22;
+	int sdrHeight = 22;
 
-	float sparsity = 12.0f / (sdrWidth * sdrHeight);
+	float sparsity = 3.0f / (sdrWidth * sdrHeight);
+	float lambda = 10.0f;
 
 	sc.createRandom(winWidth * winHeight, sdrWidth * sdrHeight, generator);
 
@@ -5024,15 +5025,11 @@ int main() {
 				sc.setVisibleInput(inputIndex++, img.getPixel(tx, ty).r / 255.0f);
 			}
 
-		for (int i = 0; i < 40; i++) {
-			sc.activate(sparsity, 20.0f, 0.05f);
-
-			sc.stepEnd();
-		}
+		sc.activate(sparsity, lambda, 0.05f);
 
 		sc.reconstruct();
 
-		sc.learn(0.02f, 0.01f, 0.02f, sparsity);
+		sc.learn(0.002f, 0.001f, 0.002f, sparsity);
 
 		if (iter % 10 == 0) {
 			std::cout << "Iteration " << iter << std::endl;
@@ -5097,6 +5094,65 @@ int main() {
 				}
 
 			window.display();
+
+			std::vector<float> recon(img.getSize().x * img.getSize().y, 0.0f);
+			std::vector<float> sums(img.getSize().x * img.getSize().y, 0.0f);
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+				for (int wx = 0; wx < img.getSize().x - winWidth; wx++)
+					for (int wy = 0; wy < img.getSize().y - winHeight; wy++) {
+						inputIndex = 0;
+
+						for (int x = 0; x < winWidth; x++)
+							for (int y = 0; y < winHeight; y++) {
+								int tx = wx + x;
+								int ty = wy + y;
+
+								sc.setVisibleInput(inputIndex++, img.getPixel(tx, ty).r / 255.0f);
+							}
+
+						sc.activate(sparsity, lambda, 0.05f);
+
+						sc.reconstruct();
+
+						inputIndex = 0;
+
+						for (int x = 0; x < winWidth; x++)
+							for (int y = 0; y < winHeight; y++) {
+								int tx = wx + x;
+								int ty = wy + y;
+
+								recon[tx + ty * img.getSize().x] += sc.getVisibleRecon(inputIndex++);
+								sums[tx + ty * img.getSize().x] += 1.0f;
+							}
+					}
+
+				sf::Image reconImg;
+				reconImg.create(img.getSize().x, img.getSize().y);
+
+				float minimum = 99999.0f;
+				float maximum = -99999.0f;
+
+				for (int x = 0; x < img.getSize().x; x++)
+					for (int y = 0; y < img.getSize().y; y++) {
+						recon[x + y * img.getSize().x] /= sums[x + y * img.getSize().x];
+
+						minimum = std::min(minimum, recon[x + y * img.getSize().x]);
+						maximum = std::max(maximum, recon[x + y * img.getSize().x]);
+					}
+
+				for (int x = 0; x < img.getSize().x; x++)
+					for (int y = 0; y < img.getSize().y; y++) {
+						sf::Color c;
+
+						c.r = c.g = c.b = 255.0f * (recon[x + y * img.getSize().x] - minimum) / (maximum - minimum);
+						c.a = 255;
+
+						reconImg.setPixel(x, y, c);
+					}
+
+				reconImg.saveToFile("reconstructionImage.png");
+			}
 		}
 	}
 

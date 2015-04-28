@@ -41,12 +41,10 @@ namespace deep {
 			Connection _bias;
 
 			float _state;
-			float _statePrev;
 			float _activation;
-			float _activationPrev;
 
 			HiddenNode()
-				: _state(0.0f), _statePrev(0.0f), _activation(0.0f), _activationPrev(0.0f)
+				: _state(0.0f), _activation(0.0f)
 			{}
 		};
 
@@ -72,10 +70,13 @@ namespace deep {
 		void activate(float sparsity, float lambda, float dt);
 		void reconstruct();
 		void learn(float alpha, float beta, float gamma, float sparsity);
-		void stepEnd();
 
 		void setVisibleInput(int index, float value) {
 			_visible[index]._input = value;
+		}
+
+		float getVisibleRecon(int index) const {
+			return _visible[index]._reconstruction;
 		}
 
 		float getHiddenState(int index) const {
